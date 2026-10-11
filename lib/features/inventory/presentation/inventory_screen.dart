@@ -6,7 +6,7 @@ import 'edit_product_dialog.dart';
 import '../../households/providers/household_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../scanner/presentation/quick_scan_bottom_sheet.dart';
-import '../../labels/services/label_printer_service.dart';
+import '../../labels/presentation/thermal_print_modal.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/stock_status_badge.dart';
 
@@ -194,8 +194,8 @@ class InventoryScreen extends ConsumerWidget {
                             );
                       },
                       onPrintLabel: () async {
-                        // Imprimir etiqueta térmica formateada
-                        await LabelPrinterService.printLabel(item);
+                        // Diálogo selector de formato térmico (Dymo / Niimbot)
+                        await ThermalPrintModal.show(context, item);
                       },
                       onEdit: isAdmin ? () => EditProductDialog.show(context, item) : null,
                     );

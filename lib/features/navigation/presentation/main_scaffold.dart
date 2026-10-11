@@ -11,6 +11,7 @@ import '../../analytics/presentation/financial_dashboard_screen.dart';
 import '../../scanner/presentation/quick_scan_bottom_sheet.dart';
 import '../../hardware/presentation/camera_scanner_dialog.dart';
 import '../../hardware/services/nfc_service.dart';
+import '../../hardware/services/deep_link_qr_service.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/household_selector_header.dart';
@@ -327,11 +328,35 @@ class MainScaffold extends ConsumerWidget {
     String code,
     String method,
   ) async {
-    final matched = allItems.where((i) =>
-        i.qrCode == code || i.barcode == code || i.id == code || code.contains(i.id)).toList();
+    final parsed = DeepLinkQrService.parse(code);
+    final clean = code.trim();
+    final cleanUpper = clean.toUpperCase();
+
+    final matched = allItems.where((i) {
+      if (i.id == clean || i.id == parsed.extractedValue) return true;
+      if (i.qrCode == clean || i.previousQrCodes.contains(clean)) return true;
+      if (i.barcode == clean || i.barcode == parsed.extractedValue) return true;
+      if (i.effectiveShortId.toUpperCase() == cleanUpper ||
+          (i.shortId.isNotEmpty && i.shortId.toUpperCase() == cleanUpper) ||
+          (parsed.isShortId && i.effectiveShortId.toUpperCase() == parsed.extractedValue)) {
+        return true;
+      }
+      if (clean.contains(i.id)) return true;
+      return false;
+    }).toList();
 
     if (matched.isNotEmpty) {
-      QuickScanBottomSheet.show(context, item: matched.first, scanMethod: method);
+      final item = matched.first;
+      if (item.previousQrCodes.contains(clean)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⚠️ Etiqueta anterior detectada (Reemplazada). Redirigiendo al producto actual...'),
+            backgroundColor: Color(0xFFF59E0B),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      QuickScanBottomSheet.show(context, item: item, scanMethod: method);
       return;
     }
 
