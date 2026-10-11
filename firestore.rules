@@ -146,11 +146,33 @@ service cloud.firestore {
             request.resource.data.action in [
               'SCAN_CONSUME', 'SCAN_RESTOCK', 'MANUAL_ADJUST',
               'CREATE_ITEM', 'DELETE_ITEM', 'MOVE_ZONE', 'SHOPPING_RESTOCK',
-              'REPLACE_TAG', 'AUTO_SEED', 'BATCH_SCAN'
+              'REPLACE_TAG', 'AUTO_SEED', 'BATCH_SCAN',
+              'PERDIDA', 'MERMA', 'ROTURA', 'CONSUMO_NO_REGISTRADO',
+              'CORRECCION_CONTEO', 'TRANSFERENCIA', 'CYCLE_COUNT_SESSION'
             ];
 
           // CRÍTICO: PROHIBIDO EDITAR O BORRAR LOGS HISTÓRICOS
           allow update, delete: if false;
+        }
+
+        // =====================================================================
+        // 📋 AJUSTES FORMALES Y MERMAS: /inventory_adjustments/{adjustmentId}
+        // =====================================================================
+        match /inventory_adjustments/{adjustmentId} {
+          allow read: if isWorkspaceAdmin(workspaceId);
+          allow create: if isWorkspaceAdmin(workspaceId) &&
+            request.resource.data.workspaceId == workspaceId &&
+            request.resource.data.householdId == householdId;
+          allow update, delete: if false; // Append-only
+        }
+
+        // =====================================================================
+        // 🔍 CONTEOS CÍCLICOS Y RECONCILIACIÓN: /cycle_counts/{sessionId}
+        // =====================================================================
+        match /cycle_counts/{sessionId} {
+          allow read: if isWorkspaceMember(workspaceId);
+          allow create, update: if isWorkspaceAdmin(workspaceId);
+          allow delete: if false;
         }
 
         // =====================================================================

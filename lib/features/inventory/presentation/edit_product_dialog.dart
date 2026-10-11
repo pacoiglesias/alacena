@@ -3,15 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
 import '../models/inventory_item_model.dart';
+import '../models/inventory_adjustment_model.dart';
 import '../providers/inventory_provider.dart';
 import '../../audit_trail/models/audit_log_model.dart';
 import '../../audit_trail/providers/audit_trail_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/app_colors.dart';
 
-/// Modal de Edición y Corrección Manual (Exclusivo para Administrador)
-/// Permite modificar nombre, stock físico, precio en MXN y lugar de compra,
-/// registrando obligatoriamente un evento inmutable en el Audit Trail con acción MANUAL_ADJUST.
+/// Modal de Edición, Ajuste y Reconciliación Manual (Exclusivo para Administrador)
+/// Permite modificar nombre, stock físico, precio en MXN y tipificar motivos de ajuste
+/// (Merma, Pérdida, Rotura, Corrección de Conteo, etc.) registrando trazabilidad inmutable.
 class EditProductDialog extends ConsumerStatefulWidget {
   final InventoryItem item;
 
@@ -34,6 +35,8 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
   late TextEditingController _stockController;
   late TextEditingController _priceController;
   late TextEditingController _placeController;
+  late TextEditingController _reasonNoteController;
+  AdjustmentType _selectedAdjustmentType = AdjustmentType.correccionConteo;
   bool _isSaving = false;
 
   @override
@@ -43,6 +46,7 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
     _stockController = TextEditingController(text: widget.item.currentQuantity.toString());
     _priceController = TextEditingController(text: widget.item.unitPrice.toStringAsFixed(2));
     _placeController = TextEditingController(text: widget.item.lastPurchasePlace ?? 'Costco / City Market');
+    _reasonNoteController = TextEditingController();
   }
 
   @override
@@ -51,6 +55,7 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
     _stockController.dispose();
     _priceController.dispose();
     _placeController.dispose();
+    _reasonNoteController.dispose();
     super.dispose();
   }
 
@@ -59,6 +64,7 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
     final newQty = int.tryParse(_stockController.text.trim()) ?? widget.item.currentQuantity;
     final newPrice = double.tryParse(_priceController.text.trim()) ?? widget.item.unitPrice;
     final newPlace = _placeController.text.trim();
+    final note = _reasonNoteController.text.trim();
 
     if (newName.isEmpty || newQty < 0 || newPrice < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -84,8 +90,10 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
 
     ref.read(inventoryListProvider.notifier).updateItem(updatedItem);
 
-    // 2. Sellar el Audit Trail con Corrección Manual Inalterable
+    // 2. Sellar el Audit Trail con Tipificación de Ajuste Inalterable
     final delta = newQty - widget.item.currentQuantity;
+    final actionCode = delta != 0 ? _selectedAdjustmentType.code : 'MANUAL_ADJUST';
+
     final log = AuditLog(
       id: const Uuid().v4(),
       householdId: widget.item.householdId,
@@ -94,7 +102,7 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
       userId: user?.uid ?? 'admin',
       userEmail: user?.email ?? 'admin@alacena.cobertores.com',
       userRole: 'admin',
-      action: 'MANUAL_ADJUST',
+      action: actionCode,
       previousQuantity: widget.item.currentQuantity,
       newQuantity: newQty,
       quantityDelta: delta,
@@ -111,7 +119,11 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✅ Corrección manual guardada: $newName (\$${newPrice.toStringAsFixed(2)} MXN)'),
+          content: Text(
+            delta != 0
+                ? '✅ Ajuste guardado (${_selectedAdjustmentType.label}): $delta ${widget.item.unit} ($note)'
+                : '✅ Ficha actualizada: $newName',
+          ),
           backgroundColor: AppColors.optimal,
           duration: const Duration(seconds: 2),
         ),
@@ -122,14 +134,16 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currentQtyInInput = int.tryParse(_stockController.text.trim()) ?? widget.item.currentQuantity;
+    final hasStockChanged = currentQtyInInput != widget.item.currentQuantity;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       insetPadding: const EdgeInsets.all(20),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
-        child: Padding(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -150,7 +164,7 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'Edición de Ficha (Admin)',
+                        'Ajuste y Ficha (Admin)',
                         style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                     ],
@@ -178,8 +192,9 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
                     child: TextField(
                       controller: _stockController,
                       keyboardType: TextInputType.number,
+                      onChanged: (_) => setState(() {}),
                       decoration: InputDecoration(
-                        labelText: 'Stock Actual (${widget.item.unit})',
+                        labelText: 'Stock Físico (${widget.item.unit})',
                         prefixIcon: const Icon(Icons.pin, size: 20),
                       ),
                     ),
@@ -198,6 +213,64 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
                 ],
               ),
               const SizedBox(height: 12),
+
+              // Si hubo cambio de stock, exigir o permitir clasificar motivo de ajuste
+              if (hasStockChanged) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.low.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.low.withValues(alpha: 0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.rule, color: AppColors.low, size: 16),
+                          SizedBox(width: 6),
+                          Text(
+                            'Motivo del Ajuste de Inventario (Obligatorio)',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.low),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<AdjustmentType>(
+                        initialValue: _selectedAdjustmentType,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: isDark ? AppColors.darkBg : Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        items: AdjustmentType.values.map((type) {
+                          return DropdownMenuItem(
+                            value: type,
+                            child: Text(type.label, style: const TextStyle(fontSize: 13)),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _selectedAdjustmentType = val);
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _reasonNoteController,
+                        decoration: InputDecoration(
+                          hintText: 'Justificación / Nota (ej. se rompió frasco, fecha vencida...)',
+                          filled: true,
+                          fillColor: isDark ? AppColors.darkBg : Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
 
               TextField(
                 controller: _placeController,
@@ -226,7 +299,7 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
                     icon: _isSaving
                         ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.check, size: 18),
-                    label: Text(_isSaving ? 'Guardando...' : 'Aplicar Corrección'),
+                    label: Text(_isSaving ? 'Guardando...' : 'Aplicar Ajuste'),
                     onPressed: _isSaving ? null : _saveChanges,
                   ),
                 ],
