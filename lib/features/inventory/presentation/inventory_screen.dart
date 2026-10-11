@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/inventory_item_model.dart';
 import '../providers/inventory_provider.dart';
 import 'edit_product_dialog.dart';
+import 'inventory_table_desktop.dart';
 import '../../households/providers/household_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../scanner/presentation/quick_scan_bottom_sheet.dart';
@@ -161,7 +162,25 @@ class InventoryScreen extends ConsumerWidget {
                     ],
                   ),
                 )
-              : ListView.separated(
+              : (MediaQuery.of(context).size.width >= 1024
+                  ? InventoryTableDesktop(
+                      items: items,
+                      isAdmin: isAdmin,
+                      onItemTap: (item) =>
+                          QuickScanBottomSheet.show(context, item: item, scanMethod: 'MANUAL'),
+                      onAdjustTap: (item) => EditProductDialog.show(context, item),
+                      onPrintLabelTap: (item) => ThermalPrintModal.show(context, item),
+                      onQuickQuantityChange: (item, delta) {
+                        if (delta > 0 || item.currentQuantity > 0) {
+                          ref.read(inventoryListProvider.notifier).adjustStock(
+                                item.id,
+                                delta,
+                                scanMethod: 'QUICK_1_TAP',
+                              );
+                        }
+                      },
+                    )
+                  : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 6, 16, 96),
                   itemCount: items.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 10),
@@ -200,7 +219,7 @@ class InventoryScreen extends ConsumerWidget {
                       onEdit: isAdmin ? () => EditProductDialog.show(context, item) : null,
                     );
                   },
-                ),
+                )),
         ),
       ],
     );

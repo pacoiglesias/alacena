@@ -7,7 +7,8 @@ import '../models/inventory_adjustment_model.dart';
 import '../providers/inventory_provider.dart';
 import '../../audit_trail/models/audit_log_model.dart';
 import '../../audit_trail/providers/audit_trail_provider.dart';
-import '../../auth/providers/auth_provider.dart';
+import '../../auth/models/user_member_model.dart';
+import '../../auth/providers/members_provider.dart';
 import '../../../core/constants/app_colors.dart';
 
 /// Modal de Edición, Ajuste y Reconciliación Manual (Exclusivo para Administrador)
@@ -37,6 +38,7 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
   late TextEditingController _placeController;
   late TextEditingController _reasonNoteController;
   AdjustmentType _selectedAdjustmentType = AdjustmentType.correccionConteo;
+  String _selectedResponsibleName = 'Paco Iglesias (Admin)';
   bool _isSaving = false;
 
   @override
@@ -77,7 +79,11 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
     }
 
     setState(() => _isSaving = true);
-    final user = ref.read(authProvider);
+    final members = ref.read(membersProvider);
+    final selectedMember = members.firstWhere(
+      (m) => m.displayName == _selectedResponsibleName,
+      orElse: () => members.first,
+    );
 
     // 1. Actualizar el producto en el inventario
     final updatedItem = widget.item.copyWith(
@@ -99,9 +105,9 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
       householdId: widget.item.householdId,
       itemId: widget.item.id,
       itemName: newName,
-      userId: user?.uid ?? 'admin',
-      userEmail: user?.email ?? 'admin@alacena.cobertores.com',
-      userRole: 'admin',
+      userId: selectedMember.email,
+      userEmail: '${selectedMember.displayName} (${selectedMember.role.label})',
+      userRole: selectedMember.role.name,
       action: actionCode,
       previousQuantity: widget.item.currentQuantity,
       newQuantity: newQty,
@@ -109,7 +115,7 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
       unitPriceAtMoment: newPrice,
       economicValueDelta: delta * newPrice,
       currency: 'MXN',
-      scanMethod: 'MANUAL_ADMIN_FORM',
+      scanMethod: note.isNotEmpty ? 'MANUAL ($note)' : 'MANUAL_ADMIN_FORM',
       timestamp: DateTime.now(),
     );
 
@@ -256,10 +262,36 @@ class _EditProductDialogState extends ConsumerState<EditProductDialog> {
                         },
                       ),
                       const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        initialValue: _selectedResponsibleName,
+                        decoration: InputDecoration(
+                          labelText: 'Persona que Usó / Registró el Movimiento',
+                          filled: true,
+                          fillColor: isDark ? AppColors.darkBg : Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        items: ref.watch(membersProvider).map((member) {
+                          return DropdownMenuItem(
+                            value: member.displayName,
+                            child: Row(
+                              children: [
+                                Icon(member.role.icon, size: 14, color: member.role.badgeColor),
+                                const SizedBox(width: 6),
+                                Text('${member.displayName} (${member.role.label})', style: const TextStyle(fontSize: 12.5)),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _selectedResponsibleName = val);
+                        },
+                      ),
+                      const SizedBox(height: 8),
                       TextField(
                         controller: _reasonNoteController,
                         decoration: InputDecoration(
-                          hintText: 'Justificación / Nota (ej. se rompió frasco, fecha vencida...)',
+                          hintText: 'Justificación / Nota (ej. se rompió frasco, usó para guisado...)',
                           filled: true,
                           fillColor: isDark ? AppColors.darkBg : Colors.white,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

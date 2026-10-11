@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/households/providers/household_provider.dart';
+import '../../features/navigation/presentation/main_scaffold.dart';
 import '../constants/app_colors.dart';
 
 class HouseholdSelectorHeader extends ConsumerWidget {
@@ -40,37 +41,44 @@ class HouseholdSelectorHeader extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'RESIDENCIA ACTIVA',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.1,
-                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          selectedHousehold.name,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.keyboard_arrow_down,
-                          size: 20,
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'RESIDENCIA ACTIVA',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
                           color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              selectedHousehold.name,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.keyboard_arrow_down,
+                            size: 20,
+                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -168,6 +176,20 @@ class HouseholdSelectorHeader extends ConsumerWidget {
                     },
                   );
                 }),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.settings_suggest_outlined, color: AppColors.primaryLight),
+                  title: const Text(
+                    'Administrar Casas, Zonas y Usuarios',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  subtitle: const Text('Crear residencias, añadir zonas o gestionar permisos', style: TextStyle(fontSize: 11)),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                  onTap: () {
+                    Navigator.pop(context);
+                    ref.read(currentTabProvider.notifier).setTab(6);
+                  },
+                ),
               ],
             ),
           ),

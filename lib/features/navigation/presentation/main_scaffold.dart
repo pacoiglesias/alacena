@@ -18,6 +18,10 @@ import '../../../core/widgets/household_selector_header.dart';
 import '../../../core/services/ean_lookup_service.dart';
 import '../../inventory/models/inventory_item_model.dart';
 import '../../households/providers/household_provider.dart';
+import '../../recipes/presentation/recipes_screen.dart';
+import '../../audit_trail/presentation/audit_trail_screen.dart';
+import '../../households/presentation/settings_screen.dart';
+import '../../../core/layout/responsive_scaffold.dart';
 
 class CurrentTabNotifier extends Notifier<int> {
   @override
@@ -41,22 +45,104 @@ class MainScaffold extends ConsumerWidget {
     final allItems = ref.watch(inventoryListProvider);
 
     // Pantallas base según rol RBAC:
-    // Admin: 1) Dashboard/Gráficas, 2) Inventario, 3) Lista de Compras, 4) Cava & Zero-Waste
-    // Servicio: 1) Inventario, 2) Lista de Compras, 3) Cava
+    // Admin: 1) Dashboard/Gráficas, 2) Inventario, 3) Recetas & Cocina, 4) Compras, 5) Cava, 6) Bitácora, 7) Ajustes
+    // Servicio: 1) Inventario, 2) Recetas, 3) Compras, 4) Cava, 5) Bitácora, 6) Ajustes
     final screens = isAdmin
-        ? [
-            const FinancialDashboardScreen(),
-            const InventoryScreen(),
-            const ShoppingListScreen(),
-            const SommelierCellarView(),
+        ? const [
+            FinancialDashboardScreen(),
+            InventoryScreen(),
+            RecipesScreen(),
+            ShoppingListScreen(),
+            SommelierCellarView(),
+            AuditTrailScreen(),
+            SettingsScreen(),
           ]
-        : [
-            const InventoryScreen(),
-            const ShoppingListScreen(),
-            const SommelierCellarView(),
+        : const [
+            InventoryScreen(),
+            RecipesScreen(),
+            ShoppingListScreen(),
+            SommelierCellarView(),
+            AuditTrailScreen(),
+            SettingsScreen(),
           ];
 
-    return Scaffold(
+    final destinations = isAdmin
+        ? const [
+            ResponsiveNavigationItem(
+              icon: Icons.insights_outlined,
+              selectedIcon: Icons.insights,
+              label: 'Dashboard',
+            ),
+            ResponsiveNavigationItem(
+              icon: Icons.inventory_2_outlined,
+              selectedIcon: Icons.inventory_2,
+              label: 'Inventario',
+            ),
+            ResponsiveNavigationItem(
+              icon: Icons.restaurant_menu_outlined,
+              selectedIcon: Icons.restaurant_menu,
+              label: 'Recetas',
+            ),
+            ResponsiveNavigationItem(
+              icon: Icons.shopping_cart_outlined,
+              selectedIcon: Icons.shopping_cart,
+              label: 'Compras',
+            ),
+            ResponsiveNavigationItem(
+              icon: Icons.wine_bar_outlined,
+              selectedIcon: Icons.wine_bar,
+              label: 'Cava',
+            ),
+            ResponsiveNavigationItem(
+              icon: Icons.history_edu_outlined,
+              selectedIcon: Icons.history_edu,
+              label: 'Bitácora',
+            ),
+            ResponsiveNavigationItem(
+              icon: Icons.settings_outlined,
+              selectedIcon: Icons.settings,
+              label: 'Ajustes',
+            ),
+          ]
+        : const [
+            ResponsiveNavigationItem(
+              icon: Icons.inventory_2_outlined,
+              selectedIcon: Icons.inventory_2,
+              label: 'Inventario',
+            ),
+            ResponsiveNavigationItem(
+              icon: Icons.restaurant_menu_outlined,
+              selectedIcon: Icons.restaurant_menu,
+              label: 'Recetas',
+            ),
+            ResponsiveNavigationItem(
+              icon: Icons.shopping_cart_outlined,
+              selectedIcon: Icons.shopping_cart,
+              label: 'Compras',
+            ),
+            ResponsiveNavigationItem(
+              icon: Icons.wine_bar_outlined,
+              selectedIcon: Icons.wine_bar,
+              label: 'Cava',
+            ),
+            ResponsiveNavigationItem(
+              icon: Icons.history_edu_outlined,
+              selectedIcon: Icons.history_edu,
+              label: 'Bitácora',
+            ),
+            ResponsiveNavigationItem(
+              icon: Icons.settings_outlined,
+              selectedIcon: Icons.settings,
+              label: 'Ajustes',
+            ),
+          ];
+
+    return ResponsiveScaffold(
+      selectedIndex: currentTab.clamp(0, screens.length - 1),
+      onDestinationSelected: (index) {
+        ref.read(currentTabProvider.notifier).setTab(index);
+      },
+      destinations: destinations,
       appBar: AppBar(
         titleSpacing: 0,
         title: const HouseholdSelectorHeader(),
@@ -135,6 +221,16 @@ class MainScaffold extends ConsumerWidget {
             ),
           ),
 
+          // BOTON DIRECTO A CONFIGURACION DE CASAS Y USUARIOS
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, size: 20),
+            tooltip: 'Configurar Casas, Zonas y Usuarios',
+            onPressed: () {
+              final settingsIndex = screens.length - 1;
+              ref.read(currentTabProvider.notifier).setTab(settingsIndex);
+            },
+          ),
+
           // BOTON DE CIERRE DE SESION (RUTA SEGURA)
           IconButton(
             icon: const Icon(Icons.logout, size: 20),
@@ -146,8 +242,6 @@ class MainScaffold extends ConsumerWidget {
         ],
       ),
       body: screens[currentTab.clamp(0, screens.length - 1)],
-
-      // FAB GIGANTE CENTRAL: ESCANER INMEDIATO DE 2 TAPS (ESTILO APPLE/STRIPE)
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: Container(
         width: 66,
@@ -176,54 +270,6 @@ class MainScaffold extends ConsumerWidget {
             _showScanOptionsModal(context, ref, allItems);
           },
         ),
-      ),
-
-      // BOTTOM NAVIGATION BAR (TABS ELEGANTES EN 2 TAPS)
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: currentTab.clamp(0, screens.length - 1),
-        onDestinationSelected: (index) {
-          ref.read(currentTabProvider.notifier).setTab(index);
-        },
-        destinations: isAdmin
-            ? [
-                const NavigationDestination(
-                  icon: Icon(Icons.insights_outlined),
-                  selectedIcon: Icon(Icons.insights, color: AppColors.primaryLight),
-                  label: 'Dashboard',
-                ),
-                const NavigationDestination(
-                  icon: Icon(Icons.inventory_2_outlined),
-                  selectedIcon: Icon(Icons.inventory_2, color: AppColors.primaryLight),
-                  label: 'Inventario',
-                ),
-                const NavigationDestination(
-                  icon: Icon(Icons.shopping_cart_outlined),
-                  selectedIcon: Icon(Icons.shopping_cart, color: AppColors.primaryLight),
-                  label: 'Compras',
-                ),
-                const NavigationDestination(
-                  icon: Icon(Icons.wine_bar_outlined),
-                  selectedIcon: Icon(Icons.wine_bar, color: AppColors.wineAccent),
-                  label: 'Cava',
-                ),
-              ]
-            : [
-                const NavigationDestination(
-                  icon: Icon(Icons.inventory_2_outlined),
-                  selectedIcon: Icon(Icons.inventory_2, color: AppColors.primaryLight),
-                  label: 'Inventario',
-                ),
-                const NavigationDestination(
-                  icon: Icon(Icons.shopping_cart_outlined),
-                  selectedIcon: Icon(Icons.shopping_cart, color: AppColors.primaryLight),
-                  label: 'Compras',
-                ),
-                const NavigationDestination(
-                  icon: Icon(Icons.wine_bar_outlined),
-                  selectedIcon: Icon(Icons.wine_bar, color: AppColors.wineAccent),
-                  label: 'Cava',
-                ),
-              ],
       ),
     );
   }
