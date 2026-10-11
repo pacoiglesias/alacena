@@ -27,7 +27,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 3. Verificar que se despliega el MainScaffold protegido
-    expect(find.text('RESIDENCIA ACTIVA'), findsOneWidget);
+    expect(find.text('CASA ACTIVA'), findsOneWidget);
     expect(find.text('Dashboard'), findsOneWidget);
     expect(find.text('Inventario'), findsOneWidget);
   });

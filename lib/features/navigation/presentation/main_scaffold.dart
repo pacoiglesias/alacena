@@ -144,7 +144,7 @@ class MainScaffold extends ConsumerWidget {
       },
       destinations: destinations,
       appBar: AppBar(
-        titleSpacing: 0,
+        titleSpacing: 16,
         title: const HouseholdSelectorHeader(),
         actions: [
           // BOTON MAGICO "CARGAR DATOS DEMO" (ADMIN)

@@ -1,9 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:alacena/features/recipes/models/recipe_model.dart';
 import 'package:alacena/features/recipes/providers/recipe_provider.dart';
 import 'package:alacena/features/inventory/providers/inventory_provider.dart';
-import 'package:alacena/features/inventory/models/inventory_item_model.dart';
 import 'package:alacena/features/audit_trail/providers/audit_trail_provider.dart';
 import 'package:alacena/features/shopping_list/providers/shopping_list_provider.dart';
 import 'package:alacena/features/households/providers/household_provider.dart';
@@ -65,6 +63,7 @@ void main() {
             recipe: pastelReceta,
             householdId: 'casa-principal',
           );
+      expect(countMissingSent, greaterThanOrEqualTo(0));
 
       final shoppingItems = containerRef.read(shoppingListProvider);
       expect(shoppingItems, isNotEmpty);
