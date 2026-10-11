@@ -3,45 +3,45 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // =========================================================================
-    // 🏛️ FUNCIONES AUXILIARES: MULTI-TENANT SaaS & RBAC
+    // 🏛️ FUNCIONES AUXILIARES: MULTI-TENANT SaaS & CONTROL RBAC
     // =========================================================================
 
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Obtener membresía del usuario dentro del tenant
-    function getTenantMember(tenantId) {
-      return get(/databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data;
+    // Obtener datos del miembro dentro del workspace/tenant
+    function getWorkspaceMember(workspaceId) {
+      return get(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid)).data;
     }
 
-    // Verificar si el usuario pertenece al tenant (Workspace/Familia)
-    function isTenantMember(tenantId) {
+    // Verificar si el usuario pertenece al Workspace
+    function isWorkspaceMember(workspaceId) {
       return isAuthenticated() && (
-        request.auth.token.tenantId == tenantId ||
-        exists(/databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid))
+        request.auth.token.workspaceId == workspaceId ||
+        request.auth.token.tenantId == workspaceId ||
+        exists(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid))
       );
     }
 
-    // Rol Admin / Owner dentro del Tenant (acceso a precios, auditoria, catalogo)
-    function isTenantAdmin(tenantId) {
-      return isTenantMember(tenantId) && (
-        request.auth.token.role == 'admin' ||
-        request.auth.token.role == 'owner' ||
-        getTenantMember(tenantId).role in ['admin', 'owner']
+    // Rol Admin / Owner del Workspace (Control total: precios, auditoría, configuración)
+    function isWorkspaceAdmin(workspaceId) {
+      return isWorkspaceMember(workspaceId) && (
+        request.auth.token.role in ['admin', 'owner', 'superadmin'] ||
+        getWorkspaceMember(workspaceId).role in ['admin', 'owner']
       );
     }
 
-    // Rol Servicio dentro del Tenant (consumo rapido y compras; sin precios ni logs)
-    function isTenantService(tenantId) {
-      return isTenantMember(tenantId) && (
+    // Rol Servicio del Workspace (Operación rápida: consumir, reabastecer; CERO acceso financiero)
+    function isWorkspaceService(workspaceId) {
+      return isWorkspaceMember(workspaceId) && (
         request.auth.token.role == 'service' ||
-        getTenantMember(tenantId).role == 'service'
+        getWorkspaceMember(workspaceId).role == 'service'
       );
     }
 
     // =========================================================================
-    // 👤 COLECCIÓN GLOBAL: /users/{userId}
+    // 👤 PERFILES DE USUARIO: /users/{userId}
     // =========================================================================
     match /users/{userId} {
       allow read: if isAuthenticated() && (request.auth.uid == userId || request.auth.token.role == 'superadmin');
@@ -50,63 +50,61 @@ service cloud.firestore {
     }
 
     // =========================================================================
-    // 🌐 CATÁLOGO GLOBAL DE PRODUCTOS EAN-13 / UPC (Caché OpenFoodFacts)
+    // 🌐 CATÁLOGO MAESTRO COMPARTIDO: /global_ean_cache/{barcode}
     // =========================================================================
-    match /global_products_catalog/{barcode} {
-      // Lectura pública/compartida para autocompletar productos de supermercado
+    match /global_ean_cache/{barcode} {
       allow read: if isAuthenticated();
-      // Cualquier usuario autenticado puede aportar un nuevo producto escaneado si es valido
+      // Alta de producto nuevo detectado en supermercado
       allow create: if isAuthenticated() &&
         request.resource.data.barcode == barcode &&
-        request.resource.data.name is string &&
         request.resource.data.createdAt == request.time;
-      // Solo Cloud Functions o Admins pueden editar el catalogo global
       allow update, delete: if isAuthenticated() && request.auth.token.role == 'superadmin';
     }
 
     // =========================================================================
-    // 🏢 ARQUITECTURA MULTI-TENANT: /tenants/{tenantId}
+    // 🏢 ARQUITECTURA MULTI-TENANT: /workspaces/{workspaceId}
     // =========================================================================
-    match /tenants/{tenantId} {
-      allow read: if isTenantMember(tenantId);
-      allow create: if isAuthenticated(); // Alta de nueva cuenta SaaS
-      allow update, delete: if isTenantAdmin(tenantId);
+    match /workspaces/{workspaceId} {
+      allow read: if isWorkspaceMember(workspaceId);
+      allow create: if isAuthenticated(); // Alta de nueva cuenta/familia SaaS
+      allow update, delete: if isWorkspaceAdmin(workspaceId);
 
-      // --- Miembros y Permisos del Tenant ---
+      // --- Miembros y Asignación de Roles del Workspace ---
       match /members/{memberId} {
-        allow read: if isTenantMember(tenantId);
-        allow write: if isTenantAdmin(tenantId);
+        allow read: if isWorkspaceMember(workspaceId);
+        allow write: if isWorkspaceAdmin(workspaceId);
       }
 
-      // --- Hogares / Residencias dentro del Tenant ---
+      // --- Residencias / Hogares del Workspace ---
       match /households/{householdId} {
-        allow read: if isTenantMember(tenantId);
-        allow create, update, delete: if isTenantAdmin(tenantId);
+        allow read: if isWorkspaceMember(workspaceId);
+        allow create, update, delete: if isWorkspaceAdmin(workspaceId);
 
-        // Zonas del hogar (Alacena, Cava, Refrigerador, Bar)
+        // Zonas físicas (Alacena, Cava, Refrigerador, Barra)
         match /zones/{zoneId} {
-          allow read: if isTenantMember(tenantId);
-          allow write: if isTenantAdmin(tenantId);
+          allow read: if isWorkspaceMember(workspaceId);
+          allow write: if isWorkspaceAdmin(workspaceId);
         }
 
         // =====================================================================
-        // 📦 SUBCOLECCIÓN: /items/{itemId} (Inventario, Precios & EAN)
+        // 📦 INVENTARIO BASE: /items/{itemId}
+        // Accesible para Admin y Servicio para la operación diaria
         // =====================================================================
         match /items/{itemId} {
-          allow read: if isTenantMember(tenantId);
+          allow read: if isWorkspaceMember(workspaceId);
 
           // Creación de artículos: Exclusivo de Admin
-          allow create: if isTenantAdmin(tenantId) &&
-            request.resource.data.tenantId == tenantId &&
+          allow create: if isWorkspaceAdmin(workspaceId) &&
+            request.resource.data.workspaceId == workspaceId &&
             request.resource.data.householdId == householdId;
 
-          // Actualización:
-          // - Admin: Acceso total (modificar precios, historial, lugares de compra)
-          // - Servicio: SOLO PUEDE modificar stock, estado y última fecha de escaneo.
-          //   BLOQUEO MATEMÁTICO: No puede alterar precio, historial ni metadatos financieros.
-          allow update: if isTenantMember(tenantId) && (
-            isTenantAdmin(tenantId) || (
-              isTenantService(tenantId) &&
+          // Actualización de stock:
+          // - Admin: Permiso total
+          // - Servicio: SOLO puede actualizar cantidades y marcas de escaneo.
+          //   No puede alterar IDs, códigos QR base ni zonas.
+          allow update: if isWorkspaceMember(workspaceId) && (
+            isWorkspaceAdmin(workspaceId) || (
+              isWorkspaceService(workspaceId) &&
               request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                 'currentQuantity',
                 'stockStatus',
@@ -115,31 +113,40 @@ service cloud.firestore {
                 'updatedAt'
               ]) &&
               request.resource.data.currentQuantity is number &&
-              request.resource.data.currentQuantity >= 0 &&
-              request.resource.data.stockStatus in ['OPTIMAL', 'LOW', 'OUT_OF_STOCK']
+              request.resource.data.currentQuantity >= 0
             )
           );
 
-          // ELIMINACIÓN: MATEMÁTICAMENTE IMPOSIBLE PARA ROL SERVICIO
-          allow delete: if isTenantAdmin(tenantId);
+          // Borrado: Estrictamente prohibido para el rol Servicio
+          allow delete: if isWorkspaceAdmin(workspaceId);
+
+          // ===================================================================
+          // 🔒 SUBCOLECCIÓN FINANCIERA: /private_financial/pricing
+          // AISLAMIENTO MATEMÁTICO: Servicio NUNCA recibe precios ni valuaciones
+          // ===================================================================
+          match /private_financial/{docId} {
+            allow read, write: if isWorkspaceAdmin(workspaceId);
+          }
         }
 
         // =====================================================================
-        // 🔒 SUBCOLECCIÓN: /audit_trail/{auditId} (Trazabilidad Financiera)
+        // 🏛️ AUDIT TRAIL INALTERABLE: /audit_trail/{auditId}
+        // Trazabilidad estricta (Quién, Qué, Cuándo, Dónde)
         // =====================================================================
         match /audit_trail/{auditId} {
           // Lectura: Exclusiva de Administradores (Oculto para personal de servicio)
-          allow read: if isTenantAdmin(tenantId);
+          allow read: if isWorkspaceAdmin(workspaceId);
 
-          // Escritura (Append-Only): Sello criptográfico con UID, servidor y valor económico
-          allow create: if isTenantMember(tenantId) &&
-            request.resource.data.tenantId == tenantId &&
+          // Escritura (Append-Only): Solo añadir con timestamp del servidor
+          allow create: if isWorkspaceMember(workspaceId) &&
+            request.resource.data.workspaceId == workspaceId &&
             request.resource.data.householdId == householdId &&
             request.resource.data.userId == request.auth.uid &&
             request.resource.data.timestamp == request.time &&
             request.resource.data.action in [
               'SCAN_CONSUME', 'SCAN_RESTOCK', 'MANUAL_ADJUST',
-              'CREATE_ITEM', 'DELETE_ITEM', 'MOVE_ZONE', 'SHOPPING_RESTOCK', 'AUTO_SEED'
+              'CREATE_ITEM', 'DELETE_ITEM', 'MOVE_ZONE', 'SHOPPING_RESTOCK',
+              'REPLACE_TAG', 'AUTO_SEED', 'BATCH_SCAN'
             ];
 
           // CRÍTICO: PROHIBIDO EDITAR O BORRAR LOGS HISTÓRICOS
@@ -147,26 +154,54 @@ service cloud.firestore {
         }
 
         // =====================================================================
-        // 🛒 SUBCOLECCIÓN: /shopping_list/{listItemId} (Agente de Compras & Web)
+        // 🛒 LIVE SHOPPING: /shopping_list/{listItemId}
+        // Sincronización en tiempo real y bloqueo colaborativo en tienda
         // =====================================================================
         match /shopping_list/{listItemId} {
-          allow read: if isTenantMember(tenantId);
-          allow create: if isTenantMember(tenantId) &&
-            request.resource.data.tenantId == tenantId;
-          allow update: if isTenantMember(tenantId);
-          allow delete: if isTenantAdmin(tenantId) || (
-            isTenantMember(tenantId) && resource.data.isPurchased == true
+          allow read: if isWorkspaceMember(workspaceId);
+          allow create: if isWorkspaceMember(workspaceId) &&
+            request.resource.data.workspaceId == workspaceId;
+          
+          // Actualización colaborativa (marcar comprado, bloquear en carrito)
+          allow update: if isWorkspaceMember(workspaceId) && (
+            isWorkspaceAdmin(workspaceId) ||
+            request.resource.data.diff(resource.data).affectedKeys().hasAny([
+              'isPurchased', 'isLocked', 'lockedBy', 'lockedAt', 'updatedAt'
+            ])
+          );
+
+          // Eliminación: Admin o cuando ya fue marcado como comprado
+          allow delete: if isWorkspaceAdmin(workspaceId) || (
+            isWorkspaceMember(workspaceId) && resource.data.isPurchased == true
           );
         }
 
         // =====================================================================
-        // 🍳 SUBCOLECCIÓN: /zero_waste_recipes/{recipeId} (Chef IA Zero-Waste)
+        // 🍷 SOMMELIER CAVA: /cellar_profiles/{wineId}
+        // Perfiles de cata, maridaje, añadas y drinking windows
+        // =====================================================================
+        match /cellar_profiles/{wineId} {
+          allow read: if isWorkspaceMember(workspaceId);
+          allow write: if isWorkspaceAdmin(workspaceId);
+        }
+
+        // =====================================================================
+        // 🍳 RECETAS ZERO-WASTE: /zero_waste_recipes/{recipeId}
         // =====================================================================
         match /zero_waste_recipes/{recipeId} {
-          allow read: if isTenantMember(tenantId);
-          allow write: if isTenantAdmin(tenantId);
+          allow read: if isWorkspaceMember(workspaceId);
+          allow write: if isWorkspaceAdmin(workspaceId);
         }
       }
+    }
+
+    // Soporte retrocompatible para ruta alternativa /tenants/{tenantId}
+    match /tenants/{tenantId}/{document=**} {
+      allow read, write: if isAuthenticated() && (
+        request.auth.token.role == 'superadmin' ||
+        request.auth.token.workspaceId == tenantId ||
+        request.auth.token.tenantId == tenantId
+      );
     }
   }
 }
