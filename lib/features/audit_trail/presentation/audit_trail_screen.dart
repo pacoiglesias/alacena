@@ -159,15 +159,31 @@ class AuditTrailScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    Text(
-                      dateFormat.format(log.timestamp),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.lightTextSecondary,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          dateFormat.format(log.timestamp),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary,
+                          ),
+                        ),
+                        if (log.economicValueDelta != 0.0) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            '${isNegative ? '' : '+'}\$${log.economicValueDelta.toStringAsFixed(0)} ${log.currency}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: isNegative ? AppColors.outOfStock : AppColors.optimal,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),

@@ -129,7 +129,7 @@ class _QuickScanBottomSheetState extends ConsumerState<QuickScanBottomSheet> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: DropdownButtonFormField<String>(
-                  value: item.id,
+                  initialValue: item.id,
                   decoration: InputDecoration(
                     labelText: 'Producto detectado por escáner',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),

@@ -4,32 +4,26 @@
       "collectionGroup": "items",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "zoneId", "order": "ASCENDING" },
-        { "fieldPath": "stockStatus", "order": "ASCENDING" },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+        { "fieldPath": "tenantId", "order": "ASCENDING" },
+        { "fieldPath": "householdId", "order": "ASCENDING" },
+        { "fieldPath": "stockStatus", "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "items",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "stockStatus", "order": "ASCENDING" },
-        { "fieldPath": "currentQuantity", "order": "ASCENDING" }
+        { "fieldPath": "tenantId", "order": "ASCENDING" },
+        { "fieldPath": "householdId", "order": "ASCENDING" },
+        { "fieldPath": "expiryDate", "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "audit_trail",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "itemId", "order": "ASCENDING" },
-        { "fieldPath": "timestamp", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "audit_trail",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "tenantId", "order": "ASCENDING" },
+        { "fieldPath": "householdId", "order": "ASCENDING" },
         { "fieldPath": "timestamp", "order": "DESCENDING" }
       ]
     },
@@ -37,6 +31,8 @@
       "collectionGroup": "shopping_list",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "tenantId", "order": "ASCENDING" },
+        { "fieldPath": "householdId", "order": "ASCENDING" },
         { "fieldPath": "isPurchased", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]

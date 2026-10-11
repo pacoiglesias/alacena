@@ -3,163 +3,170 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // =========================================================================
-    // FUNCIONES AUXILIARES DE AUTENTICACION Y ROLES (RBAC)
+    // 🏛️ FUNCIONES AUXILIARES: MULTI-TENANT SaaS & RBAC
     // =========================================================================
 
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Obtener datos del usuario desde la coleccion /users
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    // Obtener membresía del usuario dentro del tenant
+    function getTenantMember(tenantId) {
+      return get(/databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data;
     }
 
-    // Rol Admin: Acceso total a precios, alertas, catalogos y eliminaciones
-    function isAdmin() {
+    // Verificar si el usuario pertenece al tenant (Workspace/Familia)
+    function isTenantMember(tenantId) {
       return isAuthenticated() && (
+        request.auth.token.tenantId == tenantId ||
+        exists(/databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid))
+      );
+    }
+
+    // Rol Admin / Owner dentro del Tenant (acceso a precios, auditoria, catalogo)
+    function isTenantAdmin(tenantId) {
+      return isTenantMember(tenantId) && (
         request.auth.token.role == 'admin' ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         getUserData().role == 'admin')
+        request.auth.token.role == 'owner' ||
+        getTenantMember(tenantId).role in ['admin', 'owner']
       );
     }
 
-    // Rol Servicio: Rol operativo ultra simplificado
-    function isService() {
-      return isAuthenticated() && (
+    // Rol Servicio dentro del Tenant (consumo rapido y compras; sin precios ni logs)
+    function isTenantService(tenantId) {
+      return isTenantMember(tenantId) && (
         request.auth.token.role == 'service' ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         getUserData().role == 'service')
-      );
-    }
-
-    // Verificar si el usuario pertenece a un hogar especifico
-    function isHouseholdMember(householdId) {
-      return isAuthenticated() && (
-        isAdmin() ||
-        exists(/databases/$(database)/documents/households/$(householdId)/members/$(request.auth.uid))
+        getTenantMember(tenantId).role == 'service'
       );
     }
 
     // =========================================================================
-    // COLECCION: /users/{userId}
+    // 👤 COLECCIÓN GLOBAL: /users/{userId}
     // =========================================================================
     match /users/{userId} {
-      // Cada usuario puede leer su propio perfil; el Admin puede leer todos
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      
-      // Solo el Admin puede asignar o cambiar roles
-      allow create, update: if isAdmin() || (
-        isAuthenticated() && request.auth.uid == userId && 
-        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isSuperAdmin']))
-      );
-      allow delete: if isAdmin();
+      allow read: if isAuthenticated() && (request.auth.uid == userId || request.auth.token.role == 'superadmin');
+      allow create, update: if isAuthenticated() && request.auth.uid == userId;
+      allow delete: if false;
     }
 
     // =========================================================================
-    // COLECCION: /households/{householdId} (Multi-hogar)
+    // 🌐 CATÁLOGO GLOBAL DE PRODUCTOS EAN-13 / UPC (Caché OpenFoodFacts)
     // =========================================================================
-    match /households/{householdId} {
-      allow read: if isHouseholdMember(householdId);
-      allow create, update, delete: if isAdmin();
+    match /global_products_catalog/{barcode} {
+      // Lectura pública/compartida para autocompletar productos de supermercado
+      allow read: if isAuthenticated();
+      // Cualquier usuario autenticado puede aportar un nuevo producto escaneado si es valido
+      allow create: if isAuthenticated() &&
+        request.resource.data.barcode == barcode &&
+        request.resource.data.name is string &&
+        request.resource.data.createdAt == request.time;
+      // Solo Cloud Functions o Admins pueden editar el catalogo global
+      allow update, delete: if isAuthenticated() && request.auth.token.role == 'superadmin';
+    }
 
-      // Miembros del hogar (RBAC por hogar)
+    // =========================================================================
+    // 🏢 ARQUITECTURA MULTI-TENANT: /tenants/{tenantId}
+    // =========================================================================
+    match /tenants/{tenantId} {
+      allow read: if isTenantMember(tenantId);
+      allow create: if isAuthenticated(); // Alta de nueva cuenta SaaS
+      allow update, delete: if isTenantAdmin(tenantId);
+
+      // --- Miembros y Permisos del Tenant ---
       match /members/{memberId} {
-        allow read: if isHouseholdMember(householdId);
-        allow write: if isAdmin();
+        allow read: if isTenantMember(tenantId);
+        allow write: if isTenantAdmin(tenantId);
       }
 
-      // Zonas del hogar (Alacena 1, Cava Subterranea, Cuarto Frio, etc.)
-      match /zones/{zoneId} {
-        allow read: if isHouseholdMember(householdId);
-        allow write: if isAdmin();
+      // --- Hogares / Residencias dentro del Tenant ---
+      match /households/{householdId} {
+        allow read: if isTenantMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+
+        // Zonas del hogar (Alacena, Cava, Refrigerador, Bar)
+        match /zones/{zoneId} {
+          allow read: if isTenantMember(tenantId);
+          allow write: if isTenantAdmin(tenantId);
+        }
+
+        // =====================================================================
+        // 📦 SUBCOLECCIÓN: /items/{itemId} (Inventario, Precios & EAN)
+        // =====================================================================
+        match /items/{itemId} {
+          allow read: if isTenantMember(tenantId);
+
+          // Creación de artículos: Exclusivo de Admin
+          allow create: if isTenantAdmin(tenantId) &&
+            request.resource.data.tenantId == tenantId &&
+            request.resource.data.householdId == householdId;
+
+          // Actualización:
+          // - Admin: Acceso total (modificar precios, historial, lugares de compra)
+          // - Servicio: SOLO PUEDE modificar stock, estado y última fecha de escaneo.
+          //   BLOQUEO MATEMÁTICO: No puede alterar precio, historial ni metadatos financieros.
+          allow update: if isTenantMember(tenantId) && (
+            isTenantAdmin(tenantId) || (
+              isTenantService(tenantId) &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'currentQuantity',
+                'stockStatus',
+                'lastScannedAt',
+                'lastScannedBy',
+                'updatedAt'
+              ]) &&
+              request.resource.data.currentQuantity is number &&
+              request.resource.data.currentQuantity >= 0 &&
+              request.resource.data.stockStatus in ['OPTIMAL', 'LOW', 'OUT_OF_STOCK']
+            )
+          );
+
+          // ELIMINACIÓN: MATEMÁTICAMENTE IMPOSIBLE PARA ROL SERVICIO
+          allow delete: if isTenantAdmin(tenantId);
+        }
+
+        // =====================================================================
+        // 🔒 SUBCOLECCIÓN: /audit_trail/{auditId} (Trazabilidad Financiera)
+        // =====================================================================
+        match /audit_trail/{auditId} {
+          // Lectura: Exclusiva de Administradores (Oculto para personal de servicio)
+          allow read: if isTenantAdmin(tenantId);
+
+          // Escritura (Append-Only): Sello criptográfico con UID, servidor y valor económico
+          allow create: if isTenantMember(tenantId) &&
+            request.resource.data.tenantId == tenantId &&
+            request.resource.data.householdId == householdId &&
+            request.resource.data.userId == request.auth.uid &&
+            request.resource.data.timestamp == request.time &&
+            request.resource.data.action in [
+              'SCAN_CONSUME', 'SCAN_RESTOCK', 'MANUAL_ADJUST',
+              'CREATE_ITEM', 'DELETE_ITEM', 'MOVE_ZONE', 'SHOPPING_RESTOCK', 'AUTO_SEED'
+            ];
+
+          // CRÍTICO: PROHIBIDO EDITAR O BORRAR LOGS HISTÓRICOS
+          allow update, delete: if false;
+        }
+
+        // =====================================================================
+        // 🛒 SUBCOLECCIÓN: /shopping_list/{listItemId} (Agente de Compras & Web)
+        // =====================================================================
+        match /shopping_list/{listItemId} {
+          allow read: if isTenantMember(tenantId);
+          allow create: if isTenantMember(tenantId) &&
+            request.resource.data.tenantId == tenantId;
+          allow update: if isTenantMember(tenantId);
+          allow delete: if isTenantAdmin(tenantId) || (
+            isTenantMember(tenantId) && resource.data.isPurchased == true
+          );
+        }
+
+        // =====================================================================
+        // 🍳 SUBCOLECCIÓN: /zero_waste_recipes/{recipeId} (Chef IA Zero-Waste)
+        // =====================================================================
+        match /zero_waste_recipes/{recipeId} {
+          allow read: if isTenantMember(tenantId);
+          allow write: if isTenantAdmin(tenantId);
+        }
       }
-
-      // =======================================================================
-      // SUBCOLECCION: /items/{itemId} (Inventario de Alacena, Cava, Insumos)
-      // =======================================================================
-      match /items/{itemId} {
-        // Lectura permitida a miembros del hogar
-        allow read: if isHouseholdMember(householdId);
-
-        // Creacion de articulos: Exclusivo de Administradores
-        allow create: if isAdmin() && 
-          request.resource.data.householdId == householdId;
-
-        // Actualizacion:
-        // - Admin: Libre
-        // - Servicio: SOLO PUEDE actualizar stock/consumo y timestamps.
-        //   PROHIBIDO alterar precios, nombres, codigos QR o flags de seguridad.
-        allow update: if isHouseholdMember(householdId) && (
-          isAdmin() || (
-            isService() &&
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-              'currentQuantity',
-              'stockStatus',
-              'lastScannedAt',
-              'lastScannedBy',
-              'updatedAt'
-            ]) &&
-            // Integridad de tipos y valores numericos no negativos
-            request.resource.data.currentQuantity is number &&
-            request.resource.data.currentQuantity >= 0 &&
-            request.resource.data.stockStatus in ['OPTIMAL', 'LOW', 'OUT_OF_STOCK']
-          )
-        );
-
-        // ELIMINACION: MATEMATICAMENTE IMPOSIBLE PARA ROL SERVICIO
-        // Solo administradores pueden borrar del inventario
-        allow delete: if isAdmin();
-      }
-
-      // =======================================================================
-      // SUBCOLECCION: /audit_trail/{logId} (TRAZABILIDAD TOTAL ANTI-ROBOS)
-      // =======================================================================
-      match /audit_trail/{logId} {
-        // Lectura: Exclusiva de Administradores (Oculto para rol Servicio)
-        allow read: if isAdmin();
-
-        // Escritura (Append-Only): 
-        // Cualquier miembro que opere puede registrar la accion inalterable.
-        // Debe sellar con UID real y timestamp del servidor.
-        allow create: if isHouseholdMember(householdId) &&
-          request.resource.data.userId == request.auth.uid &&
-          request.resource.data.timestamp == request.time &&
-          request.resource.data.householdId == householdId &&
-          request.resource.data.action in ['SCAN_CONSUME', 'SCAN_RESTOCK', 'MANUAL_ADJUST', 'CREATE_ITEM', 'DELETE_ITEM', 'MOVE_ZONE'];
-
-        // REGLA CRITICA: PROHIBIDO EDITAR O BORRAR LOGS HISTORICOS (INALTERABLE)
-        allow update, delete: if false;
-      }
-
-      // =======================================================================
-      // SUBCOLECCION: /shopping_list/{listId} (Lista de Compras Inteligente)
-      // =======================================================================
-      match /shopping_list/{listId} {
-        allow read: if isHouseholdMember(householdId);
-
-        // Tanto Admin como Servicio pueden anadir articulos a comprar
-        allow create: if isHouseholdMember(householdId) &&
-          request.resource.data.householdId == householdId;
-
-        // Actualizacion: Marcar como comprado o ajustar cantidad a comprar
-        allow update: if isHouseholdMember(householdId);
-
-        // Eliminacion: Admin o el usuario que lo marco completado
-        allow delete: if isAdmin() || (
-          isHouseholdMember(householdId) && resource.data.isPurchased == true
-        );
-      }
-    }
-
-    // =========================================================================
-    // COLECCION: /system_alerts/{alertId} (Notificaciones Push y Alertas Críticas)
-    // =========================================================================
-    match /system_alerts/{alertId} {
-      allow read: if isAdmin();
-      // Generadas por Cloud Functions o por la app ante eventos criticos
-      allow create: if isAuthenticated();
-      allow update, delete: if isAdmin();
     }
   }
 }

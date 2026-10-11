@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/inventory_item_model.dart';
+import '../data/starter_pantry_catalog.dart';
 import '../../households/providers/household_provider.dart';
 import '../../audit_trail/models/audit_log_model.dart';
 import '../../audit_trail/providers/audit_trail_provider.dart';
@@ -129,12 +130,41 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
       previousQuantity: item.currentQuantity,
       newQuantity: newQty,
       quantityDelta: delta,
+      unitPriceAtMoment: item.unitPrice,
+      economicValueDelta: delta * item.unitPrice,
+      currency: item.currency,
       scanMethod: scanMethod,
       timestamp: DateTime.now(),
     );
 
     ref.read(auditTrailProvider.notifier).addLog(auditLog);
     return true;
+  }
+
+  /// Autorellenar con productos típicos de alacena y cava de forma automática
+  void populateStarterPack(String householdId) {
+    final starterItems = StarterPantryCatalog.getStarterItems(householdId);
+    final otherItems = state.where((i) => i.householdId != householdId).toList();
+    state = [...otherItems, ...starterItems];
+
+    final user = ref.read(authProvider);
+    ref.read(auditTrailProvider.notifier).addLog(
+      AuditLog(
+        id: const Uuid().v4(),
+        householdId: householdId,
+        itemId: 'batch_seed',
+        itemName: 'Autorelleno Inteligente (${starterItems.length} artículos)',
+        userId: user?.uid ?? 'admin',
+        userEmail: user?.email ?? 'admin',
+        userRole: user?.role.name ?? 'admin',
+        action: 'CREATE_ITEM',
+        previousQuantity: 0,
+        newQuantity: starterItems.length,
+        quantityDelta: starterItems.length,
+        scanMethod: 'AUTO_SEED',
+        timestamp: DateTime.now(),
+      ),
+    );
   }
 }
 

@@ -12,6 +12,6 @@ void main() {
 
     // Verify header and navigation
     expect(find.text('RESIDENCIA ACTIVA'), findsOneWidget);
-    expect(find.text('Inventario'), findsOneWidget);
+    expect(find.text('Alacena'), findsOneWidget);
   });
 }
