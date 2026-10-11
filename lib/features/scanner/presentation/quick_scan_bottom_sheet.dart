@@ -262,10 +262,145 @@ class _QuickScanBottomSheetState extends ConsumerState<QuickScanBottomSheet> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+
+                  // Fallback Alfanumérico y Reemplazo de Etiqueta Dañada
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.black38 : Colors.grey.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Short ID: ${item.effectiveShortId}',
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              'QR actual: ${item.qrCode.split(':').last}',
+                              style: const TextStyle(fontSize: 10, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                        TextButton.icon(
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primaryLight,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          ),
+                          icon: const Icon(Icons.published_with_changes, size: 16),
+                          label: const Text('Reemplazar QR', style: TextStyle(fontSize: 11)),
+                          onPressed: () => _showReplaceTagDialog(context, ref, item),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  if (item.requiresMetadataUpdate)
+                    Container(
+                      margin: const EdgeInsets.only(top: 10),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFF59E0B), width: 0.8),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Color(0xFFF59E0B), size: 16),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Ingreso Express: Este producto requiere completar foto y marca más tarde.',
+                              style: TextStyle(fontSize: 11, color: Color(0xFFF59E0B)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  void _showReplaceTagDialog(BuildContext context, WidgetRef ref, InventoryItem item) {
+    final textController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.qr_code_2, color: AppColors.primaryLight),
+            SizedBox(width: 8),
+            Text('Reemplazar Etiqueta'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Asigna un QR nuevo ("Blank Tag") a ${item.name}.',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'El QR anterior quedará invalidado inmediatamente, pero el historial de auditoría y precios se conservará intacto.',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: textController,
+              decoration: InputDecoration(
+                hintText: 'Escanea o ingresa nuevo QR tag...',
+                prefixIcon: const Icon(Icons.qr_code_scanner),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              final newQr = textController.text.trim();
+              if (newQr.isNotEmpty) {
+                Navigator.pop(dialogCtx);
+                final success = ref.read(inventoryListProvider.notifier).replaceTag(item.id, newQr);
+                if (success) {
+                  Navigator.pop(context); // cerrar bottom sheet
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('✅ Etiqueta física actualizada. QR anterior invalidado y auditoría preservada.'),
+                      backgroundColor: AppColors.optimal,
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Confirmar Reemplazo'),
+          ),
         ],
       ),
     );

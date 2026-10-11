@@ -11,8 +11,12 @@ import '../../onboarding/presentation/starter_wizard_dialog.dart';
 import '../../scanner/presentation/quick_scan_bottom_sheet.dart';
 import '../../hardware/presentation/camera_scanner_dialog.dart';
 import '../../hardware/services/nfc_service.dart';
+import 'package:uuid/uuid.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/household_selector_header.dart';
+import '../../../core/services/ean_lookup_service.dart';
+import '../../inventory/models/inventory_item_model.dart';
+import '../../households/providers/household_provider.dart';
 
 class CurrentTabNotifier extends Notifier<int> {
   @override
@@ -159,7 +163,7 @@ class MainScaffold extends ConsumerWidget {
     );
   }
 
-  void _showScanOptionsModal(BuildContext context, WidgetRef ref, List allItems) {
+  void _showScanOptionsModal(BuildContext context, WidgetRef ref, List<InventoryItem> allItems) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -198,9 +202,13 @@ class MainScaffold extends ConsumerWidget {
                   subtitle: const Text('Visor láser on-device para etiquetas comerciales y empaques'),
                   onTap: () async {
                     Navigator.pop(ctx);
-                    final scannedCode = await CameraScannerDialog.show(context);
-                    if (context.mounted && scannedCode != null) {
-                      _handleScannedCode(context, allItems, scannedCode, 'ON_DEVICE_CAMERA');
+                    final scanResult = await CameraScannerDialog.show(context);
+                    if (context.mounted && scanResult != null) {
+                      if (scanResult.isBatch) {
+                        _handleBatchScannedCodes(context, ref, scanResult.batchCodes);
+                      } else if (scanResult.singleCode != null) {
+                        _handleScannedCode(context, ref, allItems, scanResult.singleCode!, 'ON_DEVICE_CAMERA');
+                      }
                     }
                   },
                 ),
@@ -219,7 +227,7 @@ class MainScaffold extends ConsumerWidget {
                   subtitle: const Text('Acerca el teléfono al tag de la botella o estante'),
                   onTap: () {
                     Navigator.pop(ctx);
-                    _startNfcScan(context, allItems);
+                    _startNfcScan(context, ref, allItems);
                   },
                 ),
 
@@ -248,23 +256,172 @@ class MainScaffold extends ConsumerWidget {
     );
   }
 
-  void _handleScannedCode(BuildContext context, List allItems, String code, String method) {
+  void _handleScannedCode(
+    BuildContext context,
+    WidgetRef ref,
+    List<InventoryItem> allItems,
+    String code,
+    String method,
+  ) async {
     final matched = allItems.where((i) =>
         i.qrCode == code || i.barcode == code || i.id == code || code.contains(i.id)).toList();
 
     if (matched.isNotEmpty) {
       QuickScanBottomSheet.show(context, item: matched.first, scanMethod: method);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Código escaneado: "$code" (Consultando catálogo global EAN...)'),
-          backgroundColor: AppColors.primary,
+      return;
+    }
+
+    // Si no está registrado en la casa actual, consultar catálogo global EAN-13/UPC ($0 Costo)
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Código "$code" no encontrado localmente. Buscando en catálogo global EAN...'),
+        backgroundColor: AppColors.primary,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    final eanResult = await EanLookupService.lookupBarcode(code);
+    if (!context.mounted) return;
+
+    if (eanResult != null) {
+      final currentHousehold = ref.read(selectedHouseholdProvider);
+      showDialog(
+        context: context,
+        builder: (dialogCtx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.inventory_2, color: AppColors.optimal),
+              SizedBox(width: 8),
+              Text('Producto Reconocido'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                eanResult.name,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Marca: ${eanResult.brand} • Presentación: ${eanResult.packageQuantity}',
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.optimal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Categoría sugerida: ${eanResult.category} • EAN: ${eanResult.barcode}',
+                  style: const TextStyle(fontSize: 11, color: AppColors.optimal, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                '¿Deseas dar de alta este producto en tu inventario?',
+                style: TextStyle(fontSize: 13),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(dialogCtx);
+                final isWine = eanResult.category.toLowerCase().contains('vino') ||
+                    eanResult.name.toLowerCase().contains('vino');
+                final newItem = InventoryItem(
+                  id: const Uuid().v4(),
+                  householdId: currentHousehold.id,
+                  zoneId: isWine ? 'cava' : 'alacena-1',
+                  zoneName: isWine ? 'Cava Subterránea' : 'Alacena Principal',
+                  name: '${eanResult.name} (${eanResult.brand})',
+                  category: eanResult.category,
+                  barcode: eanResult.barcode,
+                  qrCode: 'ALACENA:${currentHousehold.id}:${isWine ? "cava" : "alacena-1"}:${eanResult.barcode}',
+                  currentQuantity: 1,
+                  idealQuantity: 4,
+                  minAlertQuantity: 1,
+                  unit: eanResult.packageQuantity,
+                  unitPrice: eanResult.estimatedPrice,
+                  isHighValue: isWine || eanResult.estimatedPrice > 1000,
+                  updatedAt: DateTime.now(),
+                );
+                ref.read(inventoryListProvider.notifier).addItem(newItem);
+                QuickScanBottomSheet.show(context, item: newItem, scanMethod: method);
+              },
+              child: const Text('Dar de Alta'),
+            ),
+          ],
         ),
       );
+    } else {
+      // Flujo Express EAN: El usuario NO se bloquea al descargar compras
+      final currentHousehold = ref.read(selectedHouseholdProvider);
+      final cleanCode = code.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+      final shortSuffix = cleanCode.length > 4 ? cleanCode.substring(cleanCode.length - 4) : cleanCode;
+      final expressItem = InventoryItem(
+        id: const Uuid().v4(),
+        shortId: 'EXP-$shortSuffix',
+        householdId: currentHousehold.id,
+        zoneId: 'alacena-1',
+        zoneName: 'Alacena Principal',
+        name: 'Producto EAN-$cleanCode (Pendiente)',
+        category: 'Abarrotes',
+        barcode: cleanCode,
+        qrCode: 'ALACENA:${currentHousehold.id}:alacena-1:$cleanCode',
+        currentQuantity: 1,
+        idealQuantity: 2,
+        minAlertQuantity: 1,
+        unit: 'pza',
+        unitPrice: 0.0,
+        requiresMetadataUpdate: true,
+        updatedAt: DateTime.now(),
+      );
+
+      ref.read(inventoryListProvider.notifier).addItem(expressItem);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('⚡ Flujo Express: Se dio de alta EAN $cleanCode sin detener el ingreso físico.'),
+          backgroundColor: const Color(0xFFF59E0B),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+
+      QuickScanBottomSheet.show(context, item: expressItem, scanMethod: method);
     }
   }
 
-  void _startNfcScan(BuildContext context, List allItems) {
+  void _handleBatchScannedCodes(BuildContext context, WidgetRef ref, List<String> batchCodes) {
+    if (batchCodes.isEmpty) return;
+    final processed = ref.read(inventoryListProvider.notifier).batchAdjustStock(
+      batchCodes,
+      delta: 1,
+      scanMethod: 'BATCH_RAPID_SCAN',
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('📦 Lote Procesado: $processed de ${batchCodes.length} artículos sumados al stock.'),
+        backgroundColor: AppColors.optimal,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  void _startNfcScan(BuildContext context, WidgetRef ref, List<InventoryItem> allItems) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Row(
@@ -281,7 +438,7 @@ class MainScaffold extends ConsumerWidget {
 
     NfcService.startNfcReading(
       onTagScanned: (tagId, payload) {
-        _handleScannedCode(context, allItems, payload ?? tagId, 'NFC');
+        _handleScannedCode(context, ref, allItems, payload ?? tagId, 'NFC');
       },
       onError: (err) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -290,7 +447,7 @@ class MainScaffold extends ConsumerWidget {
             backgroundColor: AppColors.low,
           ),
         );
-        _handleScannedCode(context, allItems, '04:5A:2F:B2:89:12:80', 'NFC');
+        _handleScannedCode(context, ref, allItems, '04:5A:2F:B2:89:12:80', 'NFC');
       },
     );
   }

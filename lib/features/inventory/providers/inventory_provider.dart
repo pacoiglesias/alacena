@@ -166,6 +166,94 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
       ),
     );
   }
+
+  /// Agregar un artículo nuevo al inventario con registro en Audit Trail
+  void addItem(InventoryItem newItem) {
+    state = [newItem, ...state];
+    final user = ref.read(authProvider);
+    ref.read(auditTrailProvider.notifier).addLog(
+      AuditLog(
+        id: const Uuid().v4(),
+        householdId: newItem.householdId,
+        itemId: newItem.id,
+        itemName: newItem.name,
+        userId: user?.uid ?? 'admin',
+        userEmail: user?.email ?? 'admin@alacena.cobertores.com',
+        userRole: user?.role.name ?? 'admin',
+        action: 'CREATE_ITEM',
+        previousQuantity: 0,
+        newQuantity: newItem.currentQuantity,
+        quantityDelta: newItem.currentQuantity,
+        unitPriceAtMoment: newItem.unitPrice,
+        economicValueDelta: newItem.currentQuantity * newItem.unitPrice,
+        currency: newItem.currency,
+        scanMethod: 'EAN_GLOBAL_LOOKUP',
+        timestamp: DateTime.now(),
+      ),
+    );
+  }
+
+  /// Flujo "Replace Tag": Asigna un QR nuevo ("Blank Tag") a un producto existente cuyo QR original se dañó
+  /// Invalida el anterior pero mantiene intacto el Audit Trail y trazabilidad histórica.
+  bool replaceTag(String itemId, String newQrCode) {
+    final index = state.indexWhere((i) => i.id == itemId);
+    if (index == -1) return false;
+
+    final item = state[index];
+    final updatedItem = item.copyWith(
+      qrCode: newQrCode,
+      previousQrCodes: [...item.previousQrCodes, item.qrCode],
+      updatedAt: DateTime.now(),
+    );
+
+    state = [
+      for (int i = 0; i < state.length; i++)
+        if (i == index) updatedItem else state[i],
+    ];
+
+    final user = ref.read(authProvider);
+    ref.read(auditTrailProvider.notifier).addLog(
+      AuditLog(
+        id: const Uuid().v4(),
+        householdId: item.householdId,
+        itemId: item.id,
+        itemName: item.name,
+        userId: user?.uid ?? 'admin',
+        userEmail: user?.email ?? 'admin@alacena.cobertores.com',
+        userRole: user?.role.name ?? 'admin',
+        action: 'REPLACE_TAG',
+        previousQuantity: item.currentQuantity,
+        newQuantity: item.currentQuantity,
+        quantityDelta: 0,
+        unitPriceAtMoment: item.unitPrice,
+        economicValueDelta: 0,
+        currency: item.currency,
+        scanMethod: 'TAG_REPLACEMENT',
+        timestamp: DateTime.now(),
+      ),
+    );
+    return true;
+  }
+
+  /// Procesa una lista de códigos escaneados en Modo Continuo (Batch/Rapid Scan)
+  int batchAdjustStock(List<String> codes, {int delta = 1, required String scanMethod}) {
+    int processedCount = 0;
+    for (final code in codes) {
+      final clean = code.trim();
+      final index = state.indexWhere((i) =>
+          i.qrCode == clean ||
+          i.barcode == clean ||
+          i.id == clean ||
+          i.effectiveShortId == clean.toUpperCase() ||
+          clean.contains(i.id));
+
+      if (index != -1) {
+        adjustStock(state[index].id, delta, scanMethod: scanMethod);
+        processedCount++;
+      }
+    }
+    return processedCount;
+  }
 }
 
 final inventoryListProvider = NotifierProvider<InventoryNotifier, List<InventoryItem>>(() {

@@ -14,6 +14,7 @@ class PriceRecord {
 
 class InventoryItem {
   final String id;
+  final String shortId; // Fallback alfanumérico legible para etiquetas dañadas (ej. ALC-7K9B)
   final String tenantId;
   final String householdId;
   final String zoneId;
@@ -23,6 +24,8 @@ class InventoryItem {
   final String category;
   final String barcode; // EAN-13 o UPC comercial
   final String qrCode;  // QR Interno único
+  final List<String> previousQrCodes; // Tags anteriores invalidados tras "Replace Tag"
+  final bool requiresMetadataUpdate; // Flujo Express: requiere completar datos después
   final String? nfcTagId;
   final int currentQuantity;
   final int idealQuantity;
@@ -45,6 +48,7 @@ class InventoryItem {
 
   const InventoryItem({
     required this.id,
+    this.shortId = '',
     this.tenantId = 'tenant_default',
     required this.householdId,
     required this.zoneId,
@@ -54,6 +58,8 @@ class InventoryItem {
     required this.category,
     required this.barcode,
     required this.qrCode,
+    this.previousQrCodes = const [],
+    this.requiresMetadataUpdate = false,
     this.nfcTagId,
     required this.currentQuantity,
     required this.idealQuantity,
@@ -70,6 +76,12 @@ class InventoryItem {
     this.imageUrl,
     required this.updatedAt,
   });
+
+  String get effectiveShortId {
+    if (shortId.isNotEmpty) return shortId.toUpperCase();
+    if (id.length >= 6) return id.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').substring(0, 6).toUpperCase();
+    return id.toUpperCase();
+  }
 
   String get stockStatus {
     if (currentQuantity <= 0) return 'OUT_OF_STOCK';
@@ -90,18 +102,28 @@ class InventoryItem {
     double? unitPrice,
     String? lastPurchasePlace,
     DateTime? updatedAt,
+    String? qrCode,
+    String? shortId,
+    List<String>? previousQrCodes,
+    bool? requiresMetadataUpdate,
+    String? name,
+    String? brand,
+    String? category,
   }) {
     return InventoryItem(
       id: id,
+      shortId: shortId ?? this.shortId,
       tenantId: tenantId,
       householdId: householdId,
       zoneId: zoneId,
       zoneName: zoneName,
-      name: name,
-      brand: brand,
-      category: category,
+      name: name ?? this.name,
+      brand: brand ?? this.brand,
+      category: category ?? this.category,
       barcode: barcode,
-      qrCode: qrCode,
+      qrCode: qrCode ?? this.qrCode,
+      previousQrCodes: previousQrCodes ?? this.previousQrCodes,
+      requiresMetadataUpdate: requiresMetadataUpdate ?? this.requiresMetadataUpdate,
       nfcTagId: nfcTagId,
       currentQuantity: currentQuantity ?? this.currentQuantity,
       idealQuantity: idealQuantity,

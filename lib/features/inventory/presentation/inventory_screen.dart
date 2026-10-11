@@ -342,11 +342,28 @@ class _InventoryItemCard extends StatelessWidget {
                               ),
                             ),
                           ),
+                        if (item.requiresMetadataUpdate)
+                          Container(
+                            margin: const EdgeInsets.only(left: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              '⚠️ PENDIENTE',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFFF59E0B),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '📍 ${item.zoneName} • ${item.category}',
+                      '📍 ${item.zoneName} • ID: ${item.effectiveShortId}',
                       style: TextStyle(
                         fontSize: 11,
                         color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,

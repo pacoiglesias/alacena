@@ -23,17 +23,31 @@ class LabelPrinterService {
           return pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
-              // Código QR de escaneo instantáneo
-              pw.Container(
-                width: 24 * PdfPageFormat.mm,
-                height: 24 * PdfPageFormat.mm,
-                child: pw.BarcodeWidget(
-                  barcode: pw.Barcode.qrCode(),
-                  data: item.qrCode,
-                  drawText: false,
-                ),
+              // Código QR + Fallback Alfanumérico Corto (Short ID)
+              pw.Column(
+                mainAxisAlignment: pw.MainAxisAlignment.center,
+                children: [
+                  pw.Container(
+                    width: 20 * PdfPageFormat.mm,
+                    height: 20 * PdfPageFormat.mm,
+                    child: pw.BarcodeWidget(
+                      barcode: pw.Barcode.qrCode(),
+                      data: item.qrCode,
+                      drawText: false,
+                    ),
+                  ),
+                  pw.SizedBox(height: 0.8 * PdfPageFormat.mm),
+                  pw.Text(
+                    item.effectiveShortId,
+                    style: pw.TextStyle(
+                      fontSize: 5.5,
+                      fontWeight: pw.FontWeight.bold,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
               ),
-              pw.SizedBox(width: 2 * PdfPageFormat.mm),
+              pw.SizedBox(width: 2.5 * PdfPageFormat.mm),
 
               // Información tipográfica de la etiqueta
               pw.Expanded(
