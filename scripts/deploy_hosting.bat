@@ -14,8 +14,8 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [2/2] Desplegando en Firebase Hosting (target: alacena-app)...
-firebase deploy --only hosting:alacena-app
+echo [2/2] Desplegando en Firebase Hosting (Proyecto: alacena-enterprise-prod)...
+firebase deploy --only hosting:alacena-app --project alacena-enterprise-prod
 if errorlevel 1 (
     echo [AVISO] Ejecuta 'firebase login' si no has autenticado tu sesion CLI.
     exit /b 1

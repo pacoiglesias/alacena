@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "alacena-enterprise-prod"
+  },
+  "targets": {
+    "alacena-enterprise-prod": {
+      "hosting": {
+        "alacena-app": [
+          "alacena-enterprise-prod"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

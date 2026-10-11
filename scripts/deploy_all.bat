@@ -24,8 +24,8 @@ if errorlevel 1 (
 echo [3/4] Compilando Web de Produccion...
 call C:\src\flutter\bin\flutter.bat build web --release
 
-echo [4/4] Desplegando en Firebase (Reglas, Indices, Storage, Hosting y Functions)...
-firebase deploy
+echo [4/4] Desplegando en Firebase (Proyecto: alacena-enterprise-prod)...
+firebase deploy --project alacena-enterprise-prod
 if errorlevel 1 (
     echo [AVISO] Revisa tu conexion a Firebase CLI o ejecuta 'firebase login'.
     exit /b 1
