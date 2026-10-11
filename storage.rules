@@ -1,0 +1,25 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Carpeta de fotos de productos del hogar
+    match /households/{householdId}/products/{allPaths=**} {
+      allow read: if isAuthenticated();
+      // Solo imagenes con tamano menor a 15MB
+      allow write: if isAuthenticated() &&
+        request.resource.size < 15 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
+
+    // Carpeta de escaneos de OpenAI Vision / fotos temporales
+    match /vision_analysis/{householdId}/{imageId} {
+      allow read, write: if isAuthenticated() &&
+        request.resource.size < 20 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
+  }
+}
