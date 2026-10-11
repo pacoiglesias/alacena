@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../inventory/presentation/inventory_screen.dart';
 import '../../inventory/providers/inventory_provider.dart';
+import '../../inventory/data/demo_data_seeder.dart';
 import '../../sommelier/presentation/sommelier_cellar_view.dart';
 import '../../shopping_list/presentation/shopping_list_screen.dart';
-import '../../zero_waste/presentation/zero_waste_chef_screen.dart';
 import '../../analytics/presentation/financial_dashboard_screen.dart';
-import '../../onboarding/presentation/starter_wizard_dialog.dart';
 import '../../scanner/presentation/quick_scan_bottom_sheet.dart';
 import '../../hardware/presentation/camera_scanner_dialog.dart';
 import '../../hardware/services/nfc_service.dart';
@@ -39,41 +39,78 @@ class MainScaffold extends ConsumerWidget {
     final isAdmin = ref.watch(isUserAdminProvider);
     final allItems = ref.watch(inventoryListProvider);
 
-    final screens = [
-      const InventoryScreen(),
-      const SommelierCellarView(),
-      const ShoppingListScreen(),
-      const ZeroWasteChefScreen(),
-      if (isAdmin) const FinancialDashboardScreen(),
-    ];
+    // Pantallas base según rol RBAC:
+    // Admin: 1) Dashboard/Gráficas, 2) Inventario, 3) Lista de Compras, 4) Cava & Zero-Waste
+    // Servicio: 1) Inventario, 2) Lista de Compras, 3) Cava
+    final screens = isAdmin
+        ? [
+            const FinancialDashboardScreen(),
+            const InventoryScreen(),
+            const ShoppingListScreen(),
+            const SommelierCellarView(),
+          ]
+        : [
+            const InventoryScreen(),
+            const ShoppingListScreen(),
+            const SommelierCellarView(),
+          ];
 
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
         title: const HouseholdSelectorHeader(),
         actions: [
-          // BOTON DE WIZARD DE ONBOARDING (ALACENA BASE 50+ ARTICULOS)
-          IconButton(
-            icon: const Icon(Icons.auto_awesome, color: AppColors.primaryLight, size: 22),
-            tooltip: 'Alacena Base 50+ Artículos (Onboarding)',
-            onPressed: () {
-              StarterWizardDialog.show(context);
-            },
-          ),
+          // BOTON MAGICO "CARGAR DATOS DEMO" (ADMIN)
+          if (isAdmin)
+            Container(
+              margin: const EdgeInsets.only(right: 6),
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                icon: const Icon(Icons.bolt, size: 16, color: Color(0xFFF59E0B)),
+                label: Text(
+                  'Datos Demo',
+                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+                onPressed: () async {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('⚡ Sembrando 10 productos reales en Firestore (Precios en MXN)...'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                  await DemoDataSeeder.seedDemoData();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('✅ ¡10 Productos Demo creados con éxito con precios en MXN!'),
+                        backgroundColor: AppColors.optimal,
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
 
           // SWITCHER DE ROL (ADMIN vs SERVICIO) PARA VALIDAR RBAC EN 1 TAP
           Container(
-            margin: const EdgeInsets.only(right: 8),
+            margin: const EdgeInsets.only(right: 4),
             child: ActionChip(
               avatar: Icon(
                 isAdmin ? Icons.admin_panel_settings : Icons.cleaning_services,
-                size: 16,
+                size: 14,
                 color: isAdmin ? AppColors.wineAccent : AppColors.primaryLight,
               ),
               label: Text(
                 user?.role.label ?? 'Rol',
-                style: TextStyle(
-                  fontSize: 11,
+                style: GoogleFonts.inter(
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                   color: isAdmin ? AppColors.wineAccent : AppColors.primaryLight,
                 ),
@@ -81,12 +118,10 @@ class MainScaffold extends ConsumerWidget {
               backgroundColor: (isAdmin ? AppColors.wineAccent : AppColors.primaryLight)
                   .withValues(alpha: 0.12),
               side: BorderSide.none,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               onPressed: () {
                 ref.read(authProvider.notifier).toggleRole();
-                if (currentTab >= 4) {
-                  ref.read(currentTabProvider.notifier).setTab(0);
-                }
+                ref.read(currentTabProvider.notifier).setTab(0);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
@@ -98,67 +133,96 @@ class MainScaffold extends ConsumerWidget {
               },
             ),
           ),
+
+          // BOTON DE CIERRE DE SESION (RUTA SEGURA)
+          IconButton(
+            icon: const Icon(Icons.logout, size: 20),
+            tooltip: 'Cerrar Sesión',
+            onPressed: () {
+              ref.read(authProvider.notifier).signOut();
+            },
+          ),
         ],
       ),
       body: screens[currentTab.clamp(0, screens.length - 1)],
 
-      // BOTON FLOTANTE (FAB) CENTRAL: ESCANER UNIVERSAL EN 2 TAPS CON HARDWARE
+      // FAB GIGANTE CENTRAL: ESCANER INMEDIATO DE 2 TAPS (ESTILO APPLE/STRIPE)
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: Container(
+        width: 66,
+        height: 66,
+        margin: const EdgeInsets.only(top: 14),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            colors: [Color(0xFF10B981), Color(0xFF065F46)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primaryLight.withValues(alpha: 0.4),
-              blurRadius: 16,
-              spreadRadius: 2,
+              color: AppColors.optimal.withValues(alpha: 0.4),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: FloatingActionButton(
-          elevation: 6,
-          backgroundColor: AppColors.primary,
-          child: const Icon(Icons.qr_code_scanner, size: 28, color: Colors.white),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          child: const Icon(Icons.qr_code_scanner, size: 30, color: Colors.white),
           onPressed: () {
             _showScanOptionsModal(context, ref, allItems);
           },
         ),
       ),
 
-      // BOTTOM NAVIGATION BAR EMPRESARIAL
+      // BOTTOM NAVIGATION BAR (TABS ELEGANTES EN 2 TAPS)
       bottomNavigationBar: NavigationBar(
         selectedIndex: currentTab.clamp(0, screens.length - 1),
         onDestinationSelected: (index) {
           ref.read(currentTabProvider.notifier).setTab(index);
         },
-        destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.kitchen_outlined),
-            selectedIcon: Icon(Icons.kitchen, color: AppColors.primaryLight),
-            label: 'Alacena',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.wine_bar_outlined),
-            selectedIcon: Icon(Icons.wine_bar, color: AppColors.wineAccent),
-            label: 'Cava',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.shopping_cart_outlined),
-            selectedIcon: Icon(Icons.shopping_cart, color: AppColors.primaryLight),
-            label: 'Compras',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.restaurant_menu_outlined),
-            selectedIcon: Icon(Icons.restaurant_menu, color: AppColors.optimal),
-            label: 'Zero-Waste',
-          ),
-          if (isAdmin)
-            const NavigationDestination(
-              icon: Icon(Icons.analytics_outlined),
-              selectedIcon: Icon(Icons.analytics, color: AppColors.primaryLight),
-              label: 'Finanzas',
-            ),
-        ],
+        destinations: isAdmin
+            ? [
+                const NavigationDestination(
+                  icon: Icon(Icons.insights_outlined),
+                  selectedIcon: Icon(Icons.insights, color: AppColors.primaryLight),
+                  label: 'Dashboard',
+                ),
+                const NavigationDestination(
+                  icon: Icon(Icons.inventory_2_outlined),
+                  selectedIcon: Icon(Icons.inventory_2, color: AppColors.primaryLight),
+                  label: 'Inventario',
+                ),
+                const NavigationDestination(
+                  icon: Icon(Icons.shopping_cart_outlined),
+                  selectedIcon: Icon(Icons.shopping_cart, color: AppColors.primaryLight),
+                  label: 'Compras',
+                ),
+                const NavigationDestination(
+                  icon: Icon(Icons.wine_bar_outlined),
+                  selectedIcon: Icon(Icons.wine_bar, color: AppColors.wineAccent),
+                  label: 'Cava',
+                ),
+              ]
+            : [
+                const NavigationDestination(
+                  icon: Icon(Icons.inventory_2_outlined),
+                  selectedIcon: Icon(Icons.inventory_2, color: AppColors.primaryLight),
+                  label: 'Inventario',
+                ),
+                const NavigationDestination(
+                  icon: Icon(Icons.shopping_cart_outlined),
+                  selectedIcon: Icon(Icons.shopping_cart, color: AppColors.primaryLight),
+                  label: 'Compras',
+                ),
+                const NavigationDestination(
+                  icon: Icon(Icons.wine_bar_outlined),
+                  selectedIcon: Icon(Icons.wine_bar, color: AppColors.wineAccent),
+                  label: 'Cava',
+                ),
+              ],
       ),
     );
   }

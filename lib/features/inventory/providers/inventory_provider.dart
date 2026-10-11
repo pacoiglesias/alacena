@@ -193,6 +193,16 @@ class InventoryNotifier extends Notifier<List<InventoryItem>> {
     );
   }
 
+  /// Actualizar un artículo existente tras una corrección manual de Admin
+  void updateItem(InventoryItem updatedItem) {
+    final index = state.indexWhere((i) => i.id == updatedItem.id);
+    if (index == -1) return;
+    state = [
+      for (int i = 0; i < state.length; i++)
+        if (i == index) updatedItem else state[i],
+    ];
+  }
+
   /// Flujo "Replace Tag": Asigna un QR nuevo ("Blank Tag") a un producto existente cuyo QR original se dañó
   /// Invalida el anterior pero mantiene intacto el Audit Trail y trazabilidad histórica.
   bool replaceTag(String itemId, String newQrCode) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/inventory_item_model.dart';
 import '../providers/inventory_provider.dart';
+import 'edit_product_dialog.dart';
 import '../../households/providers/household_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../scanner/presentation/quick_scan_bottom_sheet.dart';
@@ -196,6 +197,7 @@ class InventoryScreen extends ConsumerWidget {
                         // Imprimir etiqueta térmica formateada
                         await LabelPrinterService.printLabel(item);
                       },
+                      onEdit: isAdmin ? () => EditProductDialog.show(context, item) : null,
                     );
                   },
                 ),
@@ -258,6 +260,7 @@ class _InventoryItemCard extends StatelessWidget {
   final VoidCallback onQuickDecrease;
   final VoidCallback onQuickIncrease;
   final VoidCallback onPrintLabel;
+  final VoidCallback? onEdit;
 
   const _InventoryItemCard({
     required this.item,
@@ -267,6 +270,7 @@ class _InventoryItemCard extends StatelessWidget {
     required this.onQuickDecrease,
     required this.onQuickIncrease,
     required this.onPrintLabel,
+    this.onEdit,
   });
 
   @override
@@ -290,6 +294,7 @@ class _InventoryItemCard extends StatelessWidget {
       ),
       child: InkWell(
         onTap: onTap,
+        onLongPress: isAdmin && onEdit != null ? onEdit : null,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -384,6 +389,21 @@ class _InventoryItemCard extends StatelessWidget {
                             ),
                           ),
                         const Spacer(),
+
+                        if (isAdmin && onEdit != null) ...[
+                          IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              size: 18,
+                              color: AppColors.primaryLight,
+                            ),
+                            tooltip: 'Editar ficha y precio (Admin)',
+                            onPressed: onEdit,
+                          ),
+                          const SizedBox(width: 8),
+                        ],
 
                         // Boton para imprimir etiqueta termica (Dymo/Brother)
                         IconButton(

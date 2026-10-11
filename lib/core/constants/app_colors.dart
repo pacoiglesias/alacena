@@ -1,36 +1,36 @@
 import 'package:flutter/material.dart';
 
-/// Paleta de colores empresarial para ALACENA
-/// Basada en código semafórico glanceable y soporte Dark / Light mode de alto contraste.
+/// Paleta de colores minimalista de lujo (Estilo Apple / Stripe)
+/// Deep Dark Mode (#121212), Light Mode inmaculado y Acento Esmeralda Lujoso.
 class AppColors {
-  // --- Codigo Semaforico de Inventario ---
-  static const Color optimal = Color(0xFF10B981);       // Verde Esmeralda (Optimo)
-  static const Color low = Color(0xFFF59E0B);           // Ambar Calido (Bajo)
-  static const Color outOfStock = Color(0xFFEF4444);     // Rojo Coral Intenso (Agotado)
+  // --- Acento Primario de Lujo (Verde Esmeralda Profundo & Azul Imperial) ---
+  static const Color primary = Color(0xFF065F46);          // Verde Esmeralda Lujoso
+  static const Color primaryLight = Color(0xFF10B981);     // Esmeralda Vibrante
+  static const Color oceanAccent = Color(0xFF0F172A);      // Azul Marino Imperial
+  static const Color wineAccent = Color(0xFF7F1D1D);       // Borgoña Cava Reserva
+  static const Color goldAccent = Color(0xFFB45309);       // Oro Añejo
 
-  // --- Acentos de Marca (Cava de Vinos & Alacena Premium) ---
-  static const Color primary = Color(0xFF1E3A8A);        // Azul Marino Profundo
-  static const Color primaryLight = Color(0xFF3B82F6);
-  static const Color wineAccent = Color(0xFF881337);     // Borgoña / Cava de vinos
-  static const Color goldAccent = Color(0xFFD97706);     // Dorado Barrica
+  // --- Indicadores Semafóricos de Inventario ---
+  static const Color optimal = Color(0xFF10B981);          // Verde Óptimo
+  static const Color low = Color(0xFFF59E0B);              // Ámbar Advertencia
+  static const Color outOfStock = Color(0xFFEF4444);        // Rojo Coral Alerta
 
-  // --- Modo Oscuro (Dark Theme) ---
-  static const Color darkBg = Color(0xFF0B1120);          // Fondo profundo
-  static const Color darkSurface = Color(0xFF1E293B);     // Tarjetas y modales
-  static const Color darkSurfaceVariant = Color(0xFF334155);
-  static const Color darkTextPrimary = Color(0xFFF8FAFC);
-  static const Color darkTextSecondary = Color(0xFF94A3B8);
-  static const Color darkBorder = Color(0xFF334155);
+  // --- Deep Dark Mode (#121212 Apple/Stripe) ---
+  static const Color darkBg = Color(0xFF121212);           // Fondo OLED absoluto
+  static const Color darkSurface = Color(0xFF1E1E1E);      // Superficie de tarjetas
+  static const Color darkSurfaceVariant = Color(0xFF262626);
+  static const Color darkTextPrimary = Color(0xFFF9FAFB);  // Blanco limpio
+  static const Color darkTextSecondary = Color(0xFFA1A1AA);// Gris neutro suave
+  static const Color darkBorder = Color(0xFF2E2E32);       // Borde sutil
 
-  // --- Modo Claro (Light Theme) ---
-  static const Color lightBg = Color(0xFFF8FAFC);
+  // --- Inmaculate Light Mode ---
+  static const Color lightBg = Color(0xFFFAFAFA);          // Fondo casi blanco puro
   static const Color lightSurface = Colors.white;
-  static const Color lightSurfaceVariant = Color(0xFFF1F5F9);
-  static const Color lightTextPrimary = Color(0xFF0F172A);
-  static const Color lightTextSecondary = Color(0xFF64748B);
-  static const Color lightBorder = Color(0xFFE2E8F0);
+  static const Color lightSurfaceVariant = Color(0xFFF4F4F5);
+  static const Color lightTextPrimary = Color(0xFF18181B);  // Casi negro refinado
+  static const Color lightTextSecondary = Color(0xFF71717A);
+  static const Color lightBorder = Color(0xFFE4E4E7);      // Borde de retina
 
-  // Helper semaforico
   static Color getStatusColor(String status) {
     switch (status.toUpperCase()) {
       case 'OPTIMAL':
