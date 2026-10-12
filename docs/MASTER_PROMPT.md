@@ -2,8 +2,8 @@
 🤖 MASTER PROMPT: ALACENA Enterprise & CavaPro
 ═══════════════════════════════════════════════════════════════════════════════
 
-Versión Actual:      v3.3.0-Titanium-Aurora-Perfection
-Versión Base:        v3.2.0 (Unificación Arquitectónica + Web Luxe + Mobile)
+Versión Actual:      v3.4.0-Titanium-Aurora-Mastery
+Versión Base:        v3.3.0 (Endurecimiento de Seguridad + Operaciones Proactivas)
 Documento:           Prompt Maestro Canónico Unificado
 Autor:               Ruenisco Domestic Engine
 Repositorio:         https://github.com/pacoiglesias/alacena
