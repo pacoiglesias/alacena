@@ -37,8 +37,6 @@ export default function CatalogsConfigModal({ isOpen, onClose, onCatalogsUpdated
   const [newUnitId, setNewUnitId] = useState('');
   const [newUnitLabel, setNewUnitLabel] = useState('');
 
-  if (!isOpen) return null;
-
   const handleUpdate = (updated) => {
     setCatalogs(updated);
     saveCatalogs(updated);
@@ -304,6 +302,8 @@ export default function CatalogsConfigModal({ isOpen, onClose, onCatalogsUpdated
       return !q || label.includes(q) || short.includes(q);
     });
   }, [catalogs?.units, q]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md animate-fade-in">
