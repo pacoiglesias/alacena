@@ -35,8 +35,6 @@ export default function PrintableShoppingListModal({
   const [showSignatures, setShowSignatures] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  if (!isOpen) return null;
-
   // Filtrado de items
   const filteredItems = useMemo(() => {
     return shoppingList.filter((item) => {
@@ -85,6 +83,8 @@ export default function PrintableShoppingListModal({
     });
     return Object.entries(map).sort((a, b) => b[1].length - a[1].length);
   }, [filteredItems]);
+
+  if (!isOpen) return null;
 
   // Generador de QR Data para abrir la lista en el móvil
   const qrSyncUrl = `https://alacena-enterprise-prod.web.app/?tab=shopping&house=${encodeURIComponent(activeHouse?.id || 'casa-palmas')}`;
