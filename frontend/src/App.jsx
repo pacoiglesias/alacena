@@ -402,12 +402,39 @@ export default function App() {
     setActiveTab('inventory');
   };
 
-  // Direct scanner add
-  const handleAddStockDirect = (productId, amount) => {
-    handleUpdateQuantity(
-      productId,
-      (products.find((p) => p.id === productId)?.quantity || 0) + amount
-    );
+  // Direct scanner add & subtract
+  const handleAddStockDirect = (productId, amount = 1, targetZone = null) => {
+    const prod = products.find((p) => p.id === productId);
+    if (prod) {
+      const newQty = (prod.quantity || 0) + amount;
+      if (targetZone && targetZone !== prod.zone) {
+        setProducts((prev) =>
+          prev.map((p) => (p.id === productId ? { ...p, quantity: newQty, zone: targetZone, updatedAt: new Date().toISOString() } : p))
+        );
+      } else {
+        handleUpdateQuantity(productId, newQty);
+      }
+      addAuditEntry(
+        'Administrador / Compras',
+        'INGRESO_DIRECTO',
+        `Ingresó +${amount} ${prod.unit} de "${prod.name}" a ${targetZone || prod.zone}`,
+        `Stock total: ${newQty} ${prod.unit}`
+      );
+    }
+  };
+
+  const handleSubtractStockDirect = (productId, amount = 1) => {
+    const prod = products.find((p) => p.id === productId);
+    if (prod) {
+      const newQty = Math.max(0, (prod.quantity || 0) - amount);
+      handleUpdateQuantity(productId, newQty);
+      addAuditEntry(
+        'Cocinera / Personal',
+        'CONSUMO_DIRECTO',
+        `Consumo de ${amount} ${prod.unit} de "${prod.name}" vía QR/NFC`,
+        `Stock actual restante: ${newQty} ${prod.unit}`
+      );
+    }
   };
 
   const handleAddToShoppingListFromScan = (product, amount) => {
@@ -601,6 +628,9 @@ export default function App() {
             onOpenShoppingTab={() => setActiveTab('shopping')}
             onOpenRecipesTab={() => setActiveTab('recipes')}
             onAddToShoppingList={handleAddShoppingItem}
+            recipes={recipes}
+            auditLogs={auditLogs}
+            activeHouse={activeHouse}
           />
         )}
 
@@ -707,8 +737,17 @@ export default function App() {
         products={products}
         zones={zones}
         onAddStockDirect={handleAddStockDirect}
+        onSubtractStockDirect={handleSubtractStockDirect}
         onAddToShoppingList={handleAddToShoppingListFromScan}
         onOpenManualCaptureWithBarcode={handleOpenManualCaptureWithBarcode}
+        onEditZone={(zone) => {
+          setEditingZone(zone);
+          setIsZoneModalOpen(true);
+        }}
+        onAddZone={() => {
+          setEditingZone(null);
+          setIsZoneModalOpen(true);
+        }}
       />
 
       <ZoneModal

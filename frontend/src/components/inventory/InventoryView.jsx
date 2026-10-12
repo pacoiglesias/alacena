@@ -3,10 +3,12 @@ import {
   Search, Plus, Filter, AlertTriangle, CheckCircle, 
   Trash2, Pencil, ArrowUpDown, DollarSign, Layers, Warehouse,
   LayoutGrid, Table as TableIcon, Wine, Sparkles, MapPin, Star, ShoppingCart,
-  Clock, FileSpreadsheet, Utensils, Check
+  Clock, FileSpreadsheet, Utensils, Check, QrCode, Radio
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import ZonesBar from '../zones/ZonesBar';
+import ProactiveHomeAdvisor from '../assistant/ProactiveHomeAdvisor';
+import ItemQrModal from '../shopping/ItemQrModal';
 
 // Helper: cálculo del estado de caducidad FEFO
 export function getExpiryStatus(expiryDate) {
@@ -44,6 +46,8 @@ export default function InventoryView({
   onOpenShoppingTab,
   onOpenRecipesTab,
   onAddToShoppingList,
+  recipes = [],
+  activeHouse,
 }) {
   const [search, setSearch] = useState('');
   const [selectedZone, setSelectedZone] = useState(null);
@@ -51,6 +55,7 @@ export default function InventoryView({
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, OPTIMAL, LOW, OUT, EXPIRING
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
   const [quickAddedId, setQuickAddedId] = useState(null);
+  const [selectedQrProduct, setSelectedQrProduct] = useState(null);
   const searchInputRef = useRef(null);
 
   // Atajo global de teclado: presionar '/' o 'Ctrl+K' para enfocar búsqueda
@@ -271,6 +276,18 @@ export default function InventoryView({
         </div>
 
       </div>
+
+      {/* ═════════════════════════════════════════════════════════════════
+          ASISTENTE PROACTIVO DEL HOGAR (Recomendaciones, Cava & Desabasto)
+         ═════════════════════════════════════════════════════════════════ */}
+      <ProactiveHomeAdvisor
+        products={products}
+        recipes={recipes}
+        onAddToShoppingList={onAddToShoppingList}
+        onOpenShoppingTab={onOpenShoppingTab}
+        onOpenRecipesTab={onOpenRecipesTab}
+        onOpenWineTasting={onOpenWineTasting}
+      />
 
       {/* ═════════════════════════════════════════════════════════════════
           BANNER PROACTIVO DE REPOSICIÓN INTELIGENTE (Auto-Restock Engine)
@@ -630,6 +647,17 @@ export default function InventoryView({
                         </button>
 
                         <button
+                          onClick={() => {
+                            audio.click();
+                            setSelectedQrProduct(p);
+                          }}
+                          className="p-2 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#2A2521] text-[#E0B441] transition-all"
+                          title="Ver / Imprimir Etiqueta QR o Grabar NFC de esta botella"
+                        >
+                          <QrCode className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
                           onClick={() => handleAdjustQuantity(p, 1)}
                           className="w-8 h-8 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#2A2521] text-white flex items-center justify-center font-bold text-xs"
                           title="Añadir 1 botella"
@@ -700,6 +728,18 @@ export default function InventoryView({
                       <div className="text-[10px] text-[#8B8378] font-mono-num">
                         ${(p.unitPriceMxn || 0).toFixed(2)} MXN c/u
                       </div>
+                      <div className="w-24 bg-[#1C1916] rounded-full h-1 mt-1 overflow-hidden border border-[#2A2521]" title={`Capacidad máx: ${p.maxStock || p.idealStock || 6} ${p.unit}`}>
+                        <div 
+                          className={`h-full rounded-full transition-all ${
+                            p.quantity > (p.maxStock || p.idealStock || 6)
+                              ? 'bg-amber-400'
+                              : p.quantity <= p.minStock
+                              ? 'bg-rose-500'
+                              : 'bg-emerald-500'
+                          }`}
+                          style={{ width: `${Math.min(100, Math.round(((p.quantity || 0) / (p.maxStock || p.idealStock || 6)) * 100))}%` }}
+                        />
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-1.5">
@@ -739,6 +779,16 @@ export default function InventoryView({
                         title="Ingresar / Reabastecer 1 unidad (+1)"
                       >
                         +
+                      </button>
+                      <button
+                        onClick={() => {
+                          audio.click();
+                          setSelectedQrProduct(p);
+                        }}
+                        className="w-8 h-8 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#2A2521] text-[#E0B441] flex items-center justify-center transition-all ml-0.5"
+                        title="Ver / Imprimir Etiqueta QR o Grabar en NFC"
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => { audio.click(); onEditProduct(p); }}
@@ -884,6 +934,14 @@ export default function InventoryView({
         )}
 
       </div>
+
+      {/* Modal de Etiqueta QR / NFC del Insumo */}
+      <ItemQrModal
+        isOpen={!!selectedQrProduct}
+        onClose={() => setSelectedQrProduct(null)}
+        item={selectedQrProduct}
+        activeHouse={activeHouse}
+      />
 
     </div>
   );
