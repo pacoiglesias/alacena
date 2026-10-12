@@ -110,3 +110,24 @@
   }
 }
 
+/* ============================================================ */
+/* LECTOR DE CÁMARA HTML5-QRCODE (OPTIMIZACIÓN DE VIDEO Y FOCO) */
+/* ============================================================ */
+#qr-reader-container {
+  border: none !important;
+  width: 100% !important;
+  background: #000000 !important;
+}
+
+#qr-reader-container video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 1rem !important;
+}
+
+#qr-reader-container img[alt="Info icon"],
+#qr-reader-container > div:last-child {
+  display: none !important;
+}
+

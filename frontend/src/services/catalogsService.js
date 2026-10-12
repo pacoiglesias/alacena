@@ -2,6 +2,18 @@
 // Persistencia en LocalStorage con respaldo y sincronización
 
 export const DEFAULT_STORES = [
+  // 🇪🇸 Tiendas & Supermercados España
+  { id: 'store-es-1', name: 'Mercadona', category: 'Supermercado España', icon: '🛒', isDefault: false },
+  { id: 'store-es-2', name: 'Dia Supermercados', category: 'Supermercado España', icon: '🛍️', isDefault: false },
+  { id: 'store-es-3', name: 'El Corte Inglés / Hipercor', category: 'Gourmet & Calidad', icon: '🏬', isDefault: false },
+  { id: 'store-es-4', name: 'Carrefour', category: 'Hipermercado', icon: '🛒', isDefault: false },
+  { id: 'store-es-5', name: 'Aldi España', category: 'Descuento & Frescos', icon: '🏪', isDefault: false },
+  { id: 'store-es-6', name: 'Lidl España', category: 'Descuento & Frescos', icon: '🏪', isDefault: false },
+  { id: 'store-es-7', name: 'Pescadería del Barrio / Mercado Municipal', category: 'Pescados & Mariscos Frescos', icon: '🐟', isDefault: false },
+  { id: 'store-es-8', name: 'Carnicería / Charcutería Tradicional', category: 'Carnes & Jamón Ibérico', icon: '🥩', isDefault: false },
+  { id: 'store-es-9', name: 'Panadería & Frutería de Barrio', category: 'Pan & Fruta Fresca', icon: '🥖', isDefault: false },
+
+  // 🇲🇽 Tiendas & Supermercados México
   { id: 'store-1', name: 'Costco Wholesale', category: 'Club de Precios', icon: '🛒', isDefault: true },
   { id: 'store-2', name: 'City Market', category: 'Gourmet & Cortes', icon: '🏪', isDefault: false },
   { id: 'store-3', name: "Sam's Club", category: 'Club de Precios', icon: '🏬', isDefault: false },
@@ -9,8 +21,7 @@ export const DEFAULT_STORES = [
   { id: 'store-5', name: 'La Comer', category: 'Supermercado', icon: '🛒', isDefault: false },
   { id: 'store-6', name: 'Walmart Express', category: 'Supermercado Rápido', icon: '🏪', isDefault: false },
   { id: 'store-7', name: 'Central de Abastos / Mercado Local', category: 'Perecederos & Frescos', icon: '🥬', isDefault: false },
-  { id: 'store-8', name: 'Carnicería & Pescadería Local', category: 'Proteínas Frescas', icon: '🥩', isDefault: false },
-  { id: 'store-9', name: 'Panadería Artesanal & Tostador Local', category: 'Especialidades', icon: '🥖', isDefault: false },
+  { id: 'store-8', name: 'Pescadería / Viga / Mercado Fresco', category: 'Proteínas Frescas', icon: '🐟', isDefault: false },
   { id: 'store-10', name: 'Vinoteca / Cava Especializada', category: 'Vinos & Licores', icon: '🍷', isDefault: false },
 ];
 

@@ -9,8 +9,9 @@ export const INITIAL_ZONES = [
 ];
 
 export const INITIAL_HOUSEHOLDS = [
-  { id: 'house-1', name: 'Residencia Principal (Lomas)', isPrimary: true },
-  { id: 'house-2', name: 'Casa de Fin de Semana (Valle de Bravo)', isPrimary: false },
+  { id: 'house-1', name: '🇲🇽 Casa México (Principal)', isPrimary: true, currency: 'MXN', symbol: '$' },
+  { id: 'house-spain', name: '🇪🇸 Casa España (Hijos)', isPrimary: false, currency: 'EUR', symbol: '€' },
+  { id: 'house-2', name: '🏡 Casa Fin de Semana (Valle)', isPrimary: false, currency: 'MXN', symbol: '$' },
 ];
 
 export const INITIAL_STAFF = [

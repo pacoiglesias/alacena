@@ -192,7 +192,13 @@ export default function ShoppingListView({
       }
     });
 
-    text += `_Generado automáticamente con ALACENA Enterprise_`;
+    text += `_Generado con ALACENA Casa_ 🏡✨`;
+
+    try {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text);
+      }
+    } catch (_) {}
 
     const encoded = encodeURIComponent(text);
     window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');

@@ -6,11 +6,13 @@ import {
   Radio, Sparkles, Scissors, Download, Layers, Wine
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
+import { getItemScanUrl } from '../../services/qrPdfService';
 
 export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpdateProduct }) {
   const [nfcWriting, setNfcWriting] = useState(false);
   const [nfcSuccess, setNfcSuccess] = useState(false);
   const [nfcMessage, setNfcMessage] = useState('');
+  const [copiedLink, setCopiedLink] = useState(false);
   const [labelSize, setLabelSize] = useState('STANDARD'); // 'STANDARD' (50x50) | 'MINI' (30x30) | 'WINE_COLLAR'
   const qrSvgRef = useRef(null);
 
@@ -19,9 +21,9 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
   // Código de barras o clave única persistente del producto
   const activeBarcode = item.barcode || `ALC-${(item.id || '').replace('prod-', '').toUpperCase() || Date.now().toString(36).toUpperCase()}`;
 
-  // QR Payload Ultracompacto: Solo la clave ALC-XXXX para máxima velocidad de lectura y versión QR compacta
-  // Esto permite que el QR tenga módulos grandes (21x21), legibles a distancia o con poca luz
-  const compactQrValue = activeBarcode;
+  // URL de escaneo directo interactivo (abre ALACENA al instante al escanear con cámara nativa o NFC)
+  const scanUrl = getItemScanUrl(item);
+  const compactQrValue = scanUrl;
 
   // Imprimir con aislamiento en iframe limpio sin páginas en blanco
   const handlePrint = async () => {
@@ -164,7 +166,7 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
   // Grabar directamente en Sticker NFC físico
   const handleWriteNfc = async () => {
     if (!('NDEFReader' in window)) {
-      alert('La grabación NFC requiere Google Chrome en un celular Android con NFC activado.');
+      alert('La grabación NFC directa requiere Google Chrome en Android. En iPhone, puedes copiar el link y usar la app Atajos o NFC Tools.');
       return;
     }
 
@@ -177,8 +179,8 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
       await ndef.write({
         records: [
           {
-            recordType: 'text',
-            data: activeBarcode,
+            recordType: 'url',
+            data: scanUrl,
           },
         ],
       });
@@ -186,13 +188,20 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
       audio.success();
       setNfcWriting(false);
       setNfcSuccess(true);
-      setNfcMessage('✓ ¡Etiqueta NFC grabada exitosamente con ' + activeBarcode + '! Pégala en el envase.');
-      setTimeout(() => setNfcSuccess(false), 4000);
+      setNfcMessage(`✓ ¡Tag NFC grabado! Al tocarlo con cualquier celular abrirá ALACENA y mostrará "${item.name}".`);
+      setTimeout(() => setNfcSuccess(false), 5000);
     } catch (err) {
       console.warn('Error grabando NFC:', err);
       setNfcWriting(false);
       setNfcMessage(`⚠️ No se pudo grabar: ${err.message || 'Intenta de nuevo'}`);
     }
+  };
+
+  const handleCopyLink = () => {
+    audio.click();
+    navigator.clipboard.writeText(scanUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 3000);
   };
 
   return (
@@ -431,6 +440,14 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
               <span>🖨️ Imprimir</span>
             </button>
           </div>
+
+          {/* Botón para Copiar Enlace Directo (Para iPhone / Atajos / NFC Tools) */}
+          <button
+            onClick={handleCopyLink}
+            className="w-full py-2 px-3 rounded-xl bg-[#1A2030] hover:bg-[#252E42] border border-[#252E42] text-xs font-semibold text-[#94A3B8] hover:text-white flex items-center justify-center gap-2 transition-all cursor-pointer"
+          >
+            <span>{copiedLink ? '✓ ¡Enlace copiado al portapapeles!' : '🔗 Copiar Enlace de Escaneo Directo (iPhone / Atajos)'}</span>
+          </button>
 
           <button
             onClick={() => {

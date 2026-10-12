@@ -16,7 +16,8 @@ export default function ManualProductModal({
   onOpenCatalogs,
   zones = [], 
   staffList = [], 
-  initialProduct 
+  initialProduct,
+  activeHouse
 }) {
   const [catalogs, setCatalogs] = useState(() => getCatalogs());
   const [name, setName] = useState('');
@@ -322,10 +323,12 @@ export default function ManualProductModal({
 
             <div>
               <label className="block text-xs font-bold text-[#B8AFA3] uppercase tracking-wider mb-1.5">
-                Costo Unitario ($ MXN)
+                Costo Unitario ({activeHouse?.currency === 'EUR' ? '€ EUR' : '$ MXN'})
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-2 text-[#8B8378] text-xs font-mono">$</span>
+                <span className="absolute left-3 top-2 text-[#8B8378] text-xs font-mono">
+                  {activeHouse?.currency === 'EUR' ? '€' : '$'}
+                </span>
                 <input
                   type="number"
                   step="any"

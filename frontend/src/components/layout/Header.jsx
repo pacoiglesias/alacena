@@ -3,7 +3,7 @@ import {
   Sparkles, Volume2, VolumeX, MapPin, 
   ChevronDown, Utensils, History, Layers, RefreshCw, 
   ShoppingCart, Camera, Wine, User, Shield, Check, Sliders,
-  BookOpen, Palette, Store, Sun
+  BookOpen, Palette, Store, Sun, QrCode
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { SYSTEM_VERSION } from '../changelog/ChangelogModal';
@@ -29,6 +29,7 @@ export default function Header({
   onResetDemoData,
   onOpenScanner,
   onOpenCommandCenter,
+  onOpenQrBooklet,
   shoppingCount = 0,
   isMuted,
   onToggleMute,
@@ -129,8 +130,8 @@ export default function Header({
   return (
     <header className={`sticky top-0 z-40 w-full border-b transition-all duration-300 backdrop-blur-xl ${
       isScrolled 
-        ? 'py-1.5 bg-[#12100E]/95 border-[#2A2521] shadow-md' 
-        : 'py-2.5 bg-[#12100E]/90 border-[#2A2521]'
+        ? 'py-1.5 bg-[#090B0E]/95 border-[#1E2638] shadow-md shadow-black/40' 
+        : 'py-2.5 bg-[#090B0E]/90 border-[#1E2638]'
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
@@ -143,12 +144,12 @@ export default function Header({
           <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
             {/* Monograma "A" en cuadrado redondeado */}
             <div className="flex items-center gap-2.5 group cursor-pointer" onClick={() => { audio.click(); setActiveTab('inventory'); }}>
-              <div className="w-10 h-10 rounded-[10px] bg-gradient-to-br from-[#6B1F2E] to-[#45121D] flex items-center justify-center text-[#F2EDE4] shadow-md shadow-[#6B1F2E]/30 border border-[#A83A50]/40 transition-transform group-hover:scale-105">
-                <span className="font-display font-bold text-xl leading-none">A</span>
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#10B981] via-[#059669] to-[#047857] flex items-center justify-center text-white shadow-lg shadow-emerald-950/40 border border-emerald-400/30 transition-transform group-hover:scale-105">
+                <span className="font-display font-black text-xl leading-none">A</span>
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-display text-[22px] font-extrabold tracking-tight text-[#F2EDE4] block leading-none">
+                  <span className="font-display text-[22px] font-black tracking-tight text-white block leading-none">
                     ALACENA
                   </span>
                   {/* Chip de versión */}
@@ -158,16 +159,16 @@ export default function Header({
                       audio.click();
                       onOpenChangelog();
                     }}
-                    className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#1C1916] border border-[#3D3630] hover:border-[#E0B441]/50 text-[10px] font-mono font-bold text-[#E0B441] transition-all"
-                    title="Ver Ficha Técnica y Changelog Luxe"
+                    className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#121622] border border-[#1E2638] hover:border-emerald-500/50 text-[10px] font-mono font-bold text-emerald-400 transition-all cursor-pointer"
+                    title="Ver Ficha Técnica y Mejoras del Hogar"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>v3.5.4 · Enterprise Luxe</span>
+                    <span>v3.6.0 · Casa & Cava</span>
                   </button>
                 </div>
                 {!isScrolled && (
-                  <span className="text-[11px] font-medium text-[#B8AFA3] tracking-wide block truncate">
-                    Control Residencial & Cava
+                  <span className="text-[11px] font-medium text-[#94A3B8] tracking-wide block truncate">
+                    Despensa, Cava & Hogar
                   </span>
                 )}
               </div>
@@ -179,12 +180,12 @@ export default function Header({
                 audio.click();
                 onOpenHouseModal();
               }}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#F2EDE4] bg-white/5 hover:bg-white/10 border border-[#2A2521] transition-all shrink-0"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#121622] hover:bg-[#1A2030] border border-[#1E2638] hover:border-emerald-500/40 transition-all shrink-0 cursor-pointer"
               title="Cambiar o Administrar Casas del Hogar"
             >
-              <MapPin className="w-3.5 h-3.5 text-[#E0B441]" />
+              <MapPin className="w-3.5 h-3.5 text-emerald-400" />
               <span className="font-bold">{activeHouse?.name || 'Residencia Principal'}</span>
-              <ChevronDown className="w-3 h-3 text-[#B8AFA3]" />
+              <ChevronDown className="w-3 h-3 text-[#94A3B8]" />
             </button>
           </div>
 
@@ -208,29 +209,29 @@ export default function Header({
                   audio.click();
                   setIsRoleMenuOpen(!isRoleMenuOpen);
                 }}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                   isRoleMenuOpen 
-                    ? 'bg-white/15 border-[#E0B441]/50 text-white' 
-                    : 'bg-white/5 border-[#2A2521] text-[#B8AFA3] hover:text-white'
+                    ? 'bg-[#1A2030] border-emerald-500/50 text-white' 
+                    : 'bg-[#121622] border-[#1E2638] text-[#94A3B8] hover:text-white'
                 }`}
                 title="Cambiar Rol de Operación en el Hogar"
               >
-                {React.createElement(activeRole.icon, { className: 'w-3.5 h-3.5 text-[#E0B441]' })}
+                {React.createElement(activeRole.icon, { className: 'w-3.5 h-3.5 text-emerald-400' })}
                 <span className="hidden sm:inline font-medium">{activeRole.label}</span>
-                <ChevronDown className="w-3 h-3 text-[#B8AFA3]" />
+                <ChevronDown className="w-3 h-3 text-[#94A3B8]" />
               </button>
 
               {isRoleMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#1C1814] border border-[#3D3630] shadow-2xl p-2 z-50 animate-fade-in">
-                  <div className="px-2 py-1.5 text-[10px] font-mono font-bold text-[#E0B441] uppercase tracking-wider border-b border-[#2A2521] mb-1">
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#121622] border border-[#2A364E] shadow-2xl p-2 z-50 animate-fade-in">
+                  <div className="px-2 py-1.5 text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider border-b border-[#1E2638] mb-1">
                     Cambiar Perfil de Operación
                   </div>
                   {SYSTEM_ROLES.map((role) => (
                     <button
                       key={role.id}
                       onClick={() => handleSelectRole(role)}
-                      className={`w-full flex items-center justify-between p-2 rounded-xl text-xs transition-all ${
-                        activeRole.id === role.id ? 'bg-[#E0B441]/15 text-[#E0B441] font-bold' : 'text-[#B8AFA3] hover:text-white hover:bg-white/5'
+                      className={`w-full flex items-center justify-between p-2 rounded-xl text-xs transition-all cursor-pointer ${
+                        activeRole.id === role.id ? 'bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30' : 'text-[#94A3B8] hover:text-white hover:bg-white/5'
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -290,13 +291,27 @@ export default function Header({
               <span className="text-[10px] text-[#E0B441]">▾</span>
             </button>
 
+            {/* Botón Catálogo de QR, Stickers y Tuppers */}
+            <button
+              onClick={() => {
+                audio.click();
+                if (onOpenQrBooklet) onOpenQrBooklet();
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-[#E0B441] bg-[#E0B441]/10 hover:bg-[#E0B441]/20 border border-[#E0B441]/35 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              title="Abrir Catálogo Imprimible de QR para la Puerta de la Alacena, Frascos y Tuppers"
+            >
+              <QrCode className="w-3.5 h-3.5 text-[#E0B441]" />
+              <span className="hidden sm:inline">Catálogo QR</span>
+              <span className="sm:hidden">QR</span>
+            </button>
+
             {/* Escáner Universal 1-Tap */}
             <button
               onClick={() => {
                 audio.click();
                 onOpenScanner();
               }}
-              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#1F4D3A] to-[#2E6B52] hover:from-[#275e47] hover:to-[#388264] border border-[#3D8B6E]/40 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#1F4D3A] to-[#2E6B52] hover:from-[#275e47] hover:to-[#388264] border border-[#3D8B6E]/40 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
               title="Abrir Escáner de Códigos de Barra y QR"
             >
               <Camera className="w-4 h-4" />

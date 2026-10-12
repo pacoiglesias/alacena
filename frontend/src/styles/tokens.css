@@ -76,32 +76,32 @@
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
-/* PALETA MODO OSCURO (Midnight Cava) */
+/* PALETA MODO OSCURO (Nordic Obsidian & Modern Slate) */
 html.dark,
 :root.dark,
 [data-theme="dark"] {
-  --bg-base: #12100E;
-  --bg-elevated: #1C1916;
-  --bg-sunken: #0A0908;
-  --ink-primary: #F2EDE4;
-  --ink-secondary: #B8AFA3;
-  --ink-tertiary: #7A7268;
-  --border-soft: #2A2521;
-  --border-strong: #3D3630;
+  --bg-base: #090B0E;
+  --bg-elevated: #121622;
+  --bg-sunken: #060709;
+  --ink-primary: #F8FAFC;
+  --ink-secondary: #94A3B8;
+  --ink-tertiary: #64748B;
+  --border-soft: #1E2638;
+  --border-strong: #2A364E;
 
-  /* Acentos más saturados en oscuridad */
-  --accent-super: #E5724A;
-  --accent-cava: #A83A50;
-  --accent-cocina: #E0B441;
-  --accent-audit: #5C8894;
-  --accent-qr: #3D8B6E;
+  /* Acentos vibrantes y modernos */
+  --accent-super: #F59E0B;
+  --accent-cava: #A855F7;
+  --accent-cocina: #10B981;
+  --accent-audit: #38BDF8;
+  --accent-qr: #10B981;
 
-  /* Sombras oscuras profundas */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 3px 6px rgba(0, 0, 0, 0.45), 0 6px 16px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 6px 12px rgba(0, 0, 0, 0.5), 0 16px 36px rgba(0, 0, 0, 0.45);
-  --shadow-xl: 0 12px 24px rgba(0, 0, 0, 0.6), 0 28px 56px rgba(0, 0, 0, 0.55);
-  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  /* Sombras limpias y profundas */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.45);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.7), 0 8px 16px rgba(0, 0, 0, 0.5);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

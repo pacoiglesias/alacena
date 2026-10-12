@@ -6,7 +6,19 @@ import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 
 /**
- * Convierte un código QR a un DataURL de imagen PNG en memoria usando la librería oficial QRCode
+ * Genera la URL de acción instantánea para que cualquier celular (iPhone o Android)
+ * o sticker NFC abra la app automáticamente al escanear o tocar.
+ */
+export function getItemScanUrl(item) {
+  const base = (typeof window !== 'undefined' && window.location.origin)
+    ? window.location.origin
+    : 'https://alacena-enterprise-prod.web.app';
+  const param = encodeURIComponent(item.id || item.barcode || '');
+  return `${base}/?scan=${param}`;
+}
+
+/**
+ * Convierte un código QR o URL a un DataURL de imagen PNG en memoria usando la librería oficial QRCode
  */
 async function createQrDataUrl(text, size = 256) {
   try {
@@ -140,8 +152,9 @@ export async function generateQrPdf({
       const qrX = x + (cardWidth - qrBoxSize) / 2;
       const qrY = y + 18.5;
 
-      // Código QR Real
-      const qrDataUrl = await createQrDataUrl(barcode, 256);
+      // Código QR Real que abre la app al escanear con la cámara del celular o tocar con NFC
+      const qrPayload = getItemScanUrl(p);
+      const qrDataUrl = await createQrDataUrl(qrPayload, 256);
       if (qrDataUrl) {
         doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrBoxSize, qrBoxSize);
       } else {
@@ -218,9 +231,10 @@ export async function generateQrPdf({
       doc.setLineWidth(0.2);
       doc.rect(x, y, itemWidth, itemHeight, 'S');
 
-      // Cuadrado QR Real
+      // Cuadrado QR Real con enlace interactivo
       const qrSize = 17;
-      const qrDataUrl = await createQrDataUrl(barcode, 200);
+      const qrPayload = getItemScanUrl(p);
+      const qrDataUrl = await createQrDataUrl(qrPayload, 200);
       if (qrDataUrl) {
         doc.addImage(qrDataUrl, 'PNG', x + 2, y + 2.5, qrSize, qrSize);
       } else {
@@ -340,7 +354,8 @@ export async function generateQrPdf({
       const qrX = x + (tagWidth - qrSize) / 2;
       const qrY = y + 70;
 
-      const qrDataUrl = await createQrDataUrl(barcode, 256);
+      const qrPayload = getItemScanUrl(p);
+      const qrDataUrl = await createQrDataUrl(qrPayload, 256);
       if (qrDataUrl) {
         doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
       } else {
@@ -403,9 +418,10 @@ export async function generateQrPdf({
       doc.setLineWidth(0.2);
       doc.roundedRect(x, y, itemWidth, itemHeight, 1.5, 1.5, 'S');
 
-      // Cuadrado QR Real
+      // Cuadrado QR Real con enlace interactivo
       const qrSize = 18;
-      const qrDataUrl = await createQrDataUrl(barcode, 200);
+      const qrPayload = getItemScanUrl(p);
+      const qrDataUrl = await createQrDataUrl(qrPayload, 200);
       if (qrDataUrl) {
         doc.addImage(qrDataUrl, 'PNG', x + 2.5, y + 3, qrSize, qrSize);
       } else {
@@ -431,6 +447,94 @@ export async function generateQrPdf({
       doc.setTextColor(90, 90, 90);
       doc.text(`Ubicación: ${p.zone || 'Alacena'} • Categoría: ${p.category || 'General'}`, textX, y + 14);
       doc.text(`Stock: ${p.quantity || 0} ${p.unit || ''} • Tienda: ${p.store || 'Supermercado'}`, textX, y + 18.5);
+
+      col++;
+      if (col >= cols) {
+        col = 0;
+        row++;
+      }
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // FORMATO 5: TUPPERS INTELIGENTES (Reutilizables para Refrigerador y Congelador)
+  // ═════════════════════════════════════════════════════════════════════════
+  else if (format === 'TUPPERS') {
+    drawPageHeader('PLANILLA DE TUPPERS INTELIGENTES • REUTILIZABLES PARA REFRI & CONGELADOR');
+
+    const cols = 2;
+    const itemWidth = (pageWidth - (margin * 2) - 8) / cols;
+    const itemHeight = 44;
+    const startY = 24;
+
+    let col = 0;
+    let row = 0;
+    let pageCount = 1;
+
+    for (let i = 0; i < items.length; i++) {
+      const p = items[i];
+      const barcode = p.barcode || `TUP-${(p.id || '').replace('prod-', '').toUpperCase()}`;
+
+      if (row >= 5) {
+        doc.addPage();
+        pageCount++;
+        drawPageHeader(`TUPPERS INTELIGENTES (Hoja ${pageCount})`);
+        row = 0;
+        col = 0;
+      }
+
+      const x = margin + (col * (itemWidth + 6));
+      const y = startY + (row * (itemHeight + 4));
+
+      // Borde de etiqueta con esquinas redondeadas
+      doc.setDrawColor(60, 120, 180);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(x, y, itemWidth, itemHeight, 3, 3, 'S');
+
+      // Tira decorativa superior
+      doc.setFillColor(240, 247, 255);
+      doc.roundedRect(x + 0.5, y + 0.5, itemWidth - 1, 7, 2, 2, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(30, 90, 160);
+      doc.text(`🍱 ALACENA • TUPPER INTELIGENTE #${i + 1}`, x + 4, y + 5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6);
+      doc.setTextColor(100, 100, 100);
+      doc.text('✂ Plastificar / Usar plumon borrable', x + itemWidth - 38, y + 5);
+
+      // Código QR a la izquierda
+      const qrSize = 24;
+      const qrPayload = getItemScanUrl(p);
+      const qrDataUrl = await createQrDataUrl(qrPayload, 200);
+      if (qrDataUrl) {
+        doc.addImage(qrDataUrl, 'PNG', x + 4, y + 9.5, qrSize, qrSize);
+      } else {
+        doc.setDrawColor(180, 180, 180);
+        doc.rect(x + 4, y + 9.5, qrSize, qrSize, 'S');
+      }
+
+      doc.setFont('courier', 'bold');
+      doc.setFontSize(6);
+      doc.setTextColor(50, 50, 50);
+      doc.text(barcode, x + 4 + (qrSize / 2), y + 38, { align: 'center' });
+
+      // Zona de escritura a mano a la derecha
+      const writeX = x + qrSize + 7;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(20, 20, 20);
+      doc.text(`Comida: ___________________________`, writeX, y + 14);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(80, 80, 80);
+      doc.text(`Cocinado: ___/___/202_  •  Porciones: ___`, writeX, y + 21);
+      doc.text(`Consumir antes de: ___/___/202_`, writeX, y + 27);
+
+      doc.setFontSize(5.5);
+      doc.setTextColor(40, 130, 80);
+      doc.text(`📲 Escanea con tu cel al guardar o comer para registrar`, writeX, y + 36);
 
       col++;
       if (col >= cols) {

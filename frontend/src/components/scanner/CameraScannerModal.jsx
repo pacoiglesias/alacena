@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { lookupBarcode } from '../../services/barcodeLookupService';
+import { findProductByScanCode, extractCodeFromScan } from '../../utils/scanHelper';
 
 export default function CameraScannerModal({ 
   isOpen, 
@@ -126,7 +127,7 @@ export default function CameraScannerModal({
         let readText = '';
 
         for (const record of event.message.records) {
-          if (record.recordType === 'text') {
+          if (record.recordType === 'url' || record.recordType === 'text') {
             readText = decoder.decode(record.data);
             break;
           }
@@ -198,45 +199,56 @@ export default function CameraScannerModal({
         console.warn('No se pudieron listar cámaras explícitas:', e);
       }
 
-      // 3. Crear nueva instancia limpia
+      // 3. Crear nueva instancia con formatos explícitos para códigos de barra y QR
+      // Activamos useBarCodeDetectorIfSupported para aceleración nativa por hardware en Chrome/Android/iOS
+      const supportedFormats = [
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.DATA_MATRIX,
+        Html5QrcodeSupportedFormats.ITF,
+      ];
+
       html5QrCodeRef.current = new Html5Qrcode(scannerContainerId, {
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.QR_CODE,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-        ],
+        formatsToSupport: supportedFormats,
         verbose: false,
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true,
+        },
       });
 
-      // 4. Seleccionar la mejor cámara (trasera preferente para código de barras)
-      let cameraConfig = { facingMode: 'environment' };
-      if (forcedCameraId) {
-        cameraConfig = forcedCameraId;
-        setSelectedCameraId(forcedCameraId);
-      } else if (availableCameras && availableCameras.length > 0) {
+      // 4. Seleccionar la mejor cámara (trasera preferente para códigos de barras y QR)
+      let cameraConfig = forcedCameraId || { facingMode: 'environment' };
+      if (!forcedCameraId && availableCameras && availableCameras.length > 0) {
         const backCam = availableCameras.find(c => {
           const label = (c.label || '').toLowerCase();
           return label.includes('back') || label.includes('trasera') || label.includes('rear') || label.includes('environment');
         });
-        const chosenCam = backCam || availableCameras[0];
-        setSelectedCameraId(chosenCam.id);
-        cameraConfig = chosenCam.id;
+        if (backCam) {
+          setSelectedCameraId(backCam.id);
+          cameraConfig = backCam.id;
+        }
       }
 
-      // 5. Iniciar transmisión
+      // 5. Iniciar transmisión con escaneo cuadrado amplio que no recorte ni códigos largos ni QR
       await html5QrCodeRef.current.start(
         cameraConfig,
         {
-          fps: 15,
-          qrbox: { width: 300, height: 160 },
-          aspectRatio: 1.333,
+          fps: 25,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            // Bounding box amplio de 85% para capturar barras de extremo a extremo sin recorte
+            const edge = Math.max(Math.floor(minEdge * 0.85), 250);
+            return { width: edge, height: edge };
+          },
+          aspectRatio: 1.333333,
         },
         onScanSuccess,
-        () => {} // Ignorar cuadros sin detección
+        () => {} // Ignorar cuadros intermedios sin detección
       );
 
       setScannerActive(true);
@@ -244,16 +256,19 @@ export default function CameraScannerModal({
     } catch (err) {
       console.warn('Error al iniciar cámara principal:', err);
       
-      // Fallback: intentar con facingMode genérico 'user'
+      // Fallback: intentar con facingMode genérico 'user' o sin restricciones
       try {
         await stopScanner();
         const el = document.getElementById(scannerContainerId);
         if (el) el.innerHTML = '';
 
-        html5QrCodeRef.current = new Html5Qrcode(scannerContainerId, { verbose: false });
+        html5QrCodeRef.current = new Html5Qrcode(scannerContainerId, { 
+          verbose: false,
+          experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+        });
         await html5QrCodeRef.current.start(
           { facingMode: 'user' },
-          { fps: 10, qrbox: { width: 260, height: 150 } },
+          { fps: 15, qrbox: { width: 260, height: 260 } },
           onScanSuccess,
           () => {}
         );
@@ -317,7 +332,7 @@ export default function CameraScannerModal({
     if (actionType === 'ADD_ENTRY') {
       audio.success();
       if (onAddStockDirect) {
-        onAddStockDirect(targetProduct.id, 1, selectedTargetZone || targetProduct.zone);
+        onAddStockDirect(targetProduct, 1, selectedTargetZone || targetProduct.zone);
       }
       setBatchHistory((prev) => [{ name: targetProduct.name, action: '+1 Ingreso', time: timeStr }, ...prev.slice(0, 8)]);
       setLastBatchMessage(`➕ +1 "${targetProduct.name}" ingresado a ${selectedTargetZone || targetProduct.zone || 'Alacena'}`);
@@ -328,7 +343,7 @@ export default function CameraScannerModal({
     if (actionType === 'CONSUME_EXIT') {
       audio.delete();
       if (onSubtractStockDirect) {
-        onSubtractStockDirect(targetProduct.id, 1);
+        onSubtractStockDirect(targetProduct.id || targetProduct.barcode, 1);
       }
       setBatchHistory((prev) => [{ name: targetProduct.name, action: '-1 Consumo', time: timeStr }, ...prev.slice(0, 8)]);
       setLastBatchMessage(`➖ -1 "${targetProduct.name}" consumido / retirado`);
@@ -350,76 +365,25 @@ export default function CameraScannerModal({
     return false;
   };
 
-  const processBarcode = async (code) => {
+  const processBarcode = async (rawCode) => {
+    if (!rawCode) return;
     setIsSearching(true);
 
     const now = Date.now();
-    if (now - lastScanTimeRef.current < 1600) {
+    if (now - lastScanTimeRef.current < 1200) {
       setIsSearching(false);
       return;
     }
     lastScanTimeRef.current = now;
 
-    // 1. Detectar si es Vino/Licor para auto-asignar Cava
-    const isLikelyWine = (nameOrCat) => {
-      const txt = (nameOrCat || '').toLowerCase();
-      return txt.includes('vino') || txt.includes('crianza') || txt.includes('reserva') || 
-             txt.includes('champagne') || txt.includes('cava') || txt.includes('licor') || 
-             txt.includes('tequila') || txt.includes('whisky') || txt.includes('mezcal') || 
-             txt.includes('bodega') || txt.includes('añada') || txt.includes('tinto');
-    };
-
     const cavaZone = zones.find(z => z.type === 'WINE_CELLAR') || zones[0];
     const pantryZone = zones.find(z => z.type === 'DRY_PANTRY') || zones[0];
 
-    const cleanCode = code.trim();
-
-    // 2. ¿Es un código QR / NFC propio de ALACENA con JSON o prefijo?
-    if (cleanCode.startsWith('{') && cleanCode.includes('ALACENA_ENTERPRISE')) {
-      try {
-        const qrJson = JSON.parse(cleanCode);
-        const searchKey = qrJson.barcode || qrJson.id;
-        const matchedProd = products.find(p => 
-          p.id === searchKey || 
-          p.barcode === searchKey || 
-          (p.name && p.name.toLowerCase() === (qrJson.name || '').toLowerCase())
-        ) || {
-          id: qrJson.id,
-          name: qrJson.name,
-          quantity: qrJson.qty || 1,
-          unit: qrJson.unit || 'kg',
-          zone: qrJson.zone || pantryZone.name,
-          store: qrJson.store || 'Supermercado',
-        };
-
-        if (scanDirectionMode !== 'INTERACTIVE') {
-          executeDirectAction(matchedProd, scanDirectionMode);
-          setIsSearching(false);
-          return;
-        }
-
-        setScannedResult({
-          barcode: qrJson.id,
-          product: matchedProd,
-          isExisting: true,
-          isQrLabel: true,
-        });
-        setIsSearching(false);
-        return;
-      } catch (e) {
-        console.warn('Error parseando QR JSON:', e);
-      }
-    }
-
-    // 3. Buscar si ya existe en la despensa (por barcode comercial, clave ALC-XXXX o ID)
-    const existingInPantry = products.find((p) => {
-      if (p.barcode && p.barcode.toUpperCase() === cleanCode.toUpperCase()) return true;
-      if (p.id && p.id.toUpperCase() === cleanCode.toUpperCase()) return true;
-      if (p.id && cleanCode.toUpperCase() === `ALC-${p.id.replace('prod-', '').toUpperCase()}`) return true;
-      return false;
-    });
+    // 1. Coincidencia robusta en la despensa local (soporta URL ?scan=..., ALC-XXXX, ID, Barcode, etc.)
+    const { product: existingInPantry, cleanCode } = findProductByScanCode(products, rawCode);
 
     if (existingInPantry) {
+      audio.success();
       const assignedZone = selectedTargetZone || existingInPantry.zone || pantryZone.name;
       const targetProd = { ...existingInPantry, zone: assignedZone };
 
@@ -438,29 +402,67 @@ export default function CameraScannerModal({
       return;
     }
 
-    // 4. Buscar en catálogo EAN / Open Food Facts
-    const lookup = await lookupBarcode(code);
-    const looksWine = isLikelyWine(lookup.name) || isLikelyWine(lookup.category);
-    const suggestedZone = looksWine ? (cavaZone?.name || 'Cava Principal') : (selectedTargetZone || pantryZone?.name || 'Alacena Principal');
+    // 2. No encontrado localmente -> Buscar en catálogo comercial / Open Food Facts / GS1
+    try {
+      const lookup = await lookupBarcode(cleanCode);
+      audio.success();
 
-    if (looksWine && cavaZone) {
-      setSelectedTargetZone(cavaZone.name);
-    }
+      const isLikelyWine = (nameOrCat) => {
+        const txt = (nameOrCat || '').toLowerCase();
+        return txt.includes('vino') || txt.includes('crianza') || txt.includes('reserva') || 
+               txt.includes('champagne') || txt.includes('cava') || txt.includes('licor') || 
+               txt.includes('tequila') || txt.includes('whisky') || txt.includes('mezcal') || 
+               txt.includes('bodega') || txt.includes('añada') || txt.includes('tinto');
+      };
 
-    const newProd = { ...lookup, zone: suggestedZone, isWine: looksWine };
+      const looksWine = isLikelyWine(lookup.name) || isLikelyWine(lookup.category) || Boolean(lookup.isWine);
+      const suggestedZone = looksWine ? (cavaZone?.name || 'Cava Principal') : (selectedTargetZone || pantryZone?.name || 'Alacena Principal');
 
-    if (scanDirectionMode === 'RESTOCK_SUPER') {
-      executeDirectAction(newProd, 'RESTOCK_SUPER');
+      if (looksWine && cavaZone) {
+        setSelectedTargetZone(cavaZone.name);
+      }
+
+      const newProd = {
+        ...lookup,
+        zone: suggestedZone,
+        isWine: looksWine,
+        quantity: 1,
+      };
+
+      if (scanDirectionMode === 'RESTOCK_SUPER') {
+        executeDirectAction(newProd, 'RESTOCK_SUPER');
+        setIsSearching(false);
+        return;
+      }
+
+      if (scanDirectionMode === 'ADD_ENTRY') {
+        executeDirectAction(newProd, 'ADD_ENTRY');
+        setIsSearching(false);
+        return;
+      }
+
+      setScannedResult({
+        barcode: cleanCode,
+        product: newProd,
+        isExisting: false,
+      });
+    } catch (err) {
+      console.warn('Error en búsqueda externa:', err);
+      setScannedResult({
+        barcode: cleanCode,
+        product: {
+          name: `Código ${cleanCode}`,
+          barcode: cleanCode,
+          category: 'Abarrotes',
+          unit: 'piezas',
+          quantity: 1,
+          zone: selectedTargetZone || pantryZone?.name || 'Alacena Principal',
+        },
+        isExisting: false,
+      });
+    } finally {
       setIsSearching(false);
-      return;
     }
-
-    setScannedResult({
-      barcode: code,
-      product: newProd,
-      isExisting: false,
-    });
-    setIsSearching(false);
   };
 
   const handleManualSubmit = async (e) => {
@@ -653,15 +655,23 @@ export default function CameraScannerModal({
           <div className="relative w-full rounded-2xl overflow-hidden bg-black border border-[#2A2521] min-h-[250px] flex items-center justify-center">
             <div id={scannerContainerId} className="w-full" />
 
-            {/* Target Reticle Overlay */}
+            {/* Target Reticle Overlay - Guía dual para QR y Códigos de Barras */}
             {scannerActive && (
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <div className="w-64 h-36 border-2 border-[#E0B441]/80 rounded-2xl relative shadow-[0_0_20px_rgba(224,180,65,0.3)]">
-                  <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-[#E0B441] -mt-0.5 -ml-0.5 rounded-tl-lg" />
-                  <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-[#E0B441] -mt-0.5 -mr-0.5 rounded-tr-lg" />
-                  <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-[#E0B441] -mb-0.5 -ml-0.5 rounded-bl-lg" />
-                  <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-[#E0B441] -mb-0.5 -mr-0.5 rounded-br-lg" />
-                  <div className="w-full h-0.5 bg-[#E0B441]/90 shadow-[0_0_8px_#E0B441] animate-pulse absolute top-1/2 -translate-y-1/2" />
+                <div className="w-[82%] max-w-[340px] aspect-square border-2 border-[#E0B441]/60 rounded-3xl relative shadow-[0_0_25px_rgba(224,180,65,0.25)] flex items-center justify-center">
+                  {/* Esquinas guía doradas */}
+                  <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-[#E0B441] -mt-1 -ml-1 rounded-tl-xl" />
+                  <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-[#E0B441] -mt-1 -mr-1 rounded-tr-xl" />
+                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-[#E0B441] -mb-1 -ml-1 rounded-bl-xl" />
+                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-[#E0B441] -mb-1 -mr-1 rounded-br-xl" />
+                  
+                  {/* Línea láser de lectura */}
+                  <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-[#E0B441] to-transparent shadow-[0_0_12px_#E0B441] animate-pulse absolute top-1/2 -translate-y-1/2" />
+                  
+                  {/* Indicador texto centrado tenue */}
+                  <span className="text-[10px] uppercase tracking-widest text-[#E0B441]/70 font-mono font-bold bg-black/60 px-3 py-1 rounded-full border border-[#E0B441]/30 backdrop-blur-sm pointer-events-none absolute bottom-4">
+                    Apunta a QR o Código de Barras
+                  </span>
                 </div>
               </div>
             )}
@@ -793,17 +803,34 @@ export default function CameraScannerModal({
               <Keyboard className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
               <input
                 type="text"
-                placeholder="O escribe un código de barras (ej. 7501000555667)..."
+                placeholder="Escribe o pega código de barras, clave ALC-X o URL..."
                 value={manualCode}
                 onChange={(e) => setManualCode(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl bg-[#12100E] border border-[#2A2521] text-white placeholder-gray-500 focus:outline-none focus:border-[#E0B441] font-mono"
+                className="w-full pl-10 pr-20 py-2.5 text-xs sm:text-sm rounded-xl bg-[#12100E] border border-[#2A2521] text-white placeholder-gray-500 focus:outline-none focus:border-[#E0B441] font-mono"
               />
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const text = await navigator.clipboard.readText();
+                    if (text) {
+                      setManualCode(text);
+                      processBarcode(text);
+                    }
+                  } catch (_) {}
+                }}
+                className="absolute right-2 top-2 px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[10px] text-gray-300 transition-all cursor-pointer"
+                title="Pegar del portapapeles y buscar"
+              >
+                📋 Pegar
+              </button>
             </div>
             <button
               type="submit"
-              className="px-4 py-2.5 text-xs font-bold text-white bg-[#C8542A] hover:bg-[#E5724A] rounded-xl transition-all"
+              disabled={isSearching}
+              className="px-4 py-2.5 text-xs font-bold text-white bg-[#C8542A] hover:bg-[#E5724A] rounded-xl transition-all disabled:opacity-50 cursor-pointer"
             >
-              Buscar
+              {isSearching ? 'Buscando...' : 'Buscar'}
             </button>
           </form>
 
@@ -825,12 +852,24 @@ export default function CameraScannerModal({
                         {scannedResult.barcode}
                       </span>
                       {scannedResult.isExisting ? (
-                        <span className="text-[10px] font-bold text-emerald-400 uppercase">
-                          ✓ Encontrado en Casa
+                        <span className="text-[10px] font-bold text-emerald-400 uppercase flex items-center gap-1">
+                          ✓ Encontrado en tu Despensa
+                        </span>
+                      ) : scannedResult.product.source === 'INTERNET_OPENFOODFACTS' ? (
+                        <span className="text-[10px] font-bold text-sky-400 uppercase flex items-center gap-1">
+                          🌐 Encontrado en Open Food Facts
+                        </span>
+                      ) : scannedResult.product.source === 'LOCAL_CATALOG' ? (
+                        <span className="text-[10px] font-bold text-emerald-300 uppercase flex items-center gap-1">
+                          ⚡ Catálogo Rápido Supermercado México
+                        </span>
+                      ) : scannedResult.product.source === 'GS1_PREFIX_DETECTED' ? (
+                        <span className="text-[10px] font-bold text-amber-400 uppercase flex items-center gap-1">
+                          🇲🇽 Código Comercial Mexicano (GS1 750)
                         </span>
                       ) : (
-                        <span className="text-[10px] font-bold text-amber-400 uppercase">
-                          {scannedResult.product.isWine ? '🍷 Botella Reconocida' : 'Artículo Reconocido'}
+                        <span className="text-[10px] font-bold text-amber-300 uppercase">
+                          🔍 Código Nuevo para Registrar
                         </span>
                       )}
                     </div>
@@ -852,6 +891,46 @@ export default function CameraScannerModal({
                 </div>
               </div>
 
+              {/* Enlaces de Búsqueda Externa si es producto nuevo */}
+              {!scannedResult.isExisting && (
+                <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-[#94A3B8]">
+                  <span className="font-semibold">Buscar en tiendas:</span>
+                  {scannedResult.product.googleSearchUrl && (
+                    <a
+                      href={scannedResult.product.googleSearchUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sky-400 hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      <Globe className="w-3 h-3" />
+                      <span>Google</span>
+                    </a>
+                  )}
+                  {scannedResult.product.chedrauiSearchUrl && (
+                    <a
+                      href={scannedResult.product.chedrauiSearchUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-amber-400 hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      <span>Chedraui</span>
+                    </a>
+                  )}
+                  {scannedResult.product.walmartSearchUrl && (
+                    <a
+                      href={scannedResult.product.walmartSearchUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      <span>Walmart</span>
+                    </a>
+                  )}
+                </div>
+              )}
+
               {/* Botones Multidireccionales (Entrada +1, Salida -1, Mandar al Súper) */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-[#2A2521]">
                 
@@ -861,7 +940,7 @@ export default function CameraScannerModal({
                     executeDirectAction(scannedResult.product, 'ADD_ENTRY');
                     setScannedResult(null);
                   }}
-                  className={`py-2.5 px-3 text-xs font-bold text-white rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                  className={`py-2.5 px-3 text-xs font-bold text-white rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     scannedResult.product.isWine || (selectedTargetZone && selectedTargetZone.toLowerCase().includes('cava'))
                       ? 'bg-[#6B1F2E] hover:bg-[#852739] border border-[#E0B441]/40'
                       : 'bg-emerald-600 hover:bg-emerald-500'
@@ -878,7 +957,7 @@ export default function CameraScannerModal({
                       executeDirectAction(scannedResult.product, 'CONSUME_EXIT');
                       setScannedResult(null);
                     }}
-                    className="py-2.5 px-3 text-xs font-bold text-rose-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/40 border border-rose-500/40 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                    className="py-2.5 px-3 text-xs font-bold text-rose-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/40 border border-rose-500/40 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Minus className="w-4 h-4" />
                     <span>➖ Consumí (-1)</span>
@@ -891,7 +970,7 @@ export default function CameraScannerModal({
                     executeDirectAction(scannedResult.product, 'RESTOCK_SUPER');
                     setScannedResult(null);
                   }}
-                  className="py-2.5 px-3 text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:brightness-110 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md"
+                  className="py-2.5 px-3 text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:brightness-110 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
                 >
                   <ShoppingCart className="w-4 h-4" />
                   <span>🛒 Falta (Súper)</span>
@@ -910,7 +989,7 @@ export default function CameraScannerModal({
                       });
                       onClose();
                     }}
-                    className="w-full py-2 px-3 text-xs font-bold text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all flex items-center justify-center gap-2"
+                    className="w-full py-2 px-3 text-xs font-bold text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span>➕ Registrar Ficha Completa en {selectedTargetZone || 'Alacena'}</span>

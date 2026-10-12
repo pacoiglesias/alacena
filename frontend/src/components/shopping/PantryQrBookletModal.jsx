@@ -5,10 +5,10 @@ import {
   ShoppingCart, Check, Layers, Wine, Warehouse, 
   Scissors, Tag, Filter, FileText, CheckCircle2,
   Plus, Minus, CheckSquare, Square, LayoutTemplate,
-  Calendar, ArrowDownRight, Package
+  Calendar, ArrowDownRight, Package, Radio
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
-import { generateQrPdf } from '../../services/qrPdfService';
+import { generateQrPdf, getItemScanUrl } from '../../services/qrPdfService';
 import QRCode from 'qrcode';
 
 export default function PantryQrBookletModal({
@@ -24,10 +24,15 @@ export default function PantryQrBookletModal({
   // ═════════════════════════════════════════════════════════════════════════
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedZoneFilter, setSelectedZoneFilter] = useState('ALL');
-  const [printFormat, setPrintFormat] = useState('STICKERS'); // 'STICKERS' | 'TABLERO_PEDIDOS' | 'WINE_TAGS' | 'CATALOG'
+  const [printFormat, setPrintFormat] = useState('STICKERS'); // 'STICKERS' | 'TABLERO_PEDIDOS' | 'WINE_TAGS' | 'TUPPERS' | 'CATALOG' | 'NFC_WRITER'
   const [selectedProductIds, setSelectedProductIds] = useState(() => new Set(products.map(p => p.id)));
   const [copiesPerProduct, setCopiesPerProduct] = useState({});
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  // Estado para Grabador Web NFC
+  const [nfcSelectedProduct, setNfcSelectedProduct] = useState(() => products[0] || null);
+  const [nfcWriteStatus, setNfcWriteStatus] = useState(null);
+  const [copiedUrl, setCopiedUrl] = useState(false);
 
   // Sincronizar selección de productos cuando se abre el modal o cambia la lista
   useEffect(() => {
@@ -38,8 +43,38 @@ export default function PantryQrBookletModal({
         }
         return prev;
       });
+      if (!nfcSelectedProduct) {
+        setNfcSelectedProduct(products[0]);
+      }
     }
-  }, [isOpen, products]);
+  }, [isOpen, products, nfcSelectedProduct]);
+
+  // Manejador de Grabación Web NFC (API NDEFReader)
+  const handleWriteNfcTag = async () => {
+    if (!nfcSelectedProduct) return;
+    const scanUrl = getItemScanUrl(nfcSelectedProduct);
+
+    if (!('NDEFReader' in window)) {
+      setNfcWriteStatus('unsupported');
+      return;
+    }
+
+    try {
+      setNfcWriteStatus('writing');
+      audio.click();
+      const ndef = new window.NDEFReader();
+      await ndef.write({
+        records: [{ recordType: 'url', data: scanUrl }]
+      });
+      audio.success();
+      setNfcWriteStatus('success');
+      setTimeout(() => setNfcWriteStatus(null), 4000);
+    } catch (err) {
+      console.warn('Error grabando tag NFC:', err);
+      setNfcWriteStatus('error');
+      setTimeout(() => setNfcWriteStatus(null), 4000);
+    }
+  };
 
   // Filtrado de insumos en memoria
   const filteredProducts = useMemo(() => {
@@ -106,9 +141,10 @@ export default function PantryQrBookletModal({
       const qrDataMap = {};
       for (const item of printableList) {
         const barcode = item.barcode || `ALC-${(item.id || '').replace('prod-', '').toUpperCase()}`;
+        const qrPayload = getItemScanUrl(item);
         if (!qrDataMap[barcode]) {
           try {
-            qrDataMap[barcode] = await QRCode.toDataURL(barcode, {
+            qrDataMap[barcode] = await QRCode.toDataURL(qrPayload, {
               width: 256,
               margin: 1,
               color: { dark: '#000000', light: '#FFFFFF' },
@@ -128,6 +164,7 @@ export default function PantryQrBookletModal({
       let formatTitle = 'PLANILLA DE ETIQUETAS ADHESIVAS PARA BOTES, FRASCOS Y SOBRES';
       if (printFormat === 'TABLERO_PEDIDOS') formatTitle = 'TABLERO MAESTRO DE COCINA (ESCANEOS RÁPIDOS DE PEDIDOS Y SALIDAS)';
       if (printFormat === 'WINE_TAGS') formatTitle = 'COLLARINES CON TROQUEL PARA CUELLO DE BOTELLAS DE CAVA';
+      if (printFormat === 'TUPPERS') formatTitle = 'PLANILLA DE TUPPERS INTELIGENTES REUTILIZABLES (REFRI & CONGELADOR)';
       if (printFormat === 'CATALOG') formatTitle = 'CATÁLOGO FÍSICO DE ALMACÉN Y ALACENA DE COCINA';
 
       let cardsHtml = '';
@@ -197,6 +234,32 @@ export default function PantryQrBookletModal({
             </div>
           `;
         }).join('') + `</div>`;
+      } else if (printFormat === 'TUPPERS') {
+        cardsHtml = `<div class="grid-tuppers">` + printableList.map((p, idx) => {
+          const barcode = p.barcode || `TUP-${(p.id || '').replace('prod-', '').toUpperCase()}`;
+          const qrImg = qrDataMap[barcode] || '';
+          return `
+            <div class="card tupper-card">
+              <div class="tupper-header">
+                <span class="tupper-title">🍱 TUPPER INTELIGENTE #${idx + 1}</span>
+                <span class="tupper-cut">✂ PLASTIFICAR</span>
+              </div>
+              <div class="tupper-content">
+                <div class="tupper-qr-box">
+                  <img src="${qrImg}" class="qr-img" width="85" height="85" alt="QR" />
+                  <div class="barcode-badge-sm">${barcode}</div>
+                </div>
+                <div class="tupper-details">
+                  <div class="tupper-item-name"><strong>Insumo:</strong> ${p.name}</div>
+                  <div class="tupper-line"><strong>Comida:</strong> _____________________</div>
+                  <div class="tupper-line"><strong>Cocinado:</strong> ___/___/202_</div>
+                  <div class="tupper-line"><strong>Consumir antes:</strong> ___/___/202_</div>
+                  <div class="tupper-footer">📲 Escanea al guardar o comer para registrar</div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('') + `</div>`;
       } else {
         cardsHtml = `<div class="grid-catalog">` + printableList.map((p) => {
           const barcode = p.barcode || `ALC-${(p.id || '').replace('prod-', '').toUpperCase()}`;
@@ -260,6 +323,17 @@ export default function PantryQrBookletModal({
     .wine-name { font-size: 11px; font-weight: 800; line-height: 1.2; margin: 2px 0; }
     .wine-meta { font-size: 8.5px; color: #666; }
     .wine-sub { font-size: 7px; color: #666; margin-top: 4px; }
+    .grid-tuppers { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4mm; }
+    .tupper-card { border: 1.5px solid #2B6CB0; border-radius: 8px; padding: 6px 8px; }
+    .tupper-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #CBD5E0; padding-bottom: 4px; margin-bottom: 4px; }
+    .tupper-title { font-size: 8px; font-weight: 900; color: #2B6CB0; text-transform: uppercase; }
+    .tupper-cut { font-size: 6.5px; font-family: monospace; color: #718096; }
+    .tupper-content { display: flex; gap: 8px; align-items: center; }
+    .tupper-qr-box { text-align: center; }
+    .tupper-details { flex: 1; font-size: 8px; color: #2D3748; line-height: 1.3; }
+    .tupper-item-name { font-size: 9px; font-weight: 800; color: #1A202C; margin-bottom: 3px; }
+    .tupper-line { border-bottom: 1px dotted #CBD5E0; padding: 2px 0; }
+    .tupper-footer { font-size: 6.5px; color: #38A169; margin-top: 3px; font-weight: 600; }
     .grid-catalog { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3mm; }
     .catalog-card { border: 1px solid #bbb; border-radius: 6px; padding: 6px; display: flex; gap: 8px; align-items: center; }
     .cat-right { flex: 1; min-width: 0; }
@@ -271,6 +345,7 @@ export default function PantryQrBookletModal({
     <div class="print-title">${formatTitle}</div>
     <div class="print-meta">Residencia: <strong>${houseName}</strong> • Ubicación: <strong>${zoneName}</strong> • Impreso: ${dateStr} • Total: ${printableList.length} ítems</div>
     ${printFormat === 'TABLERO_PEDIDOS' ? '<div class="board-instruct">📌 <strong>Instrucciones:</strong> Plastifica esta hoja y pégala en la puerta de la alacena para escanear salidas y pedidos rápidamente con el celular.</div>' : ''}
+    ${printFormat === 'TUPPERS' ? '<div class="board-instruct">📌 <strong>Instrucciones:</strong> Recorta y pega estas etiquetas en las tapas de tus tuppers con cinta adhesiva transparente. Escribe con plumón borrable.</div>' : ''}
   </div>
   ${cardsHtml}
 </body>
@@ -444,6 +519,12 @@ export default function PantryQrBookletModal({
             grid-template-columns: repeat(2, 1fr) !important;
             gap: 3mm !important;
           }
+
+          .print-grid-tuppers {
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 4mm !important;
+          }
         }
       `}</style>
 
@@ -562,7 +643,35 @@ export default function PantryQrBookletModal({
                 }`}
               >
                 <BookOpen className="w-3.5 h-3.5" />
-                <span>Catálogo Contable</span>
+                <span>Catálogo Físico</span>
+              </button>
+
+              {/* Formato 5: Tuppers Inteligentes */}
+              <button
+                onClick={() => { audio.click(); setPrintFormat('TUPPERS'); }}
+                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
+                  printFormat === 'TUPPERS'
+                    ? 'bg-[#2B6CB0] text-white font-bold shadow-sm'
+                    : 'text-[#B8AFA3] hover:text-white'
+                }`}
+                title="Etiquetas para tuppers con fecha y QR reutilizable para el refri"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>🍱 Tuppers Refri</span>
+              </button>
+
+              {/* Modo Especial: Grabador Web NFC */}
+              <button
+                onClick={() => { audio.click(); setPrintFormat('NFC_WRITER'); }}
+                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
+                  printFormat === 'NFC_WRITER'
+                    ? 'bg-sky-500 text-white font-bold shadow-sm'
+                    : 'text-sky-400 hover:text-sky-300 bg-sky-500/10 border border-sky-500/20'
+                }`}
+                title="Herramienta para programar chips NFC físicos NTAG213/NTAG215"
+              >
+                <Radio className="w-3.5 h-3.5" />
+                <span>📡 Grabar Tags NFC</span>
               </button>
             </div>
 
@@ -920,7 +1029,7 @@ export default function PantryQrBookletModal({
               {filteredProducts.map((p) => {
                 const isSelected = selectedProductIds.has(p.id);
                 const barcode = p.barcode || `ALC-${p.id.replace('prod-', '').toUpperCase()}`;
-                const compactQr = barcode;
+                const compactQr = getItemScanUrl(p);
 
                 return (
                   <div
@@ -960,6 +1069,183 @@ export default function PantryQrBookletModal({
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* ═════════════════════════════════════════════════════════════
+              FORMATO 5: TUPPERS INTELIGENTES REUTILIZABLES (REFRI)
+             ═════════════════════════════════════════════════════════════ */}
+          {printFormat === 'TUPPERS' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 print:print-grid-tuppers">
+              {filteredProducts.map((p, idx) => {
+                const isSelected = selectedProductIds.has(p.id);
+                const barcode = p.barcode || `TUP-${p.id.replace('prod-', '').toUpperCase()}`;
+                const compactQr = getItemScanUrl(p);
+
+                return (
+                  <div
+                    key={p.id}
+                    className={`p-3.5 rounded-2xl border transition-all flex flex-col justify-between break-inside-avoid relative ${
+                      isSelected 
+                        ? 'bg-[#141A24] border-sky-500/40 print:bg-white print:border-2 print:border-sky-800' 
+                        : 'bg-[#14110F]/40 border-[#2A2521] opacity-40 print:hidden'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between pb-2 border-b border-sky-500/20">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-black text-sky-400 print:text-sky-800">
+                          🍱 TUPPER INTELIGENTE #{idx + 1}
+                        </span>
+                      </div>
+                      <span className="text-[8px] font-mono text-gray-400">
+                        ✂ Plastificar
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 py-3">
+                      <div className="p-2 bg-white rounded-xl border border-gray-200 inline-block shrink-0">
+                        <QRCodeSVG
+                          value={compactQr}
+                          size={85}
+                          level="M"
+                          includeMargin={false}
+                          fgColor="#000000"
+                          bgColor="#FFFFFF"
+                        />
+                        <span className="font-mono text-[9px] font-bold text-gray-700 block text-center mt-1">
+                          {barcode}
+                        </span>
+                      </div>
+
+                      <div className="flex-1 min-w-0 space-y-1.5 text-xs">
+                        <div className="font-bold text-white print:text-black text-sm truncate">
+                          {p.name}
+                        </div>
+                        <div className="p-2 rounded-lg bg-black/25 print:bg-gray-50 border border-white/5 print:border-gray-300 text-[10px] font-mono space-y-1 text-gray-300 print:text-gray-700">
+                          <div className="border-b border-dashed border-gray-600 pb-1">
+                            <strong>Comida:</strong> ________________
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Guardado: ___/___</span>
+                            <span>Vence: ___/___</span>
+                          </div>
+                        </div>
+                        <span className="text-[9px] text-emerald-400 print:text-emerald-700 font-semibold block">
+                          📲 Escanea con tu cel para consumir o reabastecer
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ═════════════════════════════════════════════════════════════
+              MODO ESPECIAL: PROGRAMADOR DE TAGS NFC FÍSICOS
+             ═════════════════════════════════════════════════════════════ */}
+          {printFormat === 'NFC_WRITER' && (
+            <div className="max-w-2xl mx-auto p-4 sm:p-6 rounded-3xl bg-[#141824] border border-[#232A3E] space-y-5">
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400 shrink-0">
+                  <Radio className="w-6 h-6 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-white">
+                    Programador de Stickers NFC para el Hogar
+                  </h3>
+                  <p className="text-xs text-[#94A3B8] mt-1 leading-relaxed">
+                    Usa cualquier sticker NFC estándar (chips <strong>NTAG213 / NTAG215</strong>). Pégalos debajo de las repisas, en la puerta de la alacena, en botes o en botellas de vino.
+                  </p>
+                </div>
+              </div>
+
+              {/* Selector de Producto a Grabar */}
+              <div className="p-4 rounded-2xl bg-[#0F121C] border border-[#1E2333] space-y-3">
+                <label className="text-xs font-bold text-gray-300 block">
+                  1. Selecciona el insumo que deseas grabar en el sticker NFC:
+                </label>
+                <select
+                  value={nfcSelectedProduct?.id || ''}
+                  onChange={(e) => {
+                    const sel = products.find(p => p.id === e.target.value);
+                    if (sel) setNfcSelectedProduct(sel);
+                  }}
+                  className="w-full px-3 py-2.5 rounded-xl bg-[#171D2D] border border-[#2A334C] text-sm text-white font-medium outline-none"
+                >
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.zone || 'Alacena'}) • Stock: {p.quantity} {p.unit}
+                    </option>
+                  ))}
+                </select>
+
+                {nfcSelectedProduct && (
+                  <div className="p-3 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between">
+                    <div className="flex-1 min-w-0 mr-2">
+                      <span className="text-[10px] text-gray-400 uppercase font-mono block">Enlace Web del Chip:</span>
+                      <span className="text-xs font-mono text-emerald-400 truncate block select-all">
+                        {getItemScanUrl(nfcSelectedProduct)}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard?.writeText(getItemScanUrl(nfcSelectedProduct));
+                        setCopiedUrl(true);
+                        setTimeout(() => setCopiedUrl(false), 2500);
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold text-white shrink-0 cursor-pointer"
+                    >
+                      {copiedUrl ? '¡Copiado!' : 'Copiar URL'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Botón de Grabación Web NFC (Android / Chrome) */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-300 block">
+                  2. Grabar con tu teléfono:
+                </label>
+                <button
+                  onClick={handleWriteNfcTag}
+                  disabled={nfcWriteStatus === 'writing'}
+                  className={`w-full py-4 px-6 rounded-2xl font-black text-sm tracking-wide transition-all shadow-lg flex items-center justify-center gap-3 cursor-pointer ${
+                    nfcWriteStatus === 'writing'
+                      ? 'bg-sky-500 text-white animate-pulse'
+                      : nfcWriteStatus === 'success'
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white'
+                  }`}
+                >
+                  <Radio className="w-5 h-5" />
+                  <span>
+                    {nfcWriteStatus === 'writing' && 'Acerca el sticker NFC al reverso del celular...'}
+                    {nfcWriteStatus === 'success' && '¡Sticker grabado exitosamente! Pruébalo ahora.'}
+                    {nfcWriteStatus === 'error' && 'Error al grabar. Vuelve a intentarlo.'}
+                    {nfcWriteStatus === 'unsupported' && 'Navegador sin Web NFC (ver instrucciones abajo)'}
+                    {!nfcWriteStatus && '📡 Tocar con Sticker NFC para Grabar Ahora'}
+                  </span>
+                </button>
+              </div>
+
+              {/* Guía para iPhone / iOS */}
+              <div className="p-4 rounded-2xl bg-black/30 border border-white/5 space-y-2 text-xs text-gray-300">
+                <span className="font-bold text-white block">
+                  📱 ¿Cómo usar NFC en iPhone (iOS)?
+                </span>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  Apple no permite a los navegadores web escribir chips NFC directamente, pero puedes grabarlos en 10 segundos con cualquier app gratuita como <strong>"NFC Tools"</strong> (App Store):
+                </p>
+                <ol className="list-decimal pl-4 space-y-1 text-[11px] text-gray-300">
+                  <li>Copia el enlace de arriba con el botón <strong>Copiar URL</strong>.</li>
+                  <li>Abre <em>NFC Tools</em> → <strong>Escribir</strong> → <strong>Añadir un registro</strong> → <strong>URL / Enlace web</strong>.</li>
+                  <li>Pega el enlace y toca <strong>Escribir</strong> acercando tu sticker NFC.</li>
+                </ol>
+                <p className="text-[11px] text-emerald-400 font-semibold pt-1">
+                  ✨ Una vez grabado, al acercar la parte superior de cualquier iPhone al sticker, se abrirá ALACENA y aparecerá la tarjeta de Consumir / Pedir al Súper al instante.
+                </p>
+              </div>
             </div>
           )}
 

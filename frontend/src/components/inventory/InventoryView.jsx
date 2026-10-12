@@ -199,80 +199,92 @@ export default function InventoryView({
       {/* Top Metrics Cards (Luxe Look in MXN) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        {/* Total Artículos */}
-        <div className="card-luxe p-5 flex items-center justify-between border border-[#2A2521] bg-[#1C1916]">
+        {/* 1. Total Artículos en Casa */}
+        <div className="rounded-2xl p-5 flex items-center justify-between border border-[#1E2638] bg-[#121622] shadow-sm hover:border-emerald-500/30 transition-all">
           <div>
-            <span className="text-[11px] font-bold text-[#8B8378] uppercase tracking-wider block">
-              Total de Existencias
+            <span className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider block">
+              En Despensa & Cava
             </span>
-            <div className="text-2xl sm:text-3xl font-extrabold text-[#F2EDE4] mt-1 font-mono-num font-display">
-              {metrics.totalItems} <span className="text-xs text-[#8B8378] font-sans font-normal">insumos</span>
+            <div className="text-2xl sm:text-3xl font-black text-white mt-1 font-mono-num">
+              {metrics.totalItems} <span className="text-xs text-[#94A3B8] font-sans font-normal">insumos</span>
             </div>
-            <span className="text-xs text-[#8B8378] mt-1 block">
-              En {zones.length} zonas físicas auditadas
+            <span className="text-xs text-[#94A3B8] mt-1 block">
+              Repartidos en {zones.length} zonas de tu casa
             </span>
           </div>
-          <div className="p-3.5 rounded-2xl bg-[#3D8B6E]/15 border border-[#3D8B6E]/30 text-[#3D8B6E]">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
             <Warehouse className="w-6 h-6" />
           </div>
         </div>
 
-        {/* Alertas de Reabastecimiento */}
+        {/* 2. Stock Bajo / Por Agotarse */}
         <div 
           onClick={() => { audio.click(); setStatusFilter(statusFilter === 'LOW' ? 'ALL' : 'LOW'); }}
-          className="card-luxe p-5 flex items-center justify-between border border-[#2A2521] bg-[#1C1916] cursor-pointer hover:border-[#E0B441]/50 transition-all"
+          className={`rounded-2xl p-5 flex items-center justify-between border transition-all cursor-pointer shadow-sm ${
+            statusFilter === 'LOW'
+              ? 'bg-rose-500/10 border-rose-500/50'
+              : 'border-[#1E2638] bg-[#121622] hover:border-rose-500/40'
+          }`}
         >
           <div>
-            <span className="text-[11px] font-bold text-[#E0B441] uppercase tracking-wider block">
-              Stock Crítico / Bajo
+            <span className="text-[11px] font-bold text-rose-400 uppercase tracking-wider block">
+              Por Agotarse
             </span>
-            <div className="text-2xl sm:text-3xl font-extrabold text-[#E0B441] mt-1 font-mono-num font-display">
-              {metrics.lowStockCount} <span className="text-xs text-[#8B8378] font-sans font-normal">por agotarse</span>
+            <div className="text-2xl sm:text-3xl font-black text-rose-400 mt-1 font-mono-num">
+              {metrics.lowStockCount} <span className="text-xs text-[#94A3B8] font-sans font-normal">artículos</span>
             </div>
-            <span className="text-xs text-[#8B8378] mt-1 block">
-              {statusFilter === 'LOW' ? '✓ Filtro activo (clic para ver todos)' : 'Clic para filtrar faltantes'}
+            <span className="text-xs text-[#94A3B8] mt-1 block">
+              {statusFilter === 'LOW' ? '✓ Filtro activo (clic para quitar)' : 'Clic para filtrar faltantes'}
             </span>
           </div>
-          <div className="p-3.5 rounded-2xl bg-[#E0B441]/15 border border-[#E0B441]/30 text-[#E0B441]">
+          <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400">
             <AlertTriangle className="w-6 h-6" />
           </div>
         </div>
 
-        {/* Semáforo FEFO Caducidades */}
+        {/* 3. Por Vencer Pronto (Caducidad) */}
         <div 
           onClick={() => { audio.click(); setStatusFilter(statusFilter === 'EXPIRING' ? 'ALL' : 'EXPIRING'); }}
-          className="card-luxe p-5 flex items-center justify-between border border-[#2A2521] bg-[#1C1916] cursor-pointer hover:border-amber-500/50 transition-all"
+          className={`rounded-2xl p-5 flex items-center justify-between border transition-all cursor-pointer shadow-sm ${
+            statusFilter === 'EXPIRING'
+              ? 'bg-amber-500/10 border-amber-500/50'
+              : 'border-[#1E2638] bg-[#121622] hover:border-amber-500/40'
+          }`}
         >
           <div>
             <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">
-              Caducidad FEFO (&le;15d)
+              Vence Pronto (&le;15 días)
             </span>
-            <div className="text-2xl sm:text-3xl font-extrabold text-amber-300 mt-1 font-mono-num font-display">
-              {metrics.expiringSoonCount} <span className="text-xs text-[#8B8378] font-sans font-normal">por vencer</span>
+            <div className="text-2xl sm:text-3xl font-black text-amber-300 mt-1 font-mono-num">
+              {metrics.expiringSoonCount} <span className="text-xs text-[#94A3B8] font-sans font-normal">por consumir</span>
             </div>
-            <span className="text-xs text-[#8B8378] mt-1 block">
-              {statusFilter === 'EXPIRING' ? '✓ Filtro activo (clic para ver todos)' : 'Clic para filtrar prioritarios'}
+            <span className="text-xs text-[#94A3B8] mt-1 block">
+              {statusFilter === 'EXPIRING' ? '✓ Filtro activo (clic para quitar)' : 'Evita tirar comida en el refri'}
             </span>
           </div>
-          <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
             <Clock className="w-6 h-6" />
           </div>
         </div>
 
-        {/* Valuación Patrimonial en MXN */}
-        <div className="card-luxe p-5 flex items-center justify-between border border-[#2A2521] bg-[#1C1916]">
+        {/* 4. Valor Estimado de la Despensa (Moneda dinámica según el Hogar: EUR o MXN) */}
+        <div className="rounded-2xl p-5 flex items-center justify-between border border-[#1E2638] bg-[#121622] shadow-sm hover:border-emerald-500/30 transition-all">
           <div>
-            <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
-              Valuación de Almacén ($ MXN)
+            <span className="text-[11px] font-bold text-sky-400 uppercase tracking-wider block">
+              Valor de tu Despensa
             </span>
-            <div className="text-2xl sm:text-3xl font-extrabold text-[#F2EDE4] mt-1 font-mono-num font-display">
-              ${metrics.totalValuationMxn.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className="text-2xl sm:text-3xl font-black text-white mt-1 font-mono-num">
+              {activeHouse?.currency === 'EUR' ? '€' : '$'}
+              {Math.round(metrics.totalValuationMxn).toLocaleString(activeHouse?.currency === 'EUR' ? 'es-ES' : 'es-MX')}{' '}
+              <span className="text-xs text-[#94A3B8] font-sans font-normal">
+                {activeHouse?.currency || 'MXN'}
+              </span>
             </div>
-            <span className="text-xs text-[#8B8378] mt-1 block">
-              Moneda estricta en Pesos Mexicanos
+            <span className="text-xs text-[#94A3B8] mt-1 block">
+              Inversión total en {activeHouse?.name || 'la casa'}
             </span>
           </div>
-          <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+          <div className="w-12 h-12 rounded-2xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400">
             <DollarSign className="w-6 h-6" />
           </div>
         </div>
@@ -571,12 +583,12 @@ export default function InventoryView({
                 return (
                   <div
                     key={p.id}
-                    className="group relative rounded-2xl bg-[#12100E] border border-[#2A2521] hover:border-[#3D3630] shadow-sm hover:shadow-md transition-all duration-240 p-4 flex flex-col justify-between overflow-hidden"
+                    className="group relative rounded-2xl bg-[#121622] border border-[#1E2638] hover:border-[#2A364E] shadow-sm hover:shadow-md transition-all duration-200 p-4 flex flex-col justify-between overflow-hidden"
                     style={{ borderLeftWidth: '6px', borderLeftColor: wineColor }}
                   >
                     <div className="flex items-start justify-between gap-3">
                       {/* Izquierda: Silueta SVG de Botella */}
-                      <div className="w-12 h-20 rounded-xl bg-[#1C1916] border border-[#2A2521] flex items-center justify-center shrink-0">
+                      <div className="w-12 h-20 rounded-2xl bg-[#1A2030] border border-[#252E42] flex items-center justify-center shrink-0">
                         <svg className="w-6 h-14" viewBox="0 0 24 64" fill="none" stroke={wineColor} strokeWidth="1.8">
                           <path d="M10 2h4v10c0 2 3 5 4 8v38a4 4 0 01-4 4h-4a4 4 0 01-4-4V20c1-3 4-6 4-8V2z" fill={`${wineColor}22`} />
                           <line x1="8" y1="28" x2="16" y2="28" stroke="#E0B441" strokeWidth="1.5" />
@@ -592,9 +604,9 @@ export default function InventoryView({
                         <h3 className="font-display text-lg font-bold text-white truncate mt-0.5">
                           {p.name}
                         </h3>
-                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#8B8378] mt-1">
+                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#94A3B8] mt-1">
                           {p.vintage && (
-                            <span className="px-2 py-0.5 rounded-md bg-[#1C1916] text-[#E0B441] font-mono-num font-bold text-[11px] border border-[#2A2521]">
+                            <span className="px-2 py-0.5 rounded-md bg-[#1A2030] text-[#E0B441] font-mono-num font-bold text-[11px] border border-[#252E42]">
                               Añada {p.vintage}
                             </span>
                           )}
@@ -679,35 +691,22 @@ export default function InventoryView({
                         >
                           +
                         </button>
-
-                        <button
-                          onClick={() => {
-                            audio.click();
-                            if (confirm(`¿Estás seguro de que deseas eliminar "${p.name}" de la cava?`)) {
-                              onDeleteProduct(p.id);
-                            }
-                          }}
-                          className="p-2 rounded-xl bg-[#1C1916] hover:bg-rose-500/20 border border-[#2A2521] hover:border-rose-500/40 text-[#8B8378] hover:text-rose-400 transition-all ml-0.5"
-                          title="Eliminar botella del inventario"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
                       </div>
                     </div>
                   </div>
                 );
               }
 
-              // TARJETA DE PRODUCTO ESTÁNDAR (Fase 8.4)
+              // TARJETA DE PRODUCTO ESTÁNDAR
               return (
                 <div
                   key={p.id}
-                  className="card-luxe p-4 bg-[#12100E] border border-[#2A2521] hover:border-[#3D3630] flex flex-col justify-between relative overflow-hidden"
+                  className="rounded-2xl p-4 bg-[#121622] border border-[#1E2638] hover:border-[#2A364E] shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between relative overflow-hidden"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       {/* Avatar / Icono 48px */}
-                      <div className="w-12 h-12 rounded-xl bg-[#1C1916] border border-[#2A2521] flex items-center justify-center text-lg shrink-0">
+                      <div className="w-12 h-12 rounded-2xl bg-[#1A2030] border border-[#252E42] flex items-center justify-center text-xl shrink-0">
                         {p.category.includes('Carnes') ? '🥩' :
                          p.category.includes('Lácteos') ? '🧀' :
                          p.category.includes('Frutas') ? '🥬' :
@@ -717,7 +716,7 @@ export default function InventoryView({
                         <h3 className="font-display text-base font-bold text-white truncate">
                           {p.name}
                         </h3>
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-[#8B8378] mt-0.5">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-[#94A3B8] mt-0.5">
                           <span>{p.category}</span>
                           <span>•</span>
                           <span className="truncate">{p.store || 'Supermercado'}</span>
@@ -740,23 +739,24 @@ export default function InventoryView({
                       isOut
                         ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                         : isLow
-                        ? 'bg-[#C08A1E]/20 text-[#E0B441] border border-[#C08A1E]/30'
-                        : 'bg-[#2F7D5C]/20 text-[#2F7D5C] border border-[#2F7D5C]/30'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                     }`}>
                       {isOut ? 'Agotado' : isLow ? 'Bajo' : 'OK'}
                     </span>
                   </div>
 
                   {/* Fila Inferior: Precios, Steppers ± y +Súper */}
-                  <div className="mt-4 pt-3 border-t border-[#2A2521] flex items-center justify-between">
+                  <div className="mt-4 pt-3 border-t border-[#1E2638] flex items-center justify-between">
                     <div>
-                      <div className="font-mono-num text-sm font-bold text-white">
-                        {p.quantity} <span className="text-xs text-[#8B8378] font-sans">{p.unit}</span>
+                      <div className="font-mono-num text-sm font-black text-white">
+                        {p.quantity} <span className="text-xs text-[#94A3B8] font-sans font-normal">{p.unit}</span>
                       </div>
-                      <div className="text-[10px] text-[#8B8378] font-mono-num">
-                        ${(p.unitPriceMxn || 0).toFixed(2)} MXN c/u
+                      <div className="text-[10px] text-[#94A3B8] font-mono-num">
+                        {activeHouse?.currency === 'EUR' ? '€' : '$'}
+                        {(p.unitPriceMxn || 0).toFixed(2)} {activeHouse?.currency || 'MXN'} c/u
                       </div>
-                      <div className="w-24 bg-[#1C1916] rounded-full h-1 mt-1 overflow-hidden border border-[#2A2521]" title={`Capacidad máx: ${p.maxStock || p.idealStock || 6} ${p.unit}`}>
+                      <div className="w-24 bg-[#1A2030] rounded-full h-1.5 mt-1 overflow-hidden border border-[#252E42]" title={`Capacidad máx: ${p.maxStock || p.idealStock || 6} ${p.unit}`}>
                         <div 
                           className={`h-full rounded-full transition-all ${
                             p.quantity > (p.maxStock || p.idealStock || 6)
@@ -774,10 +774,10 @@ export default function InventoryView({
                       {/* Botón Rápido: Enviar a Lista de Compras */}
                       <button
                         onClick={() => handleQuickAddShopping(p)}
-                        className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1 active:scale-95 ${
+                        className={`px-2.5 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1 active:scale-95 cursor-pointer ${
                           quickAddedId === p.id
                             ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
-                            : 'bg-[#1C1916] hover:bg-[#2A2521] border-[#2A2521] text-[#B8AFA3] hover:text-[#E0B441]'
+                            : 'bg-[#1A2030] hover:bg-[#252E42] border-[#252E42] text-[#94A3B8] hover:text-white'
                         }`}
                         title="Añadir a la Lista de Compras con 1 solo toque"
                       >
@@ -794,16 +794,17 @@ export default function InventoryView({
                         )}
                       </button>
 
+                      {/* Botones Táctiles Grandes + / - */}
                       <button
                         onClick={() => handleAdjustQuantity(p, -1)}
-                        className="w-8 h-8 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#2A2521] text-[#8B8378] hover:text-white flex items-center justify-center font-bold text-sm transition-all active:scale-95"
+                        className="w-9 h-9 rounded-xl bg-[#1A2030] hover:bg-rose-500/20 border border-[#252E42] hover:border-rose-500/40 text-[#94A3B8] hover:text-rose-300 flex items-center justify-center font-black text-sm transition-all active:scale-95 cursor-pointer"
                         title="Consumir 1 unidad (-1)"
                       >
                         -
                       </button>
                       <button
                         onClick={() => handleAdjustQuantity(p, 1)}
-                        className="w-8 h-8 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#2A2521] text-white flex items-center justify-center font-bold text-sm transition-all active:scale-95"
+                        className="w-9 h-9 rounded-xl bg-[#1A2030] hover:bg-emerald-500/20 border border-[#252E42] hover:border-emerald-500/40 text-[#94A3B8] hover:text-emerald-300 flex items-center justify-center font-black text-sm transition-all active:scale-95 cursor-pointer"
                         title="Ingresar / Reabastecer 1 unidad (+1)"
                       >
                         +
@@ -813,14 +814,14 @@ export default function InventoryView({
                           audio.click();
                           setSelectedQrProduct(p);
                         }}
-                        className="w-8 h-8 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#2A2521] text-[#E0B441] flex items-center justify-center transition-all ml-0.5"
+                        className="w-9 h-9 rounded-xl bg-[#1A2030] hover:bg-[#252E42] border border-[#252E42] text-[#E0B441] flex items-center justify-center transition-all ml-0.5 cursor-pointer"
                         title="Ver / Imprimir Etiqueta QR o Grabar en NFC"
                       >
-                        <QrCode className="w-3.5 h-3.5" />
+                        <QrCode className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => { audio.click(); onEditProduct(p); }}
-                        className="w-8 h-8 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#2A2521] text-[#8B8378] hover:text-white flex items-center justify-center transition-all ml-0.5"
+                        className="w-9 h-9 rounded-xl bg-[#1A2030] hover:bg-[#252E42] border border-[#252E42] text-[#94A3B8] hover:text-white flex items-center justify-center transition-all ml-0.5 cursor-pointer"
                         title="Editar insumo"
                       >
                         <Pencil className="w-3.5 h-3.5" />
