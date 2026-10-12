@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { SUPERMARKET_DEPARTMENTS, getDepartmentForItem } from './ShoppingListView';
+import { generateShoppingListPdf } from '../../services/pdfGenerator';
 
 export default function PrintableShoppingListModal({
   isOpen,
@@ -135,6 +136,27 @@ export default function PrintableShoppingListModal({
     }
   };
 
+  // Descargar PDF vectorial nativo de alta resolución
+  const handleDownloadPdf = () => {
+    audio.click();
+    try {
+      generateShoppingListPdf({
+        items: filteredItems,
+        activeHouse,
+        totalEstimatedMxn: computedTotalMxn,
+        groupBy,
+        showPrices,
+        showSignatures,
+        itemsByDept,
+        itemsByStore,
+      });
+      audio.success();
+    } catch (err) {
+      console.error('Error generando PDF vectorial:', err);
+      handleDownloadHtml();
+    }
+  };
+
   // Descargar archivo HTML autónomo para visualización o archivo
   const handleDownloadHtml = () => {
     audio.click();
@@ -211,6 +233,7 @@ export default function PrintableShoppingListModal({
     URL.revokeObjectURL(url);
   };
 
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in print:bg-white print:p-0 print:static print:inset-auto">
       
@@ -252,23 +275,24 @@ export default function PrintableShoppingListModal({
               <span>{copied ? '¡Copiado!' : 'Copiar Texto'}</span>
             </button>
 
-            {/* Descargar HTML imprimible */}
+            {/* Descargar PDF Nativo Oficial */}
             <button
-              onClick={handleDownloadHtml}
-              className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#F2EDE4] bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
-              title="Descargar archivo HTML independiente"
+              onClick={handleDownloadPdf}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 transition-all shadow-lg shadow-emerald-950/40 active:scale-95"
+              title="Descargar archivo PDF oficial formateado en A4/Carta"
             >
-              <Download className="w-4 h-4 text-[#B8AFA3]" />
-              <span>Descargar</span>
+              <Download className="w-4 h-4" />
+              <span>📄 Descargar PDF Oficial</span>
             </button>
 
-            {/* Botón Imprimir / PDF Principal */}
+            {/* Imprimir en Papel */}
             <button
               onClick={handlePrint}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#C8542A] hover:bg-[#E5724A] transition-all shadow-lg shadow-[#C8542A]/30 active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#F2EDE4] bg-white/10 hover:bg-white/20 border border-white/20 transition-all active:scale-95"
+              title="Mandar a imprimir directamente a tu impresora"
             >
-              <Printer className="w-4 h-4" />
-              <span>🖨️ Imprimir / Guardar PDF</span>
+              <Printer className="w-4 h-4 text-blue-400" />
+              <span>🖨️ Imprimir</span>
             </button>
 
             {/* Cerrar modal */}

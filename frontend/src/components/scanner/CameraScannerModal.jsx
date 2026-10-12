@@ -3,7 +3,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { 
   X, Camera, ScanLine, CheckCircle2, Plus, 
   ShoppingCart, Warehouse, AlertCircle, Sparkles, 
-  Keyboard, Image, RefreshCw, Check 
+  Keyboard, Image, RefreshCw, Check, Globe, ExternalLink, Search 
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { lookupBarcode } from '../../services/barcodeLookupService';
@@ -397,34 +397,73 @@ export default function CameraScannerModal({
           {scannedResult && (
             <div className="p-4 rounded-2xl bg-[#162238] border border-emerald-500/30 space-y-3 animate-fade-in">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                      {scannedResult.barcode}
-                    </span>
+                <div className="flex items-start gap-3">
+                  {scannedResult.product.photo && (
+                    <img
+                      src={scannedResult.product.photo}
+                      alt={scannedResult.product.name}
+                      className="w-14 h-14 rounded-xl object-contain bg-white/5 border border-white/10 shrink-0 p-1"
+                    />
+                  )}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        {scannedResult.barcode}
+                      </span>
+                      {scannedResult.isExisting ? (
+                        <span className="text-[10px] font-bold text-emerald-400 uppercase">
+                          Encontrado en Alacena
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-amber-400 uppercase">
+                          {scannedResult.product.source === 'INTERNET_OPENFOODFACTS' ? '🌐 Reconocido en Internet' : 'Artículo Reconocido'}
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-base font-bold text-white mt-1">
+                      {scannedResult.product.name}
+                    </h4>
+                    {scannedResult.product.brand && (
+                      <p className="text-xs text-amber-300 font-semibold">
+                        Marca: {scannedResult.product.brand}
+                      </p>
+                    )}
                     {scannedResult.isExisting ? (
-                      <span className="text-[10px] font-bold text-emerald-400 uppercase">
-                        Encontrado en Alacena
-                      </span>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Existencia actual: <strong className="text-white font-mono">{scannedResult.product.quantity} {scannedResult.product.unit}</strong> en <strong className="text-emerald-300">{scannedResult.product.zone}</strong>
+                      </p>
                     ) : (
-                      <span className="text-[10px] font-bold text-amber-400 uppercase">
-                        Artículo Reconocido en Catálogo
-                      </span>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Categoría sugerida: {scannedResult.product.category || 'Abarrotes'} • Precio estimado: ${scannedResult.product.price || 0} MXN
+                      </p>
                     )}
                   </div>
-                  <h4 className="text-base font-bold text-white mt-1">
-                    {scannedResult.product.name}
-                  </h4>
-                  {scannedResult.isExisting ? (
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      Existencia actual: <strong className="text-white font-mono">{scannedResult.product.quantity} {scannedResult.product.unit}</strong> en <strong className="text-emerald-300">{scannedResult.product.zone}</strong>
-                    </p>
-                  ) : (
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      Categoría: {scannedResult.product.category || 'Abarrotes'} • Precio sugerido: ${scannedResult.product.price || 0} MXN
-                    </p>
-                  )}
                 </div>
+              </div>
+
+              {/* Botones de Consulta en Internet */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                <a
+                  href={scannedResult.product.googleSearchUrl || `https://www.google.com/search?q=${encodeURIComponent(scannedResult.barcode)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-blue-300 border border-blue-500/20 transition-all font-medium"
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>🌐 Ver en Google (Fotos y Precios)</span>
+                  <ExternalLink className="w-3 h-3 opacity-60" />
+                </a>
+
+                <a
+                  href={scannedResult.product.chedrauiSearchUrl || `https://www.chedraui.com.mx/search?text=${encodeURIComponent(scannedResult.barcode)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-orange-300 border border-orange-500/20 transition-all font-medium"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span>🛒 Consultar en Chedraui</span>
+                  <ExternalLink className="w-3 h-3 opacity-60" />
+                </a>
               </div>
 
               {/* Action Buttons for Scanned Product (1-Tap for domestic staff) */}
