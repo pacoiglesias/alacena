@@ -199,7 +199,14 @@ service cloud.firestore {
         match /shopping_list/{listItemId} {
           allow read: if isWorkspaceMember(workspaceId);
           allow create: if isWorkspaceMember(workspaceId);
-          allow update: if isWorkspaceMember(workspaceId);
+          allow update: if isWorkspaceMember(workspaceId) && (
+            isWorkspaceAdmin(workspaceId) || (
+              isWorkspaceService(workspaceId) &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'isPurchased', 'isLocked', 'lockedBy', 'lockedAt', 'updatedAt', 'cheapestVendor'
+              ])
+            )
+          );
           allow delete: if isWorkspaceAdmin(workspaceId) || (
             isWorkspaceMember(workspaceId) && resource.data.isPurchased == true
           );
