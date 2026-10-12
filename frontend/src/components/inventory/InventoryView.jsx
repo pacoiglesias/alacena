@@ -225,6 +225,7 @@ export default function InventoryView({
           zones={zones}
           selectedZone={selectedZone}
           onSelectZone={setSelectedZone}
+          productCountsByZone={productCountsByZone}
           countsByZone={productCountsByZone}
           onEditZone={onEditZone}
           onAddZone={onAddZone}

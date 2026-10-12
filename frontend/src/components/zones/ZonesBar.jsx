@@ -14,13 +14,15 @@ const ICON_MAP = {
 };
 
 export default function ZonesBar({ 
-  zones, 
+  zones = [], 
   selectedZone, 
   onSelectZone, 
   onEditZone, 
   onAddZone, 
-  productCountsByZone 
+  productCountsByZone,
+  countsByZone 
 }) {
+  const counts = productCountsByZone || countsByZone || {};
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-2">
@@ -70,7 +72,7 @@ export default function ZonesBar({
         {zones.map((zone) => {
           const IconComp = ICON_MAP[zone.type] || Warehouse;
           const isSelected = selectedZone === zone.name;
-          const count = productCountsByZone[zone.name] || 0;
+          const count = (counts && counts[zone.name]) || 0;
 
           return (
             <div
