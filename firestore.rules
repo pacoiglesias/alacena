@@ -63,7 +63,17 @@ service cloud.firestore {
       allow read: if true; // Lectura pública para escaneo rápido de códigos
       allow create: if isAuthenticated() &&
         request.resource.data.barcode == barcode &&
-        request.resource.data.createdAt == request.time;
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.keys().hasOnly([
+          'barcode', 'name', 'brand', 'category', 'unit',
+          'imageUrl', 'createdAt', 'createdBy'
+        ]) &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.name.size() <= 200 &&
+        (!('brand' in request.resource.data) ||
+          request.resource.data.brand.size() <= 100);
       allow update, delete: if isAuthenticated() && request.auth.token.role == 'superadmin';
     }
 
