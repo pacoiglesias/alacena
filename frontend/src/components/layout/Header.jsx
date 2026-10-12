@@ -1,7 +1,8 @@
 import React from 'react';
 import { 
   Warehouse, Sparkles, Volume2, VolumeX, MapPin, 
-  ChevronDown, Utensils, History, Layers, RefreshCw 
+  ChevronDown, Utensils, History, Layers, RefreshCw, 
+  ShoppingCart, Camera 
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { SYSTEM_VERSION } from '../changelog/ChangelogModal';
@@ -13,23 +14,25 @@ export default function Header({
   onOpenHouseModal, 
   onOpenChangelog, 
   onResetDemoData,
+  onOpenScanner,
+  shoppingCount = 0,
   isMuted,
   onToggleMute 
 }) {
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-[#090D14]/85 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-[#090D14]/90 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Top Row: Logo, House Pill, Version Badge & Controls */}
-        <div className="flex items-center justify-between h-16 gap-4">
+        {/* Top Row: Logo, House Pill, Scanner Button & Controls */}
+        <div className="flex items-center justify-between h-16 gap-3 sm:gap-4">
           
           {/* Logo & House Pill */}
-          <div className="flex items-center gap-3 sm:gap-6 min-w-0">
-            <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
+            <div className="flex items-center gap-2">
               <div className="p-2 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 text-white shadow-lg shadow-emerald-950/40">
                 <Warehouse className="w-5 h-5" />
               </div>
-              <div className="hidden sm:block">
+              <div className="hidden md:block">
                 <span className="text-base font-extrabold tracking-tight text-white block leading-none">
                   ALACENA
                 </span>
@@ -54,7 +57,7 @@ export default function Header({
                 <span className="text-[9px] font-extrabold tracking-wider text-gray-400 block uppercase leading-none">
                   CASA ACTIVA
                 </span>
-                <span className="text-xs font-bold text-white truncate block max-w-[140px] sm:max-w-[200px]">
+                <span className="text-xs font-bold text-white truncate block max-w-[120px] sm:max-w-[180px]">
                   {activeHouse?.name || 'Residencia Principal'}
                 </span>
               </div>
@@ -62,17 +65,30 @@ export default function Header({
             </button>
           </div>
 
-          {/* Right Controls: Version Badge, Demo Seeder & Sound Toggle */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Right Controls: Scanner, Version Badge & Sound Toggle */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
             
-            {/* Prominent Version Badge (User requested visible version) */}
+            {/* Prominent Scanner Button (Available anywhere in 1-tap) */}
+            <button
+              onClick={() => {
+                audio.click();
+                onOpenScanner();
+              }}
+              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-md shadow-emerald-950/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              title="Abrir Escáner de Código de Barras y QR"
+            >
+              <Camera className="w-4 h-4" />
+              <span>Escáner</span>
+            </button>
+
+            {/* Version Badge (User requested visible version) */}
             <button
               onClick={() => {
                 audio.click();
                 onOpenChangelog();
               }}
-              className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 hover:from-emerald-500/20 hover:to-teal-500/20 border border-emerald-500/30 transition-all group"
-              title="Ver Registro de Mejoras y Novedades del Sistema"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 hover:from-emerald-500/20 hover:to-teal-500/20 border border-emerald-500/30 transition-all group"
+              title="Ver Registro de Mejoras del Sistema"
             >
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -80,9 +96,6 @@ export default function Header({
               </span>
               <span className="text-xs font-mono font-bold text-emerald-300">
                 {SYSTEM_VERSION}
-              </span>
-              <span className="hidden md:inline text-[10px] font-semibold text-gray-300 bg-white/10 px-1.5 py-0.5 rounded">
-                Mejoras ▾
               </span>
             </button>
 
@@ -92,18 +105,16 @@ export default function Header({
                 audio.success();
                 onResetDemoData();
               }}
-              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl border border-amber-500/30 transition-all"
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl border border-amber-500/30 transition-all"
               title="Restaurar datos demo en MXN"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              <span>Datos Demo</span>
+              <span>Demo</span>
             </button>
 
             {/* Sound Toggle */}
             <button
-              onClick={() => {
-                onToggleMute();
-              }}
+              onClick={onToggleMute}
               className={`p-2 rounded-xl border transition-all ${
                 isMuted 
                   ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' 
@@ -117,14 +128,16 @@ export default function Header({
           </div>
         </div>
 
-        {/* Bottom Row: Navigation Tabs */}
-        <div className="flex items-center gap-1 sm:gap-2 pb-2 overflow-x-auto no-scrollbar">
+        {/* Bottom Row: 4 Main Navigation Tabs */}
+        <div className="flex items-center gap-1.5 sm:gap-2 pb-2.5 overflow-x-auto no-scrollbar">
+          
+          {/* Tab 1: Inventario */}
           <button
             onClick={() => {
               audio.click();
               setActiveTab('inventory');
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
               activeTab === 'inventory'
                 ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/40'
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
@@ -134,35 +147,61 @@ export default function Header({
             <span>Inventario & Zonas</span>
           </button>
 
+          {/* Tab 2: Lista de Compras para el Súper */}
+          <button
+            onClick={() => {
+              audio.click();
+              setActiveTab('shopping');
+            }}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
+              activeTab === 'shopping'
+                ? 'bg-amber-500 text-white shadow-lg shadow-amber-950/40'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <ShoppingCart className="w-4 h-4" />
+            <span>Lista de Compras (Súper)</span>
+            {shoppingCount > 0 && (
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                activeTab === 'shopping' ? 'bg-black/25 text-white' : 'bg-amber-500/20 text-amber-300'
+              }`}>
+                {shoppingCount}
+              </span>
+            )}
+          </button>
+
+          {/* Tab 3: Recetas de Cocina */}
           <button
             onClick={() => {
               audio.click();
               setActiveTab('recipes');
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
               activeTab === 'recipes'
-                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/40'
+                ? 'bg-purple-600 text-white shadow-lg shadow-purple-950/40'
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <Utensils className="w-4 h-4" />
-            <span>Recetas de Cocina (Restaurante)</span>
+            <span>Recetas (Restaurante)</span>
           </button>
 
+          {/* Tab 4: Bitácora Forense */}
           <button
             onClick={() => {
               audio.click();
               setActiveTab('audit');
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
               activeTab === 'audit'
-                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/40'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-950/40'
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <History className="w-4 h-4" />
-            <span>Bitácora de Consumo (Audit Log)</span>
+            <span>Bitácora de Consumo</span>
           </button>
+
         </div>
 
       </div>

@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/layout/Header';
 import InventoryView from './components/inventory/InventoryView';
 import ManualProductModal from './components/inventory/ManualProductModal';
+import ShoppingListView from './components/shopping/ShoppingListView';
 import RecipesView from './components/recipes/RecipesView';
 import AuditTrailView from './components/audit/AuditTrailView';
+import CameraScannerModal from './components/scanner/CameraScannerModal';
 import ZoneModal from './components/zones/ZoneModal';
 import HouseholdsModal from './components/households/HouseholdsModal';
 import ChangelogModal from './components/changelog/ChangelogModal';
@@ -17,11 +19,50 @@ import {
   INITIAL_AUDIT_LOGS 
 } from './services/demoData';
 
+// Initial shopping list generated from low stock items
+const INITIAL_SHOPPING_LIST = [
+  {
+    id: 'shop-1',
+    name: 'Salmón Salvaje Canadiense en Porciones',
+    quantity: 3.5,
+    unit: 'kg',
+    store: 'Costco',
+    estimatedPriceMxn: 520.00,
+    targetZone: 'Cuarto Frío',
+    checked: false,
+  },
+  {
+    id: 'shop-2',
+    name: 'Café de Especialidad Grano Veracruz',
+    quantity: 2.4,
+    unit: 'kg',
+    store: 'Tostador Local',
+    estimatedPriceMxn: 390.00,
+    targetZone: 'Alacena Principal',
+    checked: false,
+  },
+  {
+    id: 'shop-3',
+    name: 'Queso Parmigiano Reggiano 24 Meses',
+    quantity: 2.0,
+    unit: 'kg',
+    store: 'City Market',
+    estimatedPriceMxn: 890.00,
+    targetZone: 'Refrigerador',
+    checked: false,
+  },
+];
+
 export default function App() {
   // Local storage persisted state
   const [products, setProducts] = useState(() => {
     const saved = localStorage.getItem('alacena_products');
     return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+  });
+
+  const [shoppingList, setShoppingList] = useState(() => {
+    const saved = localStorage.getItem('alacena_shopping_list');
+    return saved ? JSON.parse(saved) : INITIAL_SHOPPING_LIST;
   });
 
   const [zones, setZones] = useState(() => {
@@ -52,9 +93,10 @@ export default function App() {
   const [staffList] = useState(INITIAL_STAFF);
 
   // UI state
-  const [activeTab, setActiveTab] = useState('inventory');
+  const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' | 'shopping' | 'recipes' | 'audit'
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
   const [editingZone, setEditingZone] = useState(null);
   const [isHouseModalOpen, setIsHouseModalOpen] = useState(false);
@@ -65,6 +107,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('alacena_products', JSON.stringify(products));
   }, [products]);
+
+  useEffect(() => {
+    localStorage.setItem('alacena_shopping_list', JSON.stringify(shoppingList));
+  }, [shoppingList]);
 
   useEffect(() => {
     localStorage.setItem('alacena_zones', JSON.stringify(zones));
@@ -162,12 +208,154 @@ export default function App() {
     );
   };
 
+  // Shopping list actions
+  const handleToggleShoppingItem = (itemId) => {
+    setShoppingList((prev) =>
+      prev.map((item) => (item.id === itemId ? { ...item, checked: !item.checked } : item))
+    );
+  };
+
+  const handleRemoveShoppingItem = (itemId) => {
+    setShoppingList((prev) => prev.filter((item) => item.id !== itemId));
+  };
+
+  const handleAddShoppingItem = (item) => {
+    setShoppingList((prev) => [item, ...prev]);
+  };
+
+  const handleAutoGenerateShoppingList = () => {
+    // Escanear artículos con stock bajo
+    const lowStockItems = products.filter((p) => (p.quantity || 0) <= (p.minStock || 0));
+    let addedCount = 0;
+
+    setShoppingList((prev) => {
+      const updated = [...prev];
+      lowStockItems.forEach((p) => {
+        const alreadyInList = updated.find((i) => i.name.toLowerCase() === p.name.toLowerCase());
+        if (!alreadyInList) {
+          const deficit = Math.max(1, (p.idealStock || 5) - (p.quantity || 0));
+          updated.push({
+            id: `shop-${Date.now()}-${Math.random()}`,
+            name: p.name,
+            quantity: deficit,
+            unit: p.unit,
+            store: p.store || 'Costco',
+            estimatedPriceMxn: p.unitPriceMxn || 0,
+            targetZone: p.zone || 'Alacena Principal',
+            checked: false,
+          });
+          addedCount++;
+        }
+      });
+      return updated;
+    });
+
+    if (addedCount > 0) {
+      alert(`⚡ Se agregaron automáticamente ${addedCount} insumos con stock bajo a la lista de compras.`);
+    } else {
+      alert('¡Todo tu inventario tiene stock óptimo! No hay insumos por debajo del mínimo.');
+    }
+  };
+
+  const handleCompletePurchaseToPantry = (checkedItems) => {
+    let totalPurchasedMxn = 0;
+
+    // Transferir al inventario
+    setProducts((prev) => {
+      let currentList = [...prev];
+
+      checkedItems.forEach((purchased) => {
+        const existingIdx = currentList.findIndex(
+          (p) => p.name.toLowerCase() === purchased.name.toLowerCase()
+        );
+
+        const cost = (purchased.quantity || 1) * (purchased.estimatedPriceMxn || 0);
+        totalPurchasedMxn += cost;
+
+        if (existingIdx >= 0) {
+          const existing = currentList[existingIdx];
+          currentList[existingIdx] = {
+            ...existing,
+            quantity: (existing.quantity || 0) + (purchased.quantity || 1),
+            unitPriceMxn: purchased.estimatedPriceMxn > 0 ? purchased.estimatedPriceMxn : existing.unitPriceMxn,
+            updatedAt: new Date().toISOString(),
+          };
+        } else {
+          currentList.unshift({
+            id: `prod-${Date.now()}-${Math.random()}`,
+            name: purchased.name,
+            zone: purchased.targetZone || zones[0]?.name || 'Alacena Principal',
+            category: 'Abarrotes',
+            quantity: purchased.quantity || 1,
+            unit: purchased.unit || 'kg',
+            minStock: 2,
+            idealStock: 5,
+            unitPriceMxn: purchased.estimatedPriceMxn || 0,
+            store: purchased.store || 'Supermercado',
+            lastLoggedBy: 'Administrador General (Recepción Compra)',
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      });
+
+      return currentList;
+    });
+
+    // Limpiar comprados de la lista de compras
+    const checkedIds = new Set(checkedItems.map((i) => i.id));
+    setShoppingList((prev) => prev.filter((i) => !checkedIds.has(i.id)));
+
+    // Registrar en auditoría
+    addAuditEntry(
+      'Administrador General',
+      'INGRESO_COMPRA_SUPER',
+      `Ingresó compra de ${checkedItems.length} artículos a la residencia`,
+      `Valor total ingresado: $${totalPurchasedMxn.toFixed(2)} MXN`
+    );
+
+    setActiveTab('inventory');
+  };
+
+  // Direct scanner add
+  const handleAddStockDirect = (productId, amount) => {
+    handleUpdateQuantity(
+      productId,
+      (products.find((p) => p.id === productId)?.quantity || 0) + amount
+    );
+  };
+
+  const handleAddToShoppingListFromScan = (product, amount) => {
+    handleAddShoppingItem({
+      id: `shop-${Date.now()}`,
+      name: product.name,
+      quantity: amount || 1,
+      unit: product.unit || 'kg',
+      store: product.store || 'Supermercado',
+      estimatedPriceMxn: product.unitPriceMxn || product.price || 0,
+      targetZone: product.zone || 'Alacena Principal',
+      checked: false,
+    });
+    alert(`✅ "${product.name}" agregado a tu Lista de Compras.`);
+  };
+
+  const handleOpenManualCaptureWithBarcode = (barcodeData) => {
+    setEditingProduct({
+      id: `prod-${Date.now()}`,
+      name: barcodeData.name || '',
+      category: barcodeData.category || 'Abarrotes',
+      unit: barcodeData.unit || 'kg',
+      unitPriceMxn: barcodeData.price || 0,
+      zone: barcodeData.zone || zones[0]?.name || 'Alacena Principal',
+      barcode: barcodeData.barcode,
+    });
+    setIsManualModalOpen(true);
+  };
+
   // Zone actions
   const handleSaveZone = (zoneData) => {
     setZones((prev) => {
       const exists = prev.find((z) => z.id === zoneData.id);
       if (exists) {
-        // If name changed, update all products assigned to that zone
         if (exists.name !== zoneData.name) {
           setProducts((currentProds) =>
             currentProds.map((p) => (p.zone === exists.name ? { ...p, zone: zoneData.name } : p))
@@ -207,7 +395,6 @@ export default function App() {
 
   // Recipe actions
   const handleCookRecipe = (recipe, staffName) => {
-    // Deduct exact ingredients
     setProducts((prev) =>
       prev.map((product) => {
         const requiredIng = recipe.ingredients.find(
@@ -246,6 +433,7 @@ export default function App() {
   const handleResetDemoData = () => {
     if (window.confirm('¿Deseas restaurar los datos de demostración con precios en MXN?')) {
       setProducts(INITIAL_PRODUCTS);
+      setShoppingList(INITIAL_SHOPPING_LIST);
       setZones(INITIAL_ZONES);
       setRecipes(INITIAL_RECIPES);
       setHouseholds(INITIAL_HOUSEHOLDS);
@@ -266,12 +454,16 @@ export default function App() {
         onOpenHouseModal={() => setIsHouseModalOpen(true)}
         onOpenChangelog={() => setIsChangelogOpen(true)}
         onResetDemoData={handleResetDemoData}
+        onOpenScanner={() => setIsScannerOpen(true)}
+        shoppingCount={shoppingList.filter((i) => !i.checked).length}
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
       />
 
       {/* Main Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+        {/* Tab 1: Inventario & Zonas */}
         {activeTab === 'inventory' && (
           <InventoryView
             products={products}
@@ -297,6 +489,23 @@ export default function App() {
           />
         )}
 
+        {/* Tab 2: Lista de Compras (Modo Súper Interactivo con QR) */}
+        {activeTab === 'shopping' && (
+          <ShoppingListView
+            shoppingList={shoppingList}
+            products={products}
+            zones={zones}
+            activeHouse={activeHouse}
+            onToggleItem={handleToggleShoppingItem}
+            onRemoveItem={handleRemoveShoppingItem}
+            onAddItem={handleAddShoppingItem}
+            onAutoGenerateFromPantry={handleAutoGenerateShoppingList}
+            onCompletePurchaseToPantry={handleCompletePurchaseToPantry}
+            onOpenScanner={() => setIsScannerOpen(true)}
+          />
+        )}
+
+        {/* Tab 3: Recetas de Cocina */}
         {activeTab === 'recipes' && (
           <RecipesView
             recipes={recipes}
@@ -307,6 +516,7 @@ export default function App() {
           />
         )}
 
+        {/* Tab 4: Bitácora Forense */}
         {activeTab === 'audit' && (
           <AuditTrailView logs={auditLogs} />
         )}
@@ -320,6 +530,16 @@ export default function App() {
         zones={zones}
         staffList={staffList}
         initialProduct={editingProduct}
+      />
+
+      <CameraScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        products={products}
+        zones={zones}
+        onAddStockDirect={handleAddStockDirect}
+        onAddToShoppingList={handleAddToShoppingListFromScan}
+        onOpenManualCaptureWithBarcode={handleOpenManualCaptureWithBarcode}
       />
 
       <ZoneModal
