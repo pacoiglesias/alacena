@@ -37,8 +37,7 @@ call npx firebase-tools login:list
 
 echo.
 echo [PASO 3/5] Seleccionando proyecto de produccion 'alacena-enterprise-prod'...
-call npx firebase-tools use alacena-enterprise-prod
-call npx firebase-tools target:apply hosting alacena-app alacena-enterprise-prod
+call npx --no-install firebase-tools use alacena-enterprise-prod
 
 echo.
 echo [PASO 4/5] Compilando frontend optimizado v3.5.0 (React + Vite)...
