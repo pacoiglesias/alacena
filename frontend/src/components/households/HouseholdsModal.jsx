@@ -79,14 +79,21 @@ export default function HouseholdsModal({
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-xl ${isSelected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-gray-400'}`}>
-                    <MapPin className="w-4 h-4" />
+                  <div className={`text-2xl p-2 rounded-xl flex items-center justify-center shrink-0 ${
+                    isSelected ? 'bg-emerald-500/20 shadow-sm' : 'bg-white/5'
+                  }`}>
+                    {house.currency === 'EUR' || house.id.includes('spain') ? '🇪🇸' : '🇲🇽'}
                   </div>
                   <div>
                     <span className="text-sm font-bold block">{house.name}</span>
-                    {house.isPrimary && (
-                      <span className="text-[10px] text-emerald-400 font-semibold">Residencia Principal</span>
-                    )}
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] text-emerald-400 font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                        {house.currency === 'EUR' ? 'Moneda: € EUR' : 'Moneda: $ MXN'}
+                      </span>
+                      {house.isPrimary && (
+                        <span className="text-[10px] text-amber-300 font-semibold">Residencia Principal</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 

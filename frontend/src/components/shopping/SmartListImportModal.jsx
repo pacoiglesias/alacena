@@ -13,8 +13,10 @@ export default function SmartListImportModal({
   isOpen, 
   onClose, 
   onImportItems, 
+  onImportDirectToPantry,
   existingProducts = [],
-  zones = []
+  zones = [],
+  activeHouse
 }) {
   const [activeSubTab, setActiveSubTab] = useState('text'); // 'text' | 'ocr' | 'file'
   
@@ -706,7 +708,7 @@ export default function SmartListImportModal({
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => {
@@ -718,18 +720,45 @@ export default function SmartListImportModal({
               Cancelar
             </button>
 
+            {/* Opción A: Guardar directo en Alacena/Inventario */}
+            {onImportDirectToPantry && (
+              <button
+                type="button"
+                onClick={() => {
+                  const itemsToImport = extractedItems.filter((i) => selectedItemIds.has(i.id));
+                  if (itemsToImport.length === 0) {
+                    alert('Selecciona al menos un artículo.');
+                    return;
+                  }
+                  audio.success();
+                  onImportDirectToPantry(itemsToImport);
+                  onClose();
+                }}
+                disabled={selectedItemIds.size === 0}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-xl transition-all ${
+                  selectedItemIds.size > 0
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/40 active:scale-95'
+                    : 'bg-white/10 text-white/30 cursor-not-allowed'
+                }`}
+                title="Meter los artículos del ticket directamente a tu despensa o refri"
+              >
+                <span>📦 Meter Directo a Despensa ({selectedItemIds.size})</span>
+              </button>
+            )}
+
+            {/* Opción B: Importar a Lista del Súper */}
             <button
               type="button"
               onClick={handleConfirmImport}
               disabled={selectedItemIds.size === 0}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-xl transition-all ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-xl transition-all ${
                 selectedItemIds.size > 0
                   ? 'bg-gradient-to-r from-[#E0B441] to-[#E5724A] text-[#12100E] hover:brightness-110 shadow-[#E0B441]/25 active:scale-95'
                   : 'bg-white/10 text-white/30 cursor-not-allowed border border-white/5'
               }`}
             >
               <ShoppingCart className="w-4 h-4" />
-              <span>Importar ({selectedItemIds.size}) a la Lista del Súper</span>
+              <span>A la Lista del Súper ({selectedItemIds.size})</span>
             </button>
           </div>
         </div>

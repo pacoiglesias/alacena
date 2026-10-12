@@ -1009,8 +1009,16 @@ export default function ShoppingListView({
         isOpen={isSmartImportOpen}
         onClose={() => setIsSmartImportOpen(false)}
         onImportItems={handleBatchImportItems}
+        onImportDirectToPantry={(items) => {
+          if (onCompletePurchaseToPantry) {
+            onCompletePurchaseToPantry(items);
+          } else {
+            items.forEach((it) => onAddItem(it));
+          }
+        }}
         existingProducts={products}
         zones={zones}
+        activeHouse={activeHouse}
       />
 
       {/* Modal: Reconciliación de Ticket y Costo Real de Compra */}
