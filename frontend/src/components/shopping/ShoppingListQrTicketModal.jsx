@@ -1,5 +1,6 @@
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import QRCode from 'qrcode';
 import { X, Printer, Share2, ShoppingCart, Store, CheckCircle2 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
@@ -29,9 +30,104 @@ export default function ShoppingListQrTicketModal({
     })),
   });
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     audio.click();
-    window.print();
+    try {
+      let qrImg = '';
+      try {
+        qrImg = await QRCode.toDataURL(qrData, {
+          width: 250,
+          margin: 1,
+          color: { dark: '#000000', light: '#FFFFFF' },
+          errorCorrectionLevel: 'M',
+        });
+      } catch (e) {
+        console.warn('QR data error:', e);
+      }
+
+      const dateStr = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const itemsRows = pendingItems.map(item => `
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 4px 0; font-size: 11px;">${item.name}</td>
+          <td style="padding: 4px 0; text-align: right; font-weight: bold; font-size: 11px;">${item.quantity} ${item.unit}</td>
+        </tr>
+      `).join('');
+
+      const printHtml = `<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+  <meta charset="UTF-8">
+  <title>Ticket de Compra</title>
+  <style>
+    @page { size: auto; margin: 10mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fff !important; color: #000 !important; margin: 0; padding: 10px; }
+    .ticket { max-width: 320px; border: 2px dashed #444; border-radius: 10px; padding: 16px; margin: 0 auto; text-align: center; }
+    .title { font-size: 9px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; color: #6B1F2E; margin-bottom: 4px; }
+    .subtitle { font-size: 15px; font-weight: 800; margin: 2px 0; }
+    .date { font-size: 10px; color: #666; margin-bottom: 10px; }
+    .qr-box { margin: 10px auto; width: 160px; height: 160px; }
+    .qr-box img { width: 100%; height: 100%; }
+    .instruct { font-size: 8.5px; color: #666; margin: 6px 0 12px; }
+    .summary { border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; padding: 8px 0; margin: 8px 0; font-size: 11px; text-align: left; }
+    .summary-row { display: flex; justify-content: space-between; margin: 3px 0; }
+    table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="ticket">
+    <div class="title">ORDEN DE COMPRA • ${(activeHouse?.name || 'RESIDENCIA').toUpperCase()}</div>
+    <div class="subtitle">Lista del Supermercado</div>
+    <div class="date">${dateStr}</div>
+    <div class="qr-box">
+      <img src="${qrImg}" alt="QR" />
+    </div>
+    <div class="instruct">Escanea con la app ALACENA para cargar la orden interactiva</div>
+    <div class="summary">
+      <div class="summary-row"><span>Total por Comprar:</span><strong>${pendingItems.length} artículos</strong></div>
+      <div class="summary-row"><span>Presupuesto Estimado:</span><strong>$${totalEstimatedMxn.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</strong></div>
+    </div>
+    <table>
+      ${itemsRows}
+    </table>
+  </div>
+</body>
+</html>`;
+
+      let iframe = document.getElementById('alacena-ticket-qr-print-frame');
+      if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'alacena-ticket-qr-print-frame';
+        iframe.style.position = 'fixed';
+        iframe.style.top = '-10000px';
+        iframe.style.left = '-10000px';
+        iframe.style.width = '800px';
+        iframe.style.height = '1000px';
+        iframe.style.border = '0';
+        iframe.style.opacity = '0';
+        iframe.style.pointerEvents = 'none';
+        iframe.style.zIndex = '-9999';
+        document.body.appendChild(iframe);
+      }
+
+      const frameDoc = iframe.contentDocument || iframe.contentWindow.document;
+      frameDoc.open();
+      frameDoc.write(printHtml);
+      frameDoc.close();
+
+      setTimeout(() => {
+        try {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+        } catch (e) {
+          console.warn('Iframe fallback:', e);
+          window.print();
+        }
+      }, 500);
+    } catch (err) {
+      console.error('Error printing ticket:', err);
+      window.print();
+    }
   };
 
   return (

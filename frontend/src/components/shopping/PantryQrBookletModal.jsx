@@ -268,25 +268,28 @@ export default function PantryQrBookletModal({
 <body>
   <div class="print-header">
     <div class="print-brand">ALACENA ENTERPRISE • SISTEMA RESIDENCIAL DE ALMACÉN & CAVA</div>
-    <div class="print-title">\${formatTitle}</div>
-    <div class="print-meta">Residencia: <strong>\${houseName}</strong> • Ubicación: <strong>\${zoneName}</strong> • Impreso: \${dateStr} • Total: \${printableList.length} ítems</div>
-    \${printFormat === 'TABLERO_PEDIDOS' ? '<div class="board-instruct">📌 <strong>Instrucciones:</strong> Plastifica esta hoja y pégala en la puerta de la alacena para escanear salidas y pedidos rápidamente con el celular.</div>' : ''}
+    <div class="print-title">${formatTitle}</div>
+    <div class="print-meta">Residencia: <strong>${houseName}</strong> • Ubicación: <strong>${zoneName}</strong> • Impreso: ${dateStr} • Total: ${printableList.length} ítems</div>
+    ${printFormat === 'TABLERO_PEDIDOS' ? '<div class="board-instruct">📌 <strong>Instrucciones:</strong> Plastifica esta hoja y pégala en la puerta de la alacena para escanear salidas y pedidos rápidamente con el celular.</div>' : ''}
   </div>
-  \${cardsHtml}
+  ${cardsHtml}
 </body>
 </html>`;
 
-      // 3. Montar iframe invisible e imprimir
+      // 3. Montar iframe invisible con dimensiones reales para que Chromium calcule el layout
       let iframe = document.getElementById('alacena-qr-print-frame');
       if (!iframe) {
         iframe = document.createElement('iframe');
         iframe.id = 'alacena-qr-print-frame';
         iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
+        iframe.style.top = '-10000px';
+        iframe.style.left = '-10000px';
+        iframe.style.width = '900px';
+        iframe.style.height = '1200px';
         iframe.style.border = '0';
+        iframe.style.opacity = '0';
+        iframe.style.pointerEvents = 'none';
+        iframe.style.zIndex = '-9999';
         document.body.appendChild(iframe);
       }
 
@@ -296,10 +299,16 @@ export default function PantryQrBookletModal({
       frameDoc.close();
 
       setTimeout(() => {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-        setIsGeneratingPdf(false);
-      }, 350);
+        try {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+        } catch (e) {
+          console.warn('Error invocando print en iframe:', e);
+          window.print();
+        } finally {
+          setIsGeneratingPdf(false);
+        }
+      }, 500);
 
     } catch (err) {
       console.error('Error preparando impresión:', err);

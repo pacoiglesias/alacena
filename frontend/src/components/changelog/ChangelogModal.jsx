@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.5.2-Enterprise-Luxe';
+export const SYSTEM_VERSION = 'v3.5.3-Enterprise-Luxe';
 export const RELEASE_DATE = '12 Octubre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
@@ -160,14 +160,43 @@ export default function ChangelogModal({ isOpen, onClose }) {
         {activeTab === 'changelog' && (
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             
-            {/* Release v3.5.2-Enterprise-Luxe */}
+            {/* Release v3.5.3-Enterprise-Luxe */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-[#E0B441] shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-[#E0B441] bg-[#E0B441]/20 border border-[#E0B441]/40 rounded-lg font-mono">
-                    v3.5.2-Enterprise-Luxe
+                    v3.5.3-Enterprise-Luxe
                   </span>
                   <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">12 Octubre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2 font-display">
+                Edición de Catálogos en Línea, Búsqueda Instantánea y Corrección Integral de Impresión QR
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Edición y Alta Completa de Catálogos:</strong> Interfaz responsiva que permite crear y modificar en línea tiendas, personal que registra, categorías y unidades de medida con selector de emojis.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Resolución de Hojas QR en Blanco:</strong> Corrección de interpolación en el motor HTML y dimensionamiento de iframe (900x1200px) para impresión física 100% nítida y fiel.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Diseño Web-Responsive Total:</strong> Optimización en teléfonos móviles (iPhone / Android) y tabletas con tap-targets de mínimo 44px y navegación sin recortes.</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Release v3.5.2-Enterprise-Luxe */}
+            <div className="p-5 rounded-2xl bg-[#171412] border border-[#2A2521] shadow-md">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-gray-300 bg-white/5 border border-white/10 rounded-lg font-mono">
+                    v3.5.2-Enterprise-Luxe
+                  </span>
                 </div>
                 <span className="text-xs text-gray-400">12 Octubre 2026</span>
               </div>

@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import QRCode from 'qrcode';
 import { 
   X, Printer, Check, MapPin, Calendar, Tag, Store, QrCode, 
   Radio, Sparkles, Scissors, Download, Layers, Wine
@@ -22,10 +23,93 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
   // Esto permite que el QR tenga módulos grandes (21x21), legibles a distancia o con poca luz
   const compactQrValue = activeBarcode;
 
-  // Imprimir con aislamiento CSS estricto
-  const handlePrint = () => {
+  // Imprimir con aislamiento en iframe limpio sin páginas en blanco
+  const handlePrint = async () => {
     audio.click();
-    window.print();
+    try {
+      let qrImg = '';
+      try {
+        qrImg = await QRCode.toDataURL(compactQrValue, {
+          width: 300,
+          margin: 1,
+          color: { dark: '#000000', light: '#FFFFFF' },
+          errorCorrectionLevel: 'M',
+        });
+      } catch (e) {
+        const svgElement = qrSvgRef.current?.querySelector('svg');
+        if (svgElement) {
+          const svgData = new XMLSerializer().serializeToString(svgElement);
+          qrImg = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+        }
+      }
+
+      const printHtml = `<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+  <meta charset="UTF-8">
+  <title>Etiqueta ${activeBarcode}</title>
+  <style>
+    @page { size: letter portrait; margin: 10mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fff !important; color: #000 !important; margin: 0; padding: 20px; }
+    .label-wrapper { max-width: 320px; border: 2px dashed #333; border-radius: 12px; padding: 16px; text-align: center; margin: 0 auto; page-break-inside: avoid; }
+    .header-tag { font-size: 8px; font-weight: 900; letter-spacing: 1.5px; color: #885500; text-transform: uppercase; margin-bottom: 4px; }
+    .prod-name { font-size: 15px; font-weight: 800; line-height: 1.2; margin-bottom: 4px; }
+    .prod-meta { font-size: 10px; color: #555; margin-bottom: 8px; }
+    .qr-box { display: flex; justify-content: center; margin: 10px 0; }
+    .qr-img { width: 140px; height: 140px; }
+    .code-badge { font-family: monospace; font-size: 12px; font-weight: 900; background: #f0f0f0; border: 1px solid #ccc; padding: 3px 8px; border-radius: 6px; display: inline-block; }
+    .instruct { font-size: 8px; color: #777; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="label-wrapper">
+    <div class="header-tag">ALACENA ENTERPRISE • ETIQUETA DE CONTROL</div>
+    <div class="prod-name">${item.name}</div>
+    <div class="prod-meta">Ubicación: <strong>${item.zone || item.targetZone || 'Alacena'}</strong> • Tienda: <strong>${item.store || 'Supermercado'}</strong></div>
+    <div class="qr-box">
+      <img src="${qrImg}" class="qr-img" alt="QR" />
+    </div>
+    <div class="code-badge">${activeBarcode}</div>
+    <div class="instruct">Escanear para consultar stock, registrar consumo o pedir en la lista</div>
+  </div>
+</body>
+</html>`;
+
+      let iframe = document.getElementById('alacena-single-qr-print-frame');
+      if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'alacena-single-qr-print-frame';
+        iframe.style.position = 'fixed';
+        iframe.style.top = '-10000px';
+        iframe.style.left = '-10000px';
+        iframe.style.width = '800px';
+        iframe.style.height = '1000px';
+        iframe.style.border = '0';
+        iframe.style.opacity = '0';
+        iframe.style.pointerEvents = 'none';
+        iframe.style.zIndex = '-9999';
+        document.body.appendChild(iframe);
+      }
+
+      const frameDoc = iframe.contentDocument || iframe.contentWindow.document;
+      frameDoc.open();
+      frameDoc.write(printHtml);
+      frameDoc.close();
+
+      setTimeout(() => {
+        try {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+        } catch (e) {
+          console.warn('Iframe print fallback:', e);
+          window.print();
+        }
+      }, 500);
+    } catch (err) {
+      console.error('Error in handlePrint:', err);
+      window.print();
+    }
   };
 
   // Descargar imagen PNG para mandar directo a rotuladoras térmicas Bluetooth (Niimbot, Brother, Phomemo)

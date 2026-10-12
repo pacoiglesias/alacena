@@ -4,7 +4,7 @@ import {
   Sparkles, Store, CheckSquare, Square, Camera, 
   ArrowRight, Warehouse, DollarSign, RefreshCw, 
   AlertCircle, QrCode, Printer, CheckCircle2, ListChecks,
-  Beef, Milk, Apple, Package, Wine, Coffee, Layers, ChevronDown, BookOpen
+  Beef, Milk, Apple, Package, Wine, Coffee, Layers, ChevronDown, BookOpen, ShoppingBag
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';

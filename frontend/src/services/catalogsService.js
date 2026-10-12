@@ -121,3 +121,33 @@ export function addCustomStaff(name, role = 'Personal de Servicio', icon = '👤
   saveCatalogs(catalogs);
   return newPerson;
 }
+
+export function updateStore(id, updates) {
+  const catalogs = getCatalogs();
+  catalogs.stores = catalogs.stores.map((s) => (s.id === id ? { ...s, ...updates } : s));
+  saveCatalogs(catalogs);
+  return catalogs;
+}
+
+export function updateStaff(id, updates) {
+  const catalogs = getCatalogs();
+  catalogs.staff = catalogs.staff.map((s) => (s.id === id ? { ...s, ...updates } : s));
+  saveCatalogs(catalogs);
+  return catalogs;
+}
+
+export function updateCategory(oldName, newName) {
+  if (!newName || !newName.trim()) return getCatalogs();
+  const catalogs = getCatalogs();
+  const trimmed = newName.trim();
+  catalogs.categories = catalogs.categories.map((c) => (c === oldName ? trimmed : c));
+  saveCatalogs(catalogs);
+  return catalogs;
+}
+
+export function updateUnit(id, updates) {
+  const catalogs = getCatalogs();
+  catalogs.units = catalogs.units.map((u) => (u.id === id ? { ...u, ...updates } : u));
+  saveCatalogs(catalogs);
+  return catalogs;
+}
