@@ -136,7 +136,17 @@ service cloud.firestore {
     // =========================================================================
     match /workspaces/{workspaceId} {
       allow read: if isWorkspaceMember(workspaceId);
-      allow create: if isAuthenticated(); // Alta de nueva cuenta/familia SaaS
+      allow create: if isAuthenticated() &&
+        request.resource.data.ownerId == request.auth.uid &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.keys().hasOnly([
+          'name', 'ownerId', 'createdBy', 'createdAt',
+          'plan', 'settings'
+        ]) &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.name.size() <= 100;
       allow update, delete: if isWorkspaceAdmin(workspaceId);
 
       // --- Miembros y Asignación de Roles del Workspace ---
