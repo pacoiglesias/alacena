@@ -14,8 +14,13 @@ export async function lookupBarcode(barcode) {
     '7501000999001': { name: 'Queso Parmigiano Reggiano', category: 'Lácteos & Quesos', unit: 'kg', price: 890.00, zone: 'Refrigerador' },
     '7501055300076': { name: 'Leche Entera Pasteurizada 1L', category: 'Lácteos & Quesos', unit: 'litros', price: 29.50, zone: 'Refrigerador' },
     '7501030490631': { name: 'Café Grano Tostado 500g', category: 'Bebidas Calientes', unit: 'kg', price: 195.00, zone: 'Alacena Principal' },
-    '7501000101010': { name: 'Arroz Grano Grueso 1kg', category: 'Abarrotes', unit: 'kg', price: 36.00, zone: 'Alacena Principal' },
-    '7501000202020': { name: 'Frijol Negro Selección 1kg', category: 'Abarrotes', unit: 'kg', price: 42.00, zone: 'Alacena Principal' },
+    '7501055301097': { name: 'Coca-Cola Original Refresco 600ml', category: 'Bebidas & Refrescos', unit: 'piezas', price: 19.50, zone: 'Refrigerador', store: 'OXXO / Super' },
+    '7501055310884': { name: 'Coca-Cola Sin Azúcar 600ml', category: 'Bebidas & Refrescos', unit: 'piezas', price: 19.50, zone: 'Refrigerador', store: 'Supermercado' },
+    '7501000101010': { name: 'Arroz Grano Grueso 1kg', category: 'Abarrotes', unit: 'kg', price: 36.00, zone: 'Alacena Principal', store: 'Costco' },
+    '7501000202020': { name: 'Frijol Negro Selección 1kg', category: 'Abarrotes', unit: 'kg', price: 42.00, zone: 'Alacena Principal', store: 'Costco' },
+    '7501008000011': { name: 'Huevo Blanco San Juan (Cono 30 piezas)', category: 'Lácteos & Huevos', unit: 'paquetes', price: 92.00, zone: 'Alacena Principal', store: 'City Market' },
+    '7501008000022': { name: 'Papel Higiénico Regio Luxury (Paquete 12)', category: 'Limpieza & Hogar', unit: 'paquetes', price: 145.00, zone: 'Alacena Principal', store: 'Costco' },
+    '7501008000033': { name: 'Detergente Líquido Mas Color 5L', category: 'Limpieza & Hogar', unit: 'piezas', price: 210.00, zone: 'Alacena Principal', store: 'Costco' },
   };
 
   if (LOCAL_BARCODE_CATALOG[cleanCode]) {

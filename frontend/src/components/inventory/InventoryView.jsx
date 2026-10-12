@@ -15,6 +15,7 @@ export default function InventoryView({
   onUpdateQuantity,
   onEditZone,
   onAddZone,
+  onOpenWineTasting,
 }) {
   const [search, setSearch] = useState('');
   const [selectedZone, setSelectedZone] = useState(null);
@@ -263,9 +264,29 @@ export default function InventoryView({
                     >
                       {/* Name & Category */}
                       <td className="py-3 px-4">
-                        <div className="font-bold text-white text-sm">{p.name}</div>
+                        <div className="flex items-center gap-2">
+                          {p.isWine && <span className="text-base">{p.countryFlag || '🍷'}</span>}
+                          <span className="font-bold text-white text-sm">{p.name}</span>
+                          {p.rating > 0 && (
+                            <span className="text-amber-400 text-xs font-bold font-mono">
+                              ⭐ {p.rating}/5
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mt-0.5 text-gray-400">
                           <span>{p.category}</span>
+                          {p.vintage && (
+                            <>
+                              <span>•</span>
+                              <span className="text-purple-300 font-semibold font-mono">Añada {p.vintage}</span>
+                            </>
+                          )}
+                          {p.cavaLocation && (
+                            <>
+                              <span>•</span>
+                              <span className="text-amber-300">{p.cavaLocation}</span>
+                            </>
+                          )}
                           {p.store && (
                             <>
                               <span>•</span>
@@ -337,6 +358,21 @@ export default function InventoryView({
                           >
                             +
                           </button>
+
+                          {/* Botón Cata & Descorche para Vinos */}
+                          {(p.isWine || p.category === 'Vinos & Licores') && (
+                            <button
+                              onClick={() => {
+                                audio.click();
+                                if (onOpenWineTasting) onOpenWineTasting(p);
+                              }}
+                              className="px-2.5 py-1 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-[11px] font-bold flex items-center gap-1 transition-all mr-1"
+                              title="Abrir ficha de cata, estrellas y registrar descorche"
+                            >
+                              <span>🍷</span>
+                              <span className="hidden sm:inline">Cata & Descorche</span>
+                            </button>
+                          )}
 
                           {/* Botón Editar */}
                           <button

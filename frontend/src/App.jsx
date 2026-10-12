@@ -7,6 +7,7 @@ import RecipesView from './components/recipes/RecipesView';
 import AuditTrailView from './components/audit/AuditTrailView';
 import CameraScannerModal from './components/scanner/CameraScannerModal';
 import AddWineModal from './components/sommelier/AddWineModal';
+import WineTastingModal from './components/sommelier/WineTastingModal';
 import CavaProCommandCenterModal from './components/layout/CavaProCommandCenterModal';
 import ZoneModal from './components/zones/ZoneModal';
 import HouseholdsModal from './components/households/HouseholdsModal';
@@ -106,6 +107,29 @@ export default function App() {
   const [isHouseModalOpen, setIsHouseModalOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(audio.isMuted());
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isWineTastingOpen, setIsWineTastingOpen] = useState(false);
+  const [selectedWineForTasting, setSelectedWineForTasting] = useState(null);
+
+  // Online / Offline network event detection
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      audio.success();
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      audio.alert();
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Save to localStorage
   useEffect(() => {
@@ -140,6 +164,58 @@ export default function App() {
   const handleToggleMute = () => {
     const muted = audio.toggleMute();
     setIsMuted(muted);
+  };
+
+  const handleOpenWineTasting = (wine) => {
+    setSelectedWineForTasting(wine);
+    setIsWineTastingOpen(true);
+  };
+
+  const handleSaveWineRating = (wineId, ratingData) => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id === wineId) {
+          addAuditEntry(
+            ratingData.reviewerName || 'Sommelier CavaPro',
+            'CALIFICACION_VINO',
+            `Calificó ${p.name} con ${ratingData.rating}⭐ (${ratingData.sommelierPoints} pts)`,
+            ratingData.tastingNotes
+          );
+          return {
+            ...p,
+            rating: ratingData.rating,
+            sommelierPoints: ratingData.sommelierPoints,
+            tastingNotes: ratingData.tastingNotes,
+            foodPairing: ratingData.foodPairing || p.foodPairing,
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  const handleUncorkWine = (wineId, tastingData) => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id === wineId) {
+          const newQty = Math.max(0, (p.quantity || 1) - 1);
+          addAuditEntry(
+            tastingData.reviewerName || 'Sommelier CavaPro',
+            'DESCORCHE_VINO',
+            `Descorchó 1 botella de ${p.name}. Stock restante: ${newQty} botellas.`,
+            `Reseña: ${tastingData.rating}⭐ (${tastingData.sommelierPoints} pts). ${tastingData.tastingNotes}`
+          );
+          return {
+            ...p,
+            quantity: newQty,
+            rating: tastingData.rating,
+            sommelierPoints: tastingData.sommelierPoints,
+            tastingNotes: tastingData.tastingNotes,
+          };
+        }
+        return p;
+      })
+    );
   };
 
   // Helper to add audit log
@@ -486,6 +562,7 @@ export default function App() {
         shoppingCount={shoppingList.filter((i) => !i.checked).length}
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
+        isOnline={isOnline}
       />
 
       {/* Main Body */}
@@ -506,6 +583,7 @@ export default function App() {
             }}
             onDeleteProduct={handleDeleteProduct}
             onUpdateQuantity={handleUpdateQuantity}
+            onOpenWineTasting={handleOpenWineTasting}
             onEditZone={(zone) => {
               setEditingZone(zone);
               setIsZoneModalOpen(true);
@@ -565,6 +643,14 @@ export default function App() {
         onClose={() => setIsAddWineOpen(false)}
         onSave={handleSaveProduct}
         zones={zones}
+      />
+
+      <WineTastingModal
+        isOpen={isWineTastingOpen}
+        onClose={() => setIsWineTastingOpen(false)}
+        wine={selectedWineForTasting}
+        onSaveRating={handleSaveWineRating}
+        onUncorkBottle={handleUncorkWine}
       />
 
       <CavaProCommandCenterModal

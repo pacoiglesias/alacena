@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v2.4.0-Titanium-Nova';
+export const SYSTEM_VERSION = 'v2.5.0-Titanium-Nova-Enterprise';
 export const RELEASE_DATE = '11 Octubre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
@@ -153,14 +153,72 @@ export default function ChangelogModal({ isOpen, onClose }) {
         {activeTab === 'changelog' && (
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             
+            {/* Release v2.5.0 */}
+            <div className="p-5 rounded-2xl bg-white/[0.04] border border-emerald-500/35 hover:border-emerald-500/50 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg">
+                    v2.5.0
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-400">ESTA VERSIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">11 Octubre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2">
+                Sommelier Pro, Escáner Dual Súper (EAN-13 / QR), Librito Físico Cocina y Modo Offline
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>1. Sommelier Pro & Añadas:</strong> Vinos con año, país con bandera 🇲🇽 🇪🇸 🇫🇷 🇮🇹, región D.O., bodega, uva y estantería de cava.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>2. Ficha de Cata & Calificación:</strong> 1 a 5 estrellas ⭐⭐⭐⭐⭐, puntos sommelier (80-100), notas de aroma, boca y descorche con registro a bitácora.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>3. Escáner Híbrido Universal:</strong> Lee códigos de barras lineales de súper (EAN-13 / UPC como Coca-Cola) y códigos QR de recipientes.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>4. Librito Físico de Códigos QR:</strong> Catálogo imprimible para pegar en cocina; el personal sólo apunta la cámara de su celular al producto terminado.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>5. Captura Rápida "¿Qué Falta en Casa?":</strong> Botones táctiles de insumos frecuentes (Coca-Cola, Leche, Huevos) sin enredos.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>6. Impresión y PDF de la Lista del Súper:</strong> Formato físico limpio organizado por pasillos con casillas [ ] para tachar con pluma.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>7. Modo Offline Resiliente:</strong> Funciona en sótanos, cámaras frías y supermercados sin señal; todo se guarda en el teléfono.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>8. Indicador de Red en Vivo:</strong> Insignia 🟢 Online o 🟡 Offline en la barra superior.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>9. WhatsApp por Pasillos:</strong> Envío de la lista ordenada por departamentos con casillas interactivas de texto.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>10. Trazabilidad Forense Automática:</strong> Registro de cada descorche y consumo de cocina con responsable y hora exacta.</span>
+                </li>
+              </ul>
+            </div>
+
             {/* Release v2.4.0 */}
             <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-emerald-500/30 transition-all">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 rounded-lg">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-blue-400 bg-blue-500/15 border border-blue-500/30 rounded-lg">
                     v2.4.0
                   </span>
-                  <span className="text-xs font-semibold text-emerald-400">ESTA VERSIÓN</span>
+                  <span className="text-xs font-semibold text-blue-400">ANTERIOR</span>
                 </div>
                 <span className="text-xs text-gray-400">11 Octubre 2026</span>
               </div>

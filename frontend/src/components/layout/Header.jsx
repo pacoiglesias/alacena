@@ -18,7 +18,8 @@ export default function Header({
   onOpenCommandCenter,
   shoppingCount = 0,
   isMuted,
-  onToggleMute 
+  onToggleMute,
+  isOnline = true 
 }) {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-[#090D14]/90 backdrop-blur-xl">
@@ -112,6 +113,19 @@ export default function Header({
                 {SYSTEM_VERSION}
               </span>
             </button>
+
+            {/* Online / Offline status badge */}
+            <div 
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-mono font-bold transition-all ${
+                isOnline 
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
+                  : 'bg-amber-500/20 border-amber-500/40 text-amber-300 animate-pulse'
+              }`}
+              title={isOnline ? '🟢 En línea: Conectado' : '🟡 Modo Offline: Guardado local seguro en tu dispositivo'}
+            >
+              <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+              <span className="hidden sm:inline">{isOnline ? 'Online' : 'Offline'}</span>
+            </div>
 
             {/* Quick Demo Data Seeder */}
             <button

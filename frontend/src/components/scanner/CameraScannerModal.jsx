@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { 
   X, Camera, ScanLine, CheckCircle2, Plus, 
   ShoppingCart, Warehouse, AlertCircle, Sparkles, 
-  Keyboard, Image, RefreshCw 
+  Keyboard, Image, RefreshCw, Check 
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { lookupBarcode } from '../../services/barcodeLookupService';
@@ -59,7 +59,18 @@ export default function CameraScannerModal({
       setCameras(availableCameras);
 
       if (!html5QrCodeRef.current) {
-        html5QrCodeRef.current = new Html5Qrcode(scannerContainerId);
+        html5QrCodeRef.current = new Html5Qrcode(scannerContainerId, {
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+          ],
+          verbose: false,
+        });
       }
 
       // Elegir cámara trasera si existe, de lo contrario la primera disponible o constraint
@@ -79,7 +90,7 @@ export default function CameraScannerModal({
         cameraConfig,
         {
           fps: 15,
-          qrbox: { width: 280, height: 180 },
+          qrbox: { width: 310, height: 160 },
           aspectRatio: 1.333,
         },
         onScanSuccess,
@@ -340,10 +351,12 @@ export default function CameraScannerModal({
             </div>
             <div className="flex flex-wrap gap-1.5">
               {[
+                { label: '🥤 Coca-Cola (7501055301097)', code: '7501055301097' },
                 { label: 'Harina (7501000111223)', code: '7501000111223' },
                 { label: 'Ribeye (7501000777889)', code: '7501000777889' },
                 { label: 'Vino Cava (7501000555667)', code: '7501000555667' },
                 { label: 'Leche (7501055300076)', code: '7501055300076' },
+                { label: 'Huevos (7501008000011)', code: '7501008000011' },
               ].map((item) => (
                 <button
                   key={item.code}
@@ -366,7 +379,7 @@ export default function CameraScannerModal({
               <Keyboard className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
               <input
                 type="text"
-                placeholder="O escribe un código de barras (ej. 7501000111223)..."
+                placeholder="O escribe un código de barras (ej. 7501055301097 de Coca Cola)..."
                 value={manualCode}
                 onChange={(e) => setManualCode(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 font-mono"
@@ -395,7 +408,7 @@ export default function CameraScannerModal({
                       </span>
                     ) : (
                       <span className="text-[10px] font-bold text-amber-400 uppercase">
-                        Nuevo Artículo Detectado
+                        Artículo Reconocido en Catálogo
                       </span>
                     )}
                   </div>
@@ -408,39 +421,38 @@ export default function CameraScannerModal({
                     </p>
                   ) : (
                     <p className="text-xs text-gray-400 mt-0.5">
-                      Catálogo sugerido: {scannedResult.product.category} • Precio estimado: ${scannedResult.product.price || 0} MXN
+                      Categoría: {scannedResult.product.category || 'Abarrotes'} • Precio sugerido: ${scannedResult.product.price || 0} MXN
                     </p>
                   )}
                 </div>
               </div>
 
-              {/* Action Buttons for Scanned Product */}
+              {/* Action Buttons for Scanned Product (1-Tap for domestic staff) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-white/10">
+                <button
+                  onClick={() => {
+                    audio.success();
+                    onAddToShoppingList(scannedResult.product, 1);
+                    setScannedResult(null);
+                  }}
+                  className="py-3 px-3 text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md shadow-amber-950/40"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  <span>🛒 Falta en Casa: Apuntar al Súper (1 Toque)</span>
+                </button>
+
                 {scannedResult.isExisting ? (
-                  <>
-                    <button
-                      onClick={() => {
-                        audio.success();
-                        onAddStockDirect(scannedResult.product.id, 1);
-                        setScannedResult(null);
-                      }}
-                      className="py-2.5 px-3 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl transition-all flex items-center justify-center gap-2"
-                    >
-                      <Warehouse className="w-4 h-4" />
-                      <span>+1 a la Alacena / Casa</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        audio.click();
-                        onAddToShoppingList(scannedResult.product, 1);
-                        setScannedResult(null);
-                      }}
-                      className="py-2.5 px-3 text-xs font-bold text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 rounded-xl transition-all flex items-center justify-center gap-2"
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                      <span>+1 a Lista de Compras</span>
-                    </button>
-                  </>
+                  <button
+                    onClick={() => {
+                      audio.success();
+                      onAddStockDirect(scannedResult.product.id, 1);
+                      setScannedResult(null);
+                    }}
+                    className="py-3 px-3 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl transition-all flex items-center justify-center gap-2"
+                  >
+                    <Warehouse className="w-4 h-4" />
+                    <span>➕ Llegó a Casa: +1 a Alacena</span>
+                  </button>
                 ) : (
                   <button
                     onClick={() => {
@@ -448,10 +460,10 @@ export default function CameraScannerModal({
                       onOpenManualCaptureWithBarcode(scannedResult.product);
                       onClose();
                     }}
-                    className="col-span-full py-2.5 px-3 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl transition-all flex items-center justify-center gap-2"
+                    className="py-3 px-3 text-xs font-bold text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all flex items-center justify-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Registrar en Inventario con Este Código</span>
+                    <span>➕ Registrar en Alacena Permanente</span>
                   </button>
                 )}
               </div>
