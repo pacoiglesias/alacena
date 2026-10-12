@@ -52,7 +52,18 @@ service cloud.firestore {
     // =========================================================================
     match /users/{userId} {
       allow read: if isAuthenticated() && (request.auth.uid == userId || request.auth.token.role == 'superadmin');
-      allow create, update: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() &&
+        request.auth.uid == userId &&
+        request.resource.data.keys().hasOnly([
+          'displayName', 'email', 'photoURL', 'preferences',
+          'locale', 'createdAt', 'updatedAt'
+        ]) &&
+        request.resource.data.createdAt == request.time;
+      allow update: if isAuthenticated() &&
+        request.auth.uid == userId &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName', 'photoURL', 'preferences', 'locale', 'updatedAt'
+        ]);
       allow delete: if false;
     }
 
