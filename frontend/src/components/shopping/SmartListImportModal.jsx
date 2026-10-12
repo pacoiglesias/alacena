@@ -61,6 +61,14 @@ export default function SmartListImportModal({
 [Costco] 1 bolsa de nuez de la india
 [Costco] 1 charola de huevos blancos`
       );
+    } else if (type === 'mercadona') {
+      setRawText(
+`[Mercadona] 1.5 kg Merluza fresca del cantabrico
+[Mercadona] 6 botellas leche entera hacendado
+[Mercadona] 1 botella aceite de oliva virgen extra 1l
+[Mercadona] 1 cuña queso manchego curado
+[Mercadona] 2 barras pan artesanal`
+      );
     }
   };
 
@@ -390,6 +398,13 @@ export default function SmartListImportModal({
                     className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-[#E5724A] border border-[#E5724A]/30 transition-all"
                   >
                     Costco Bulk
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleLoadSampleText('mercadona')}
+                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-emerald-400 border border-emerald-500/30 transition-all font-bold"
+                  >
+                    🇪🇸 Mercadona
                   </button>
                 </div>
               </div>

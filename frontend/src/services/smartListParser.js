@@ -33,6 +33,16 @@ export const DEPT_KEYWORDS = {
 };
 
 export const STORE_KEYWORDS = {
+  // España
+  'Mercadona': ['mercadona', 'hacendado', 'deliplus', 'bosque verde'],
+  'Dia Supermercados': ['dia', 'supermercados dia', 'dia market'],
+  'El Corte Inglés': ['corte ingles', 'hipercor', 'club del gourmet'],
+  'Carrefour': ['carrefour', 'carrefour express', 'carrefour market'],
+  'Aldi España': ['aldi'],
+  'Lidl España': ['lidl'],
+  'Pescadería del Barrio': ['pescaderia', 'pescadería', 'lonja', 'marisqueria'],
+
+  // México
   'Costco': ['costco', 'kirkland', 'paquete grande', 'bulk', 'kilo y medio'],
   'City Market': ['city market', 'gourmet', 'prime', 'importado', 'reserva', 'prosciutto', 'parmigiano', 'trufa'],
   'Chedraui Selecto': ['chedraui', 'selecto', 'super'],
