@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
 import { 
   X, Camera, FileText, Upload, Sparkles, Check, 
   Trash2, Plus, AlertCircle, ShoppingCart, Loader2,
-  SlidersHorizontal, CheckCircle2, RefreshCw
+  SlidersHorizontal, CheckCircle2, RefreshCw, QrCode
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { parseRawShoppingText } from '../../services/smartListParser';
@@ -94,13 +95,47 @@ export default function SmartListImportModal({
     audio.click();
   };
 
-  // Ejecutar OCR
+  // Ejecutar OCR o Decodificación QR
   const handleRunOcr = async () => {
     if (!selectedImage) return;
 
     setIsOcrProcessing(true);
     audio.click();
     try {
+      // 1. Intentar decodificar primero si la imagen contiene un Código QR (ultra-rápido en ~150ms)
+      try {
+        const qrDetector = new Html5Qrcode('qr-detection-buffer');
+        const decodedQr = await qrDetector.scanFile(selectedImage, false);
+        try { qrDetector.clear(); } catch (_) {}
+        if (decodedQr && decodedQr.trim()) {
+          let textToParse = decodedQr.trim();
+          if (textToParse.startsWith('{') || textToParse.startsWith('[')) {
+            try {
+              const parsedJson = JSON.parse(textToParse);
+              const itemsArray = Array.isArray(parsedJson) ? parsedJson : (parsedJson.items || []);
+              if (itemsArray.length > 0) {
+                textToParse = itemsArray.map(i => `${i.quantity || 1} ${i.unit || 'pza'} de ${i.name}`).join('\n');
+              }
+            } catch (_) {}
+          }
+          const qrItems = parseRawShoppingText(textToParse, existingProducts);
+          if (qrItems.length > 0) {
+            setExtractedItems(qrItems);
+            setSelectedItemIds(new Set(qrItems.map((i) => i.id)));
+            setImportNotice({
+              type: 'success',
+              text: `🎯 ¡Código QR detectado y decodificado al instante! Se extrajeron ${qrItems.length} ingredientes.`
+            });
+            audio.success();
+            setIsOcrProcessing(false);
+            return;
+          }
+        }
+      } catch (qrErr) {
+        // No era un código QR, continuar al motor OCR óptico
+      }
+
+      // 2. Reconocimiento Óptico (OCR) con Tesseract en español para recetas, notas manuscritas y tickets
       const result = await extractShoppingListFromImage(
         selectedImage, 
         (progress) => setOcrProgress(progress),
@@ -683,6 +718,9 @@ export default function SmartListImportModal({
             </button>
           </div>
         </div>
+
+        {/* Buffer off-screen para decodificación de códigos QR en fotos */}
+        <div id="qr-detection-buffer" className="hidden" />
 
       </div>
     </div>
