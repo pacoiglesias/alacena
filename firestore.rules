@@ -221,14 +221,19 @@ service cloud.firestore {
         // Ajustes y Mermas
         match /inventory_adjustments/{adjustmentId} {
           allow read: if isWorkspaceAdmin(workspaceId);
-          allow create: if isWorkspaceAdmin(workspaceId);
+          allow create: if isWorkspaceAdmin(workspaceId) &&
+            request.resource.data.workspaceId == workspaceId &&
+            request.resource.data.householdId == householdId;
           allow update, delete: if false;
         }
 
         // Conteos Cíclicos
         match /cycle_counts/{sessionId} {
           allow read: if isWorkspaceMember(workspaceId);
-          allow create, update: if isWorkspaceAdmin(workspaceId);
+          allow create: if isWorkspaceAdmin(workspaceId) &&
+            request.resource.data.workspaceId == workspaceId &&
+            request.resource.data.householdId == householdId;
+          allow update: if isWorkspaceAdmin(workspaceId);
           allow delete: if false;
         }
 
