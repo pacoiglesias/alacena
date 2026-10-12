@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, Volume2, VolumeX, MapPin, 
   ChevronDown, Utensils, History, Layers, RefreshCw, 
-  ShoppingCart, Camera, Wine, User, Shield, Check
+  ShoppingCart, Camera, Wine, User, Shield, Check, Sliders
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { SYSTEM_VERSION } from '../changelog/ChangelogModal';
+import CustomTabNamesModal, { DEFAULT_TAB_LABELS } from './CustomTabNamesModal';
 
 export const SYSTEM_ROLES = [
   { id: 'admin', name: 'Paco I.', label: 'Patrón / Admin', icon: Shield, color: 'text-amber-400 bg-amber-500/20' },
@@ -35,6 +36,22 @@ export default function Header({
     return saved ? JSON.parse(saved) : SYSTEM_ROLES[0];
   });
   const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
+  const [isTabConfigModalOpen, setIsTabConfigModalOpen] = useState(false);
+  const [tabLabels, setTabLabels] = useState(() => {
+    try {
+      const saved = localStorage.getItem('alacena_tab_labels');
+      return saved ? JSON.parse(saved) : DEFAULT_TAB_LABELS;
+    } catch (e) {
+      return DEFAULT_TAB_LABELS;
+    }
+  });
+
+  const handleSaveTabLabels = (newLabels) => {
+    setTabLabels(newLabels);
+    try {
+      localStorage.setItem('alacena_tab_labels', JSON.stringify(newLabels));
+    } catch (e) {}
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -239,7 +256,7 @@ export default function Header({
             }`}
           >
             <ShoppingCart className="w-4 h-4" />
-            <span>Lista del Súper</span>
+            <span>{tabLabels.shopping || 'Lista del Súper'}</span>
             {shoppingCount > 0 && (
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
                 activeTab === 'shopping' ? 'bg-black/30 text-white' : 'bg-[#E5724A]/25 text-[#E5724A]'
@@ -266,7 +283,7 @@ export default function Header({
             }`}
           >
             <Wine className="w-4 h-4" />
-            <span>CavaPro Vinos</span>
+            <span>{tabLabels.cava || 'CavaPro Vinos'}</span>
             {activeTab === 'cava' && (
               <span className="w-1.5 h-1.5 rounded-full bg-white absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
             )}
@@ -285,7 +302,7 @@ export default function Header({
             }`}
           >
             <Utensils className="w-4 h-4" />
-            <span>Cocina & Recetas</span>
+            <span>{tabLabels.recipes || 'Cocina & Recetas'}</span>
             {activeTab === 'recipes' && (
               <span className="w-1.5 h-1.5 rounded-full bg-[#12100E] absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
             )}
@@ -304,7 +321,7 @@ export default function Header({
             }`}
           >
             <History className="w-4 h-4" />
-            <span>Bitácora Forense</span>
+            <span>{tabLabels.audit || 'Bitácora Forense'}</span>
             {activeTab === 'audit' && (
               <span className="w-1.5 h-1.5 rounded-full bg-white absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
             )}
@@ -323,13 +340,34 @@ export default function Header({
             }`}
           >
             <Layers className="w-4 h-4" />
-            <span>Alacena & QR</span>
+            <span>{tabLabels.inventory || 'Alacena & QR'}</span>
             {activeTab === 'inventory' && (
               <span className="w-1.5 h-1.5 rounded-full bg-white absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
             )}
           </button>
 
+          {/* Botón para Renombrar / Configurar las 5 Pestañas */}
+          <button
+            onClick={() => {
+              audio.click();
+              setIsTabConfigModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-[#8B8378] hover:text-[#E0B441] hover:bg-white/5 border border-transparent hover:border-[#E0B441]/30 transition-all shrink-0 ml-auto"
+            title="Personalizar o renombrar los 5 nombres del menú"
+          >
+            <Sliders className="w-3.5 h-3.5 text-[#E0B441]" />
+            <span className="hidden sm:inline">Renombrar Menú</span>
+          </button>
+
         </nav>
+
+        {/* Modal para Renombrar y Configurar Pestañas del Hogar */}
+        <CustomTabNamesModal
+          isOpen={isTabConfigModalOpen}
+          onClose={() => setIsTabConfigModalOpen(false)}
+          tabLabels={tabLabels}
+          onSaveTabLabels={handleSaveTabLabels}
+        />
 
       </div>
     </header>
