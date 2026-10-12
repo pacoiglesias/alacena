@@ -596,6 +596,7 @@ export default function App() {
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
         isOnline={isOnline}
+        zones={zones}
       />
 
       {/* Main Body */}

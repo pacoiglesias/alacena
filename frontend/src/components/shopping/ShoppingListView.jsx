@@ -13,6 +13,7 @@ import ShoppingListQrTicketModal from './ShoppingListQrTicketModal';
 import PantryQrBookletModal from './PantryQrBookletModal';
 import QuickStaffShoppingModal from './QuickStaffShoppingModal';
 import PrintableShoppingListModal from './PrintableShoppingListModal';
+import SmartListImportModal from './SmartListImportModal';
 
 // Departamentos estándar de supermercado físico
 export const SUPERMARKET_DEPARTMENTS = [
@@ -58,6 +59,23 @@ export default function ShoppingListView({
   const [isQuickStaffOpen, setIsQuickStaffOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isWalkingMode, setIsWalkingMode] = useState(false);
+  const [isSmartImportOpen, setIsSmartImportOpen] = useState(false);
+
+  // Batch import callback
+  const handleBatchImportItems = (importedItems) => {
+    if (!importedItems || importedItems.length === 0) return;
+    importedItems.forEach((item) => {
+      onAddItem({
+        name: item.name,
+        quantity: item.quantity || 1,
+        unit: item.unit || 'piezas',
+        department: item.department || 'Abarrotes',
+        store: item.store || 'Costco',
+        estimatedPriceMxn: item.estimatedPriceMxn || 0,
+        targetZone: item.targetZone || zones[0]?.name || 'Alacena Principal',
+      });
+    });
+  };
 
   // New manual item state
   const [itemName, setItemName] = useState('');
@@ -297,6 +315,19 @@ export default function ShoppingListView({
           >
             <Sparkles className="w-4 h-4 text-amber-200" />
             <span>📝 ¿Qué Falta en Casa?</span>
+          </button>
+
+          {/* 1.5. Importador Inteligente / OCR */}
+          <button
+            onClick={() => {
+              audio.click();
+              setIsSmartImportOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#E0B441] bg-[#E0B441]/15 hover:bg-[#E0B441]/25 border border-[#E0B441]/35 transition-all shadow-sm hover:scale-105 active:scale-95"
+            title="Importar lista de WhatsApp, foto con OCR o archivo PDF/TXT"
+          >
+            <Sparkles className="w-4 h-4 text-[#E0B441]" />
+            <span>📥 Importar / OCR</span>
           </button>
 
           {/* 2. Librito QR para Cocina / Personal */}
@@ -837,6 +868,15 @@ export default function ShoppingListView({
         shoppingList={enrichedList}
         activeHouse={activeHouse}
         totalEstimatedMxn={metrics.totalEstimatedMxn}
+      />
+
+      {/* Modal: Importador Bidireccional Inteligente & OCR */}
+      <SmartListImportModal
+        isOpen={isSmartImportOpen}
+        onClose={() => setIsSmartImportOpen(false)}
+        onImportItems={handleBatchImportItems}
+        existingProducts={products}
+        zones={zones}
       />
 
 

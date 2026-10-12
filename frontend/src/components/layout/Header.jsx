@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, Volume2, VolumeX, MapPin, 
   ChevronDown, Utensils, History, Layers, RefreshCw, 
-  ShoppingCart, Camera, Wine, User, Shield, Check, Sliders
+  ShoppingCart, Camera, Wine, User, Shield, Check, Sliders,
+  BookOpen
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { SYSTEM_VERSION } from '../changelog/ChangelogModal';
-import CustomTabNamesModal, { DEFAULT_TAB_LABELS } from './CustomTabNamesModal';
+import CustomTabNamesModal, { DEFAULT_MENU_TABS, ICON_MAP } from './CustomTabNamesModal';
+import SystemManualModal from '../manual/SystemManualModal';
 
 export const SYSTEM_ROLES = [
   { id: 'admin', name: 'Paco I.', label: 'Patrón / Admin', icon: Shield, color: 'text-amber-400 bg-amber-500/20' },
@@ -28,7 +30,9 @@ export default function Header({
   isMuted,
   onToggleMute,
   isOnline = true,
-  onFilterWines
+  onFilterWines,
+  onSelectZoneFilter,
+  zones = []
 }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeRole, setActiveRole] = useState(() => {
@@ -37,19 +41,32 @@ export default function Header({
   });
   const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
   const [isTabConfigModalOpen, setIsTabConfigModalOpen] = useState(false);
-  const [tabLabels, setTabLabels] = useState(() => {
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  
+  // Menú dinámico configurable (renombrar, ocultar, y agregar pestañas)
+  const [menuTabs, setMenuTabs] = useState(() => {
     try {
-      const saved = localStorage.getItem('alacena_tab_labels');
-      return saved ? JSON.parse(saved) : DEFAULT_TAB_LABELS;
+      const saved = localStorage.getItem('alacena_menu_tabs_v2');
+      if (saved) return JSON.parse(saved);
+      // Migración suave si existían tabLabels antiguos
+      const oldLabels = localStorage.getItem('alacena_tab_labels');
+      if (oldLabels) {
+        const parsed = JSON.parse(oldLabels);
+        return DEFAULT_MENU_TABS.map((t) => ({
+          ...t,
+          label: parsed[t.key] || t.label,
+        }));
+      }
+      return DEFAULT_MENU_TABS;
     } catch (e) {
-      return DEFAULT_TAB_LABELS;
+      return DEFAULT_MENU_TABS;
     }
   });
 
-  const handleSaveTabLabels = (newLabels) => {
-    setTabLabels(newLabels);
+  const handleSaveMenuTabs = (newTabs) => {
+    setMenuTabs(newTabs);
     try {
-      localStorage.setItem('alacena_tab_labels', JSON.stringify(newLabels));
+      localStorage.setItem('alacena_menu_tabs_v2', JSON.stringify(newTabs));
     } catch (e) {}
   };
 
@@ -68,6 +85,24 @@ export default function Header({
     setIsRoleMenuOpen(false);
   };
 
+  // Manejar click en una pestaña (sistema o personalizada)
+  const handleTabClick = (tab) => {
+    audio.click();
+    if (tab.id === 'cava') {
+      setActiveTab('inventory');
+      if (onFilterWines) onFilterWines();
+    } else if (tab.targetZone) {
+      setActiveTab('inventory');
+      if (onSelectZoneFilter) onSelectZoneFilter(tab.targetZone);
+    } else if (tab.isSystem) {
+      setActiveTab(tab.key);
+    } else {
+      setActiveTab('inventory');
+    }
+  };
+
+  const enabledTabs = menuTabs.filter((t) => t.enabled !== false);
+
   return (
     <header className={`sticky top-0 z-40 w-full border-b transition-all duration-300 backdrop-blur-xl ${
       isScrolled 
@@ -83,7 +118,7 @@ export default function Header({
           
           {/* Logo & Brand Identity */}
           <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
-            {/* Monograma "A" en cuadrado redondeado --accent-cava */}
+            {/* Monograma "A" en cuadrado redondeado */}
             <div className="flex items-center gap-2.5 group cursor-pointer" onClick={() => { audio.click(); setActiveTab('inventory'); }}>
               <div className="w-10 h-10 rounded-[10px] bg-gradient-to-br from-[#6B1F2E] to-[#45121D] flex items-center justify-center text-[#F2EDE4] shadow-md shadow-[#6B1F2E]/30 border border-[#A83A50]/40 transition-transform group-hover:scale-105">
                 <span className="font-display font-bold text-xl leading-none">A</span>
@@ -93,7 +128,7 @@ export default function Header({
                   <span className="font-display text-[22px] font-extrabold tracking-tight text-[#F2EDE4] block leading-none">
                     ALACENA
                   </span>
-                  {/* Chip de versión: v3.1.0 Luxe */}
+                  {/* Chip de versión */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -104,100 +139,105 @@ export default function Header({
                     title="Ver Ficha Técnica y Changelog Luxe"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>v3.3.0 · Perfection</span>
+                    <span>v3.4.0 · Pro Master</span>
                   </button>
                 </div>
                 {!isScrolled && (
-                  <span className="text-[11px] font-medium tracking-wide text-[#7A7268] block mt-0.5 transition-opacity duration-200">
-                    Despensa · Cava · Cocina
+                  <span className="text-[11px] font-medium text-[#B8AFA3] tracking-wide block truncate">
+                    Control Residencial & Cava
                   </span>
                 )}
               </div>
             </div>
 
-            {/* Casa Activa Minimalist Pill */}
+            {/* Selector de Residencia Activa */}
             <button
               onClick={() => {
                 audio.click();
                 onOpenHouseModal();
               }}
-              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#2A2521] hover:border-[#6B1F2E]/60 transition-all text-left group"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#F2EDE4] bg-white/5 hover:bg-white/10 border border-[#2A2521] transition-all shrink-0"
+              title="Cambiar o Administrar Casas del Hogar"
             >
-              <div className="p-1 rounded-full bg-[#6B1F2E]/30 text-[#E0B441]">
-                <MapPin className="w-3.5 h-3.5" />
-              </div>
-              <div className="min-w-0">
-                <span className="text-[9px] font-extrabold tracking-wider text-[#7A7268] block uppercase leading-none">
-                  RESIDENCIA
-                </span>
-                <span className="text-xs font-bold text-[#F2EDE4] truncate block max-w-[130px]">
-                  {activeHouse?.name || 'Principal'}
-                </span>
-              </div>
-              <ChevronDown className="w-3.5 h-3.5 text-[#7A7268] group-hover:text-[#E0B441] transition-colors ml-0.5" />
+              <MapPin className="w-3.5 h-3.5 text-[#E0B441]" />
+              <span className="font-bold">{activeHouse?.name || 'Residencia Principal'}</span>
+              <ChevronDown className="w-3 h-3 text-[#B8AFA3]" />
             </button>
           </div>
 
-          {/* Right Controls: Role Selector, Scanner, Sound Toggle & Controls */}
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Right Action Icons & Controls */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             
-            {/* Selector de rol visible como avatar+nombre (no dropdown técnico) */}
+            {/* Status Online / Offline */}
+            <div className={`hidden md:flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-mono font-bold border ${
+              isOnline 
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400 animate-ping'}`} />
+              <span>{isOnline ? 'ONLINE' : 'OFFLINE'}</span>
+            </div>
+
+            {/* Selector de Rol Doméstico */}
             <div className="relative">
               <button
                 onClick={() => {
                   audio.click();
                   setIsRoleMenuOpen(!isRoleMenuOpen);
                 }}
-                className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#3D3630] transition-all text-left group"
-                title="Cambiar rol activo"
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                  isRoleMenuOpen 
+                    ? 'bg-white/15 border-[#E0B441]/50 text-white' 
+                    : 'bg-white/5 border-[#2A2521] text-[#B8AFA3] hover:text-white'
+                }`}
+                title="Cambiar Rol de Operación en el Hogar"
               >
-                <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold ${activeRole.color}`}>
-                  {activeRole.name.charAt(0)}
-                </div>
-                <div className="hidden lg:block text-left leading-none">
-                  <span className="text-[9px] font-extrabold tracking-wider text-[#7A7268] block uppercase">
-                    ROL ACTIVO
-                  </span>
-                  <span className="text-xs font-semibold text-[#F2EDE4]">
-                    {activeRole.name}
-                  </span>
-                </div>
-                <ChevronDown className="w-3.5 h-3.5 text-[#7A7268] group-hover:text-[#F2EDE4] transition-colors" />
+                {React.createElement(activeRole.icon, { className: 'w-3.5 h-3.5 text-[#E0B441]' })}
+                <span className="hidden sm:inline font-medium">{activeRole.label}</span>
+                <ChevronDown className="w-3 h-3 text-[#B8AFA3]" />
               </button>
 
-              {/* Menú flotante de roles */}
               {isRoleMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#1C1916] border border-[#3D3630] shadow-xl p-2 z-50 animate-modal-in">
-                  <div className="px-3 py-1.5 text-[10px] font-extrabold text-[#7A7268] uppercase tracking-wider">
-                    Seleccionar Personal / Rol
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#1C1814] border border-[#3D3630] shadow-2xl p-2 z-50 animate-fade-in">
+                  <div className="px-2 py-1.5 text-[10px] font-mono font-bold text-[#E0B441] uppercase tracking-wider border-b border-[#2A2521] mb-1">
+                    Cambiar Perfil de Operación
                   </div>
-                  {SYSTEM_ROLES.map((r) => (
+                  {SYSTEM_ROLES.map((role) => (
                     <button
-                      key={r.id}
-                      onClick={() => handleSelectRole(r)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs font-medium transition-all ${
-                        activeRole.id === r.id 
-                          ? 'bg-[#6B1F2E]/30 text-[#F2EDE4] font-bold border border-[#A83A50]/40' 
-                          : 'text-[#B8AFA3] hover:bg-white/5 hover:text-white'
+                      key={role.id}
+                      onClick={() => handleSelectRole(role)}
+                      className={`w-full flex items-center justify-between p-2 rounded-xl text-xs transition-all ${
+                        activeRole.id === role.id ? 'bg-[#E0B441]/15 text-[#E0B441] font-bold' : 'text-[#B8AFA3] hover:text-white hover:bg-white/5'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold ${r.color}`}>
-                          {r.name.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="text-white text-xs">{r.name}</div>
-                          <div className="text-[10px] text-[#7A7268]">{r.label}</div>
+                      <div className="flex items-center gap-2">
+                        {React.createElement(role.icon, { className: 'w-4 h-4 text-[#E0B441]' })}
+                        <div className="text-left">
+                          <span className="block font-medium">{role.name}</span>
+                          <span className="text-[10px] text-[#8B8378] block">{role.label}</span>
                         </div>
                       </div>
-                      {activeRole.id === r.id && <Check className="w-3.5 h-3.5 text-[#E0B441]" />}
+                      {activeRole.id === role.id && <Check className="w-3.5 h-3.5 text-[#E0B441]" />}
                     </button>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Centro de Mando CAVAPRO v6.0 */}
+            {/* Botón: Instructivo y Manual Completo */}
+            <button
+              onClick={() => {
+                audio.click();
+                setIsManualModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-[#E0B441] bg-[#E0B441]/10 hover:bg-[#E0B441]/20 border border-[#E0B441]/30 transition-all hover:scale-105 active:scale-95 shadow-sm"
+              title="Abrir Manual e Instructivo Completo del Sistema"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-[#E0B441]" />
+              <span className="hidden sm:inline">Instructivo</span>
+            </button>
+
+            {/* Centro de Mando CAVAPRO */}
             <button
               onClick={() => {
                 audio.click();
@@ -240,133 +280,72 @@ export default function Header({
           </div>
         </div>
 
-        {/* Bottom Row: 5 Pilares de Navegación con Acentos Específicos */}
+        {/* Bottom Row: Pilares Dinámicos y Configurables de Navegación */}
         <nav className="flex items-center gap-1.5 sm:gap-2 pt-1 pb-1.5 overflow-x-auto no-scrollbar">
           
-          {/* Pilar 1: Súper (--accent-super #E5724A) */}
-          <button
-            onClick={() => {
-              audio.click();
-              setActiveTab('shopping');
-            }}
-            className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
-              activeTab === 'shopping'
-                ? 'bg-[#E5724A] text-white shadow-lg shadow-[#E5724A]/25'
-                : 'text-[#B8AFA3] hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <ShoppingCart className="w-4 h-4" />
-            <span>{tabLabels.shopping || 'Lista del Súper'}</span>
-            {shoppingCount > 0 && (
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
-                activeTab === 'shopping' ? 'bg-black/30 text-white' : 'bg-[#E5724A]/25 text-[#E5724A]'
-              }`}>
-                {shoppingCount}
-              </span>
-            )}
-            {activeTab === 'shopping' && (
-              <span className="w-1.5 h-1.5 rounded-full bg-white absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
-            )}
-          </button>
+          {enabledTabs.map((tab) => {
+            const IconComponent = ICON_MAP[tab.icon] || Layers;
+            const isTabActive = activeTab === tab.key || (tab.id === 'cava' && activeTab === 'cava');
+            const isShoppingTab = tab.id === 'shopping' || tab.key === 'shopping';
 
-          {/* Pilar 2: CavaPro (--accent-cava #A83A50) */}
-          <button
-            onClick={() => {
-              audio.click();
-              setActiveTab('inventory');
-              if (onFilterWines) onFilterWines();
-            }}
-            className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
-              activeTab === 'cava'
-                ? 'bg-[#A83A50] text-white shadow-lg shadow-[#A83A50]/25'
-                : 'text-[#B8AFA3] hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Wine className="w-4 h-4" />
-            <span>{tabLabels.cava || 'CavaPro Vinos'}</span>
-            {activeTab === 'cava' && (
-              <span className="w-1.5 h-1.5 rounded-full bg-white absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
-            )}
-          </button>
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabClick(tab)}
+                className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
+                  isTabActive
+                    ? 'text-white shadow-lg'
+                    : 'text-[#B8AFA3] hover:text-white hover:bg-white/5'
+                }`}
+                style={{
+                  backgroundColor: isTabActive ? tab.color : undefined,
+                  boxShadow: isTabActive ? `0 10px 15px -3px ${tab.color}40` : undefined,
+                }}
+              >
+                <IconComponent className="w-4 h-4" />
+                <span>{tab.label}</span>
+                {isShoppingTab && shoppingCount > 0 && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                    isTabActive ? 'bg-black/30 text-white' : 'bg-[#E5724A]/25 text-[#E5724A]'
+                  }`}>
+                    {shoppingCount}
+                  </span>
+                )}
+                {isTabActive && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-white absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
+                )}
+              </button>
+            );
+          })}
 
-          {/* Pilar 3: Recetas de Cocina (--accent-cocina #E0B441) */}
-          <button
-            onClick={() => {
-              audio.click();
-              setActiveTab('recipes');
-            }}
-            className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
-              activeTab === 'recipes'
-                ? 'bg-[#E0B441] text-[#12100E] font-bold shadow-lg shadow-[#E0B441]/25'
-                : 'text-[#B8AFA3] hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Utensils className="w-4 h-4" />
-            <span>{tabLabels.recipes || 'Cocina & Recetas'}</span>
-            {activeTab === 'recipes' && (
-              <span className="w-1.5 h-1.5 rounded-full bg-[#12100E] absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
-            )}
-          </button>
-
-          {/* Pilar 4: Bitácora Forense (--accent-audit #5C8894) */}
-          <button
-            onClick={() => {
-              audio.click();
-              setActiveTab('audit');
-            }}
-            className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
-              activeTab === 'audit'
-                ? 'bg-[#5C8894] text-white shadow-lg shadow-[#5C8894]/25'
-                : 'text-[#B8AFA3] hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <History className="w-4 h-4" />
-            <span>{tabLabels.audit || 'Bitácora Forense'}</span>
-            {activeTab === 'audit' && (
-              <span className="w-1.5 h-1.5 rounded-full bg-white absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
-            )}
-          </button>
-
-          {/* Pilar 5: Alacena & Catálogo QR (--accent-qr #3D8B6E) */}
-          <button
-            onClick={() => {
-              audio.click();
-              setActiveTab('inventory');
-            }}
-            className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
-              activeTab === 'inventory'
-                ? 'bg-[#3D8B6E] text-white shadow-lg shadow-[#3D8B6E]/25'
-                : 'text-[#B8AFA3] hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            <span>{tabLabels.inventory || 'Alacena & QR'}</span>
-            {activeTab === 'inventory' && (
-              <span className="w-1.5 h-1.5 rounded-full bg-white absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
-            )}
-          </button>
-
-          {/* Botón para Renombrar / Configurar las 5 Pestañas */}
+          {/* Botón para Configurar Menú (Renombrar, Ocultar, Agregar) */}
           <button
             onClick={() => {
               audio.click();
               setIsTabConfigModalOpen(true);
             }}
             className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-[#8B8378] hover:text-[#E0B441] hover:bg-white/5 border border-transparent hover:border-[#E0B441]/30 transition-all shrink-0 ml-auto"
-            title="Personalizar o renombrar los 5 nombres del menú"
+            title="Personalizar, renombrar, ocultar o agregar pestañas al menú"
           >
             <Sliders className="w-3.5 h-3.5 text-[#E0B441]" />
-            <span className="hidden sm:inline">Renombrar Menú</span>
+            <span className="hidden sm:inline">Configurar Menú</span>
           </button>
 
         </nav>
 
-        {/* Modal para Renombrar y Configurar Pestañas del Hogar */}
+        {/* Modal para Renombrar, Ocultar y Agregar Pestañas */}
         <CustomTabNamesModal
           isOpen={isTabConfigModalOpen}
           onClose={() => setIsTabConfigModalOpen(false)}
-          tabLabels={tabLabels}
-          onSaveTabLabels={handleSaveTabLabels}
+          menuTabs={menuTabs}
+          onSaveMenuTabs={handleSaveMenuTabs}
+          zones={zones}
+        />
+
+        {/* Modal del Manual e Instructivo Completo */}
+        <SystemManualModal
+          isOpen={isManualModalOpen}
+          onClose={() => setIsManualModalOpen(false)}
         />
 
       </div>
