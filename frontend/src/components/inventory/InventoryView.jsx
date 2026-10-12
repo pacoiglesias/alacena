@@ -1,11 +1,25 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, Plus, Filter, AlertTriangle, CheckCircle, 
   Trash2, Pencil, ArrowUpDown, DollarSign, Layers, Warehouse,
-  LayoutGrid, Table as TableIcon, Wine, Sparkles, MapPin, Star, ShoppingCart
+  LayoutGrid, Table as TableIcon, Wine, Sparkles, MapPin, Star, ShoppingCart,
+  Clock, FileSpreadsheet, Utensils, Check
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import ZonesBar from '../zones/ZonesBar';
+
+// Helper: cálculo del estado de caducidad FEFO
+export function getExpiryStatus(expiryDate) {
+  if (!expiryDate) return null;
+  const now = new Date();
+  const exp = new Date(expiryDate);
+  const diffTime = exp.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return { label: 'Caducado', days: diffDays, level: 'expired', badgeClass: 'bg-rose-500/20 text-rose-400 border border-rose-500/40' };
+  if (diffDays <= 3) return { label: `Vence en ${diffDays}d`, days: diffDays, level: 'critical', badgeClass: 'bg-rose-500/20 text-rose-400 border border-rose-500/50 animate-pulse' };
+  if (diffDays <= 15) return { label: `Vence en ${diffDays}d`, days: diffDays, level: 'warning', badgeClass: 'bg-amber-500/20 text-amber-300 border border-amber-500/40' };
+  return { label: `Vence en ${diffDays}d`, days: diffDays, level: 'good', badgeClass: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' };
+}
 
 // Helper: estilo de vino para borde izquierdo y silueta
 function getWineStyleColor(wine) {
@@ -28,12 +42,28 @@ export default function InventoryView({
   onAddZone,
   onOpenWineTasting,
   onOpenShoppingTab,
+  onOpenRecipesTab,
+  onAddToShoppingList,
 }) {
   const [search, setSearch] = useState('');
   const [selectedZone, setSelectedZone] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
-  const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, OPTIMAL, LOW, OUT
+  const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, OPTIMAL, LOW, OUT, EXPIRING
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
+  const [quickAddedId, setQuickAddedId] = useState(null);
+  const searchInputRef = useRef(null);
+
+  // Atajo global de teclado: presionar '/' o 'Ctrl+K' para enfocar búsqueda
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.key === '/' || (e.ctrlKey && e.key === 'k')) && document.activeElement !== searchInputRef.current) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Counts by zone
   const productCountsByZone = useMemo(() => {
@@ -50,20 +80,25 @@ export default function InventoryView({
     return ['ALL', ...Array.from(set)];
   }, [products]);
 
-  // Metrics
+  // Metrics (incluyendo caducidades FEFO)
   const metrics = useMemo(() => {
     let totalItems = products.length;
     let lowStockCount = 0;
     let totalValuationMxn = 0;
+    let expiringSoonCount = 0;
 
     products.forEach((p) => {
       totalValuationMxn += (p.quantity || 0) * (p.unitPriceMxn || 0);
       if (p.quantity <= p.minStock) {
         lowStockCount++;
       }
+      const expStatus = getExpiryStatus(p.expiryDate);
+      if (expStatus && expStatus.days <= 15) {
+        expiringSoonCount++;
+      }
     });
 
-    return { totalItems, lowStockCount, totalValuationMxn };
+    return { totalItems, lowStockCount, totalValuationMxn, expiringSoonCount };
   }, [products]);
 
   // Filtered products
@@ -74,6 +109,10 @@ export default function InventoryView({
       if (statusFilter === 'LOW' && p.quantity > p.minStock) return false;
       if (statusFilter === 'OUT' && p.quantity > 0) return false;
       if (statusFilter === 'OPTIMAL' && p.quantity <= p.minStock) return false;
+      if (statusFilter === 'EXPIRING') {
+        const expStatus = getExpiryStatus(p.expiryDate);
+        if (!expStatus || expStatus.days > 15) return false;
+      }
 
       if (search.trim()) {
         const query = search.toLowerCase();
@@ -98,13 +137,60 @@ export default function InventoryView({
     onUpdateQuantity(product.id, newQty);
   };
 
+  // Enviar a la lista de compras con 1 solo toque
+  const handleQuickAddShopping = (p) => {
+    audio.success();
+    if (onAddToShoppingList) {
+      onAddToShoppingList({
+        id: `shop-${Date.now()}`,
+        name: p.name,
+        quantity: Math.max(1, (p.idealStock || 5) - (p.quantity || 0)),
+        unit: p.unit,
+        store: p.store || 'Supermercado',
+        estimatedPriceMxn: p.unitPriceMxn || 0,
+        targetZone: p.zone || 'Alacena Principal',
+        checked: false,
+      });
+      setQuickAddedId(p.id);
+      setTimeout(() => setQuickAddedId(null), 2200);
+    }
+  };
+
+  // Exportar todo el inventario a CSV / Excel con codificación UTF-8
+  const handleExportCsv = () => {
+    audio.click();
+    const headers = ['Nombre', 'Categoría', 'Zona', 'Existencia', 'Unidad', 'Stock Mínimo', 'Precio Unitario MXN', 'Valuación Total MXN', 'Proveedor', 'Caducidad'];
+    const rows = products.map((p) => [
+      `"${(p.name || '').replace(/"/g, '""')}"`,
+      `"${(p.category || '').replace(/"/g, '""')}"`,
+      `"${(p.zone || '').replace(/"/g, '""')}"`,
+      p.quantity || 0,
+      `"${(p.unit || '').replace(/"/g, '""')}"`,
+      p.minStock || 0,
+      (p.unitPriceMxn || 0).toFixed(2),
+      ((p.quantity || 0) * (p.unitPriceMxn || 0)).toFixed(2),
+      `"${(p.store || '').replace(/"/g, '""')}"`,
+      `"${p.expiryDate || 'N/A'}"`
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `inventario_alacena_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const isCavaFilter = selectedCategory === 'Vinos & Licores' || selectedZone?.toLowerCase().includes('cava');
 
   return (
     <div className="space-y-6">
       
       {/* Top Metrics Cards (Luxe Look in MXN) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Total Artículos */}
         <div className="card-luxe p-5 flex items-center justify-between border border-[#2A2521] bg-[#1C1916]">
@@ -125,7 +211,10 @@ export default function InventoryView({
         </div>
 
         {/* Alertas de Reabastecimiento */}
-        <div className="card-luxe p-5 flex items-center justify-between border border-[#2A2521] bg-[#1C1916]">
+        <div 
+          onClick={() => { audio.click(); setStatusFilter(statusFilter === 'LOW' ? 'ALL' : 'LOW'); }}
+          className="card-luxe p-5 flex items-center justify-between border border-[#2A2521] bg-[#1C1916] cursor-pointer hover:border-[#E0B441]/50 transition-all"
+        >
           <div>
             <span className="text-[11px] font-bold text-[#E0B441] uppercase tracking-wider block">
               Stock Crítico / Bajo
@@ -134,11 +223,32 @@ export default function InventoryView({
               {metrics.lowStockCount} <span className="text-xs text-[#8B8378] font-sans font-normal">por agotarse</span>
             </div>
             <span className="text-xs text-[#8B8378] mt-1 block">
-              Insumos bajo mínimo de seguridad
+              {statusFilter === 'LOW' ? '✓ Filtro activo (clic para ver todos)' : 'Clic para filtrar faltantes'}
             </span>
           </div>
           <div className="p-3.5 rounded-2xl bg-[#E0B441]/15 border border-[#E0B441]/30 text-[#E0B441]">
             <AlertTriangle className="w-6 h-6" />
+          </div>
+        </div>
+
+        {/* Semáforo FEFO Caducidades */}
+        <div 
+          onClick={() => { audio.click(); setStatusFilter(statusFilter === 'EXPIRING' ? 'ALL' : 'EXPIRING'); }}
+          className="card-luxe p-5 flex items-center justify-between border border-[#2A2521] bg-[#1C1916] cursor-pointer hover:border-amber-500/50 transition-all"
+        >
+          <div>
+            <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">
+              Caducidad FEFO (&le;15d)
+            </span>
+            <div className="text-2xl sm:text-3xl font-extrabold text-amber-300 mt-1 font-mono-num font-display">
+              {metrics.expiringSoonCount} <span className="text-xs text-[#8B8378] font-sans font-normal">por vencer</span>
+            </div>
+            <span className="text-xs text-[#8B8378] mt-1 block">
+              {statusFilter === 'EXPIRING' ? '✓ Filtro activo (clic para ver todos)' : 'Clic para filtrar prioritarios'}
+            </span>
+          </div>
+          <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+            <Clock className="w-6 h-6" />
           </div>
         </div>
 
@@ -216,19 +326,48 @@ export default function InventoryView({
         {/* Action Bar: Search + View Switcher + "+ Capturar Producto" Button */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           
-          {/* Search bar */}
+          {/* Search bar con atajo de teclado [/] */}
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-[#8B8378]" />
             <input
+              ref={searchInputRef}
               type="text"
-              placeholder="Buscar por insumo, bodega, cepa, zona..."
+              placeholder="Buscar por insumo, bodega, cepa, zona... (o pulsa /)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#12100E] border border-[#2A2521] text-white placeholder-[#7A7268] text-xs sm:text-sm focus:outline-none focus:border-[#E0B441] transition-all"
+              className="w-full pl-10 pr-12 py-2.5 rounded-xl bg-[#12100E] border border-[#2A2521] text-white placeholder-[#7A7268] text-xs sm:text-sm focus:outline-none focus:border-[#E0B441] transition-all"
             />
+            <kbd className="absolute right-3 top-3 px-1.5 py-0.5 rounded bg-[#1C1916] border border-[#2A2521] text-[10px] text-[#8B8378] font-mono pointer-events-none">
+              /
+            </kbd>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Botón Exportar CSV / Excel */}
+            <button
+              onClick={handleExportCsv}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[#12100E] hover:bg-[#1C1916] text-[#B8AFA3] hover:text-white border border-[#2A2521] transition-all active:scale-95"
+              title="Descargar inventario completo en formato CSV compatible con Excel"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+              <span className="hidden sm:inline">Exportar Excel</span>
+            </button>
+
+            {/* Botón Menú Zero-Waste Proactivo */}
+            {onOpenRecipesTab && (
+              <button
+                onClick={() => {
+                  audio.click();
+                  onOpenRecipesTab();
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[#6B1F2E]/25 hover:bg-[#6B1F2E]/40 text-[#E0B441] border border-[#A83A50]/40 transition-all active:scale-95"
+                title="Ver recetas sugeridas con lo que hay en existencia"
+              >
+                <Utensils className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Cocinemos Hoy</span>
+              </button>
+            )}
+
             {/* View Mode Toggle: Grid Luxe vs Table */}
             <div className="flex items-center p-1 rounded-xl bg-[#12100E] border border-[#2A2521]">
               <button
@@ -264,7 +403,7 @@ export default function InventoryView({
               className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-[#1F4D3A] to-[#2E6B52] hover:brightness-110 transition-all shadow-md shadow-[#1F4D3A]/40 active:scale-95"
             >
               <Plus className="w-4 h-4" />
-              <span>+ Capturar Producto</span>
+              <span>+ Capturar</span>
             </button>
           </div>
         </div>
@@ -336,7 +475,8 @@ export default function InventoryView({
           {[
             { id: 'ALL', label: 'Todos' },
             { id: 'OPTIMAL', label: 'Stock Óptimo' },
-            { id: 'LOW', label: 'Stock Bajo' },
+            { id: 'LOW', label: `Stock Bajo (${metrics.lowStockCount})` },
+            { id: 'EXPIRING', label: `⏰ Por Vencer (${metrics.expiringSoonCount})` },
             { id: 'OUT', label: 'Agotados' },
           ].map((st) => (
             <button
@@ -521,10 +661,20 @@ export default function InventoryView({
                         <h3 className="font-display text-base font-bold text-white truncate">
                           {p.name}
                         </h3>
-                        <div className="flex items-center gap-2 text-xs text-[#8B8378] mt-0.5">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-[#8B8378] mt-0.5">
                           <span>{p.category}</span>
                           <span>•</span>
                           <span className="truncate">{p.store || 'Supermercado'}</span>
+                          {(() => {
+                            const exp = getExpiryStatus(p.expiryDate);
+                            if (!exp) return null;
+                            return (
+                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono-num font-bold flex items-center gap-1 ${exp.badgeClass}`}>
+                                <Clock className="w-2.5 h-2.5" />
+                                {exp.label}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -541,7 +691,7 @@ export default function InventoryView({
                     </span>
                   </div>
 
-                  {/* Fila Inferior: Precios y Steppers ± */}
+                  {/* Fila Inferior: Precios, Steppers ± y +Súper */}
                   <div className="mt-4 pt-3 border-t border-[#2A2521] flex items-center justify-between">
                     <div>
                       <div className="font-mono-num text-sm font-bold text-white">
@@ -553,22 +703,47 @@ export default function InventoryView({
                     </div>
 
                     <div className="flex items-center gap-1.5">
+                      {/* Botón Rápido: Enviar a Lista de Compras */}
+                      <button
+                        onClick={() => handleQuickAddShopping(p)}
+                        className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1 active:scale-95 ${
+                          quickAddedId === p.id
+                            ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                            : 'bg-[#1C1916] hover:bg-[#2A2521] border-[#2A2521] text-[#B8AFA3] hover:text-[#E0B441]'
+                        }`}
+                        title="Añadir a la Lista de Compras con 1 solo toque"
+                      >
+                        {quickAddedId === p.id ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="text-[10px]">¡Añadido!</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingCart className="w-3.5 h-3.5" />
+                            <span className="text-[10px] hidden sm:inline">+ Súper</span>
+                          </>
+                        )}
+                      </button>
+
                       <button
                         onClick={() => handleAdjustQuantity(p, -1)}
-                        className="w-8 h-8 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#2A2521] text-[#8B8378] hover:text-white flex items-center justify-center font-bold text-sm transition-all"
+                        className="w-8 h-8 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#2A2521] text-[#8B8378] hover:text-white flex items-center justify-center font-bold text-sm transition-all active:scale-95"
+                        title="Consumir 1 unidad (-1)"
                       >
                         -
                       </button>
                       <button
                         onClick={() => handleAdjustQuantity(p, 1)}
-                        className="w-8 h-8 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#2A2521] text-white flex items-center justify-center font-bold text-sm transition-all"
+                        className="w-8 h-8 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#2A2521] text-white flex items-center justify-center font-bold text-sm transition-all active:scale-95"
+                        title="Ingresar / Reabastecer 1 unidad (+1)"
                       >
                         +
                       </button>
                       <button
                         onClick={() => { audio.click(); onEditProduct(p); }}
-                        className="w-8 h-8 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#2A2521] text-[#8B8378] hover:text-white flex items-center justify-center transition-all ml-1"
-                        title="Editar"
+                        className="w-8 h-8 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#2A2521] text-[#8B8378] hover:text-white flex items-center justify-center transition-all ml-0.5"
+                        title="Editar insumo"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>

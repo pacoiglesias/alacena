@@ -599,6 +599,8 @@ export default function App() {
               setIsZoneModalOpen(true);
             }}
             onOpenShoppingTab={() => setActiveTab('shopping')}
+            onOpenRecipesTab={() => setActiveTab('recipes')}
+            onAddToShoppingList={handleAddShoppingItem}
           />
         )}
 

@@ -3,7 +3,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { 
   X, Camera, ScanLine, CheckCircle2, Plus, 
   ShoppingCart, Warehouse, AlertCircle, Sparkles, 
-  Keyboard, Image, RefreshCw, Check, Globe, ExternalLink, Search 
+  Keyboard, Image, RefreshCw, Check, Globe, ExternalLink, Search, Zap 
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { lookupBarcode } from '../../services/barcodeLookupService';
@@ -24,6 +24,10 @@ export default function CameraScannerModal({
   const [isSearching, setIsSearching] = useState(false);
   const [cameras, setCameras] = useState([]);
   const [selectedCameraId, setSelectedCameraId] = useState('');
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchHistory, setBatchHistory] = useState([]);
+  const [lastBatchMessage, setLastBatchMessage] = useState(null);
+  const lastScanTimeRef = useRef(0);
 
   const html5QrCodeRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -162,11 +166,29 @@ export default function CameraScannerModal({
   const processBarcode = async (code) => {
     setIsSearching(true);
 
+    // Evitar lecturas duplicadas en ráfaga (< 1.8 segundos)
+    const now = Date.now();
+    if (now - lastScanTimeRef.current < 1800) {
+      setIsSearching(false);
+      return;
+    }
+    lastScanTimeRef.current = now;
+
     // 1. Verificar si es un código QR generado por ALACENA (JSON)
     if (code.trim().startsWith('{') && code.includes('ALACENA_ENTERPRISE')) {
       try {
         const qrJson = JSON.parse(code.trim());
         if (qrJson.type === 'PANTRY_ITEM') {
+          if (batchMode) {
+            audio.success();
+            onAddStockDirect(qrJson.id, 1);
+            setBatchHistory((prev) => [{ name: qrJson.name, time: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) }, ...prev.slice(0, 8)]);
+            setLastBatchMessage(`✓ +1 ${qrJson.name} ingresado`);
+            setTimeout(() => setLastBatchMessage(null), 3000);
+            setIsSearching(false);
+            return;
+          }
+
           setScannedResult({
             barcode: qrJson.id,
             product: {
@@ -194,6 +216,16 @@ export default function CameraScannerModal({
     );
 
     if (existingInPantry) {
+      if (batchMode) {
+        audio.success();
+        onAddStockDirect(existingInPantry.id, 1);
+        setBatchHistory((prev) => [{ name: existingInPantry.name, time: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) }, ...prev.slice(0, 8)]);
+        setLastBatchMessage(`✓ +1 ${existingInPantry.name} ingresado a ${existingInPantry.zone || 'Alacena'}`);
+        setTimeout(() => setLastBatchMessage(null), 3000);
+        setIsSearching(false);
+        return;
+      }
+
       setScannedResult({
         barcode: code,
         product: existingInPantry,
@@ -254,7 +286,51 @@ export default function CameraScannerModal({
         </div>
 
         {/* Scanner Body */}
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-4">
+
+          {/* Barra de Modo Ráfaga (Batch Scan) */}
+          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[#1C263F] border border-white/10 shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <div className={`p-2 rounded-xl transition-all ${batchMode ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40 animate-pulse' : 'bg-white/10 text-gray-400'}`}>
+                <Zap className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  ⚡ Modo Ráfaga Continua
+                  {batchMode && <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[9px] font-black">ACTIVO</span>}
+                </span>
+                <span className="text-[10px] text-gray-400 block">
+                  {batchMode ? 'Auto-ingresa (+1) a la alacena al sonar el pitido sin detener la cámara' : 'Muestra ficha de confirmación manual por cada producto'}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                audio.click();
+                setBatchMode(!batchMode);
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all active:scale-95 ${
+                batchMode 
+                  ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/30' 
+                  : 'bg-white/10 hover:bg-white/20 text-white border border-white/10'
+              }`}
+            >
+              {batchMode ? 'ENCENDIDO' : 'ACTIVAR'}
+            </button>
+          </div>
+
+          {/* Feedback Flotante de Modo Ráfaga */}
+          {lastBatchMessage && (
+            <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center justify-between animate-fade-in shadow-md">
+              <span className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-400" />
+                {lastBatchMessage}
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 font-mono">
+                {batchHistory.length} en sesión
+              </span>
+            </div>
+          )}
           
           {/* Camera Viewport with Visual Overlay */}
           <div className="relative w-full rounded-2xl overflow-hidden bg-black/90 border border-white/10 min-h-[260px] flex items-center justify-center">
