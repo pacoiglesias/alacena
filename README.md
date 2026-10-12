@@ -1,85 +1,104 @@
-# 🏛️ ALACENA Enterprise — Smart Pantry & Asset Tracking SaaS
+# 🏛️ ALACENA Enterprise & CavaPro — Sistema Operativo de Gestión Doméstica & Cava Inteligente
 
-Sistema integral de gestión de inventario, cava inteligente de vinos, asset tracking por hardware y despensa con inteligencia artificial para hogares premium y entornos residenciales multi-propiedad.
+Sistema integral de gestión de inventario, cava patrimonial de vinos, control de compras por pasillos físicos, costeo de cocina gourmet, auditoría forense con cadena SHA-256 e impresión de etiquetas QR para residencias de alto nivel.
+
+**Versión Actual:** `v3.5.3-Enterprise-Luxe`  
+**Producción Web:** [https://alacena-enterprise-prod.web.app](https://alacena-enterprise-prod.web.app)  
+**Proyecto Firebase:** `alacena-enterprise-prod`  
+**Hosting Target:** `alacena-app`  
+**Moneda Oficial:** Pesos Mexicanos (MXN / $) — `es-MX`
 
 ---
 
-## 🎯 Arquitectura del Sistema (5 Fases Completadas al 100%)
+## 🏗️ Arquitectura del Sistema
 
 ```text
-ALACENA Enterprise (Flutter 3.47 + Riverpod 3.x + Firebase)
-├── Frontend (iOS / Android / Web)
-│   ├── /lib/features/inventory/       → Inventario glanceable, Short IDs, badges semafóricos, 1-tap quick adjust
-│   ├── /lib/features/sommelier/       → Cava Inteligente de Vinos (maridajes, notas de cata, drinking windows)
-│   ├── /lib/features/shopping_list/   → Lista de compras colaborativa con bloqueo en tienda y comparativa web
-│   ├── /lib/features/zero_waste/      → Chef IA para rescate de ingredientes por caducar y ahorro financiero
-│   ├── /lib/features/analytics/       → Tablero financiero, valuación de activos, desglose e inflación
-│   ├── /lib/features/hardware/        → Visor láser cámara (EAN/QR), Sensor NFC, Modo Lote continuo
-│   ├── /lib/features/labels/          → Generador de etiquetas térmicas (50x30mm) con QR + Short ID legible
-│   └── /lib/core/services/            → IA Gemini 1.5 Flash ($0 Tier), EAN OpenFoodFacts, Caché Offline
-├── Backend Cloud Functions (Node.js 22)
-│   ├── predictiveConsumptionCron     → Cron diario: run-rate, frecuencia promedio y auto-sugerencias
-│   ├── onStockLevelAlert             → Disparador reactivo de stock bajo hacia la lista de compras
-│   └── globalEanLookup               → Fallback de catálogo maestro de códigos comerciales
-├── Firestore & Seguridad
-│   ├── firestore.rules                → Aislamiento Multi-Tenant, Audit Trail append-only inalterable, RBAC
-│   └── firestore.indexes.json         → Índices compuestos para consultas ordenadas por fecha/zona
-└── Infraestructura & DevOps
-    ├── Hosting: alacena.cobertores.com (Target: alacena-app)
-    └── Scripts automatizados en /scripts/
+ALACENA Enterprise (v3.5.3-Enterprise-Luxe)
+├── Frontend Web (React 19 + Vite 8 + TailwindCSS 4 + Lucide)
+│   ├── /frontend/src/components/layout/     → Header con indicador de versión, modales globales, tabs
+│   ├── /frontend/src/components/inventory/  → Despensa inteligente, zonas, semáforos de stock y FEFO
+│   ├── /frontend/src/components/sommelier/  → CavaPro: notas de cata, vintage, ROI, ubicación física
+│   ├── /frontend/src/components/shopping/   → Supermercado por pasillos físicos, ticket térmico y librito QR
+│   ├── /frontend/src/components/recipes/    → Recetario gourmet, costeo por porción con merma y modo cocinar
+│   ├── /frontend/src/components/scanner/    → Visor híbrido WebRTC (QR, EAN-13, UPC) con retroalimentación sonora
+│   ├── /frontend/src/components/catalogs/   → Gestor CRUD completo de tiendas, personal, categorías y unidades
+│   ├── /frontend/src/components/audit/      → Bitácora forense append-only con encadenamiento criptográfico SHA-256
+│   └── /frontend/src/services/              → qrPdfService, catalogsService, deduplication engine, IndexedDB
+├── Backend & Nube (Firebase Serverless)
+│   ├── Firestore Rules                      → Seguridad RBAC, aislamiento multi-tenant y reglas de auditoría
+│   ├── Firebase Hosting                     → Distribución global ultra-rápida con caché HTTP y PWA
+│   └── Firebase Cloud Functions             → Cron jobs y triggers de cálculo predictivo
+├── Scripts de Operación & DevOps (/scripts/)
+│   ├── hacer_respaldo_local.bat / .ps1      → Generador automatizado de backups comprimidos en /backups/
+│   ├── deploy_hosting.bat                   → Compilación y publicación instantánea a Firebase Hosting
+│   ├── deploy_all.bat                       → Despliegue de reglas, índices, hosting y funciones
+│   └── reconectar_firebase_y_mcp.bat        → Diagnóstico y reconexión de credenciales Firebase/MCP
+└── Respaldos del Sistema (/backups/)
+    └── ALACENA_backup_[TIMESTAMP]_v3.5.3.zip → Snapshots completos sin dependencias pesadas
 ```
 
 ---
 
-## 🛡️ Resiliencia y Manejo de "Edge Cases" en Entornos Reales
+## 🛡️ Características & Módulos Clave
 
-Para operar sin fallos en cocinas húmedas, cuartos fríos y al descargar grandes volúmenes de compras:
+### 1. 🛒 Lista del Súper por Pasillos Físicos
+- **Organización Óptima:** Agrupada por el orden físico de compra en tienda:
+  1. 🥩 Carnicería & Pescados
+  2. 🧀 Lácteos & Quesos
+  3. 🥬 Frutas & Verduras
+  4. 🥫 Abarrotes & Despensa
+  5. 🍷 Cava, Vinos & Licores
+  6. ☕ Café, Panadería & Desayuno
+  7. 🧼 Limpieza & Hogar
+- **Motor de Deduplicación:** Normalización NFD insensible a mayúsculas, tildes y terminaciones en plural (`deduplication.js`).
+- **Control Táctil Móvil:** Botones de incremento/decremento `+`/`-` de alta respuesta para una mano en pasillo.
 
-1. **Fallback Alfanumérico (Short ID) & "Replace Tag":**
-   - Cada etiqueta térmica impresa lleva un **Short ID** en fuente monoespaciada justo debajo del QR (ej. `ALC-7K9B`).
-   - El escáner cuenta con teclado numérico/alfanumérico integrado para teclear el código manualmente si la etiqueta está grasienta o rota.
-   - **Flujo "Replace Tag":** Permite escanear un nuevo QR en blanco y asignarlo a un producto preexistente, invalidando el QR dañado pero preservando el 100% del historial de auditoría y precios.
+### 2. 🖨️ Motor de Impresión QR Físico Aislado
+- **Cero Páginas en Blanco:** Los diálogos de impresión (Librito de Despensa, Ticket de Compra, Etiquetas de Productos) utilizan iframes aislados de `900x1200px` con imágenes QR rasterizadas en Base64, evitando colapsos CSS causados por modales con posición `fixed`.
+- **Compatibilidad Térmica & Carta:** Generación de etiquetas tipo ticket y planillas en PDF de 12 QRs por hoja.
 
-2. **Modo de Escaneo Continuo (Batch / Rapid Scan Mode):**
-   - Interruptor en la cámara para activar `MODO LOTE ON`.
-   - Permite escanear decenas de productos seguidos sin que se abra ningún modal ni se interrumpa el visor láser.
-   - Retroalimentación auditiva y háptica inmediata con contador en tiempo real (`X artículos leídos`).
-   - Botón `[ Procesar Lote ]` para impactar todas las lecturas de una sola vez.
+### 3. 🍷 CavaPro & Sommelier Inteligente
+- Registro patrimonial de botellas: bodega, añada (vintage), país, región, cepa, temperatura óptima y ventana de guarda.
+- Localización física exacta en cava (estante, nivel, casilla).
+- Descorche atómico: reduce inventario, solicita nota de cata y firma bitácora forense.
 
-3. **Manejo de Fallos en Códigos Comerciales (EAN/UPC) — "Flujo Express":**
-   - Si un código de barras de supermercado no existe en Firestore ni en bases públicas (OpenFoodFacts): **el usuario jamás se bloquea**.
-   - Se crea al instante con `requiresMetadataUpdate: true` y código `EXP-XXXX`.
-   - El ingreso físico a la despensa continúa sin fricción y el usuario puede completar la foto o marca posteriormente.
+### 4. ⚙️ Catálogos Dinámicos con CRUD Completo
+- Administración en tiempo real de:
+  - 🏪 Tiendas y Proveedores (con emojis y notas de compra).
+  - 👤 Personal de Servicio (roles: admin, cocinera, chofer, camarista).
+  - 🏷️ Categorías de Almacén.
+  - 📏 Unidades de Medida.
+- Búsqueda instantánea, edición con lápiz interactivo y normalización defensiva de datos legacy.
+
+### 5. 🔐 Bitácora Forense SHA-256
+- Cada movimiento (ingreso, merma, descorche, cocinado) genera una entrada inmutable con hash SHA-256 encadenado.
+- Detección inmediata de inconsistencias o manipulaciones de stock.
 
 ---
 
-## 💰 Regla de "Cost-Zero" e Inteligencia Artificial Híbrida
+## 🛠️ Guía Rápida de Operación
 
-- **Escaneo Local a $0:** Todo el procesamiento óptico de Códigos QR, Códigos de Barras (EAN-13, UPC) y tags NFC se procesa **en el dispositivo** a costo cero.
-- **IA de Visión On-Demand:** El análisis fotográfico de alacena ("Auto-Shopping List") utiliza la API de **Google Gemini 1.5 Flash (Free Tier)** únicamente bajo petición explícita del usuario.
-- **Caché Offline Agresiva:** Firestore opera con `persistenceEnabled: true` y suscripciones optimizadas para proteger las cuotas gratuitas de Firebase Spark.
-
----
-
-## 🚀 Despliegue y Ejecución
-
-### Ejecución Local
-```bash
-# Análisis estático (0 advertencias)
-flutter analyze
-
-# Suite de pruebas unitarias y de widgets
-flutter test
-
-# Ejecución en dispositivo o navegador
-flutter run -d chrome
-```
-
-### Despliegue a Producción
+### 📦 Generar Respaldo Local
+Para crear una copia comprimida de seguridad del código fuente y configuraciones:
 ```cmd
-# Desplegar únicamente Hosting Web (alacena.cobertores.com)
-scripts\deploy_hosting.bat
+scripts\hacer_respaldo_local.bat
+```
+El archivo ZIP resultante se guardará en la carpeta `backups/` con fecha, hora y versión.
 
-# Despliegue completo (Reglas, Índices, Storage, Hosting y Cloud Functions)
-scripts\deploy_all.bat
+### 💻 Desarrollo Local (Frontend Web)
+```cmd
+cd frontend
+npm install
+npm run dev
+```
+
+### 🚀 Despliegue a Producción
+```cmd
+scripts\deploy_hosting.bat
+```
+O de forma manual:
+```cmd
+cd frontend
+npm run build
+firebase deploy --only hosting:alacena-app --project alacena-enterprise-prod
 ```
