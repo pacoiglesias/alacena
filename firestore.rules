@@ -252,13 +252,15 @@ service cloud.firestore {
         // Sommelier Cava
         match /cellar_profiles/{wineId} {
           allow read: if isWorkspaceMember(workspaceId);
-          allow write: if isWorkspaceAdmin(workspaceId);
+          allow create, update: if isWorkspaceAdmin(workspaceId);
+          allow delete: if false;
         }
 
         // Recetas Zero-Waste
         match /zero_waste_recipes/{recipeId} {
           allow read: if isWorkspaceMember(workspaceId);
-          allow write: if isWorkspaceAdmin(workspaceId);
+          allow create, update: if isWorkspaceAdmin(workspaceId);
+          allow delete: if false;
         }
       }
     }
