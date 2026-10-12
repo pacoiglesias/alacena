@@ -55,11 +55,55 @@ export function getCatalogs() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
+      
+      const rawStores = Array.isArray(parsed.stores) ? parsed.stores : DEFAULT_STORES;
+      const normalizedStores = rawStores.map((s, idx) => {
+        if (typeof s === 'string') {
+          return { id: `store-${idx}`, name: s, category: 'Supermercado', icon: '🏪', isDefault: idx === 0 };
+        }
+        return {
+          id: s?.id || `store-${idx}`,
+          name: s?.name || 'Tienda',
+          category: s?.category || 'Supermercado',
+          icon: s?.icon || '🏪',
+          isDefault: !!s?.isDefault,
+        };
+      });
+
+      const rawStaff = Array.isArray(parsed.staff) ? parsed.staff : DEFAULT_STAFF;
+      const normalizedStaff = rawStaff.map((st, idx) => {
+        if (typeof st === 'string') {
+          return { id: `staff-${idx}`, name: st, role: 'Personal de Servicio', icon: '👤', isDefault: idx === 0 };
+        }
+        return {
+          id: st?.id || `staff-${idx}`,
+          name: st?.name || 'Personal',
+          role: st?.role || 'Personal de Servicio',
+          icon: st?.icon || '👤',
+          isDefault: !!st?.isDefault,
+        };
+      });
+
+      const rawCategories = Array.isArray(parsed.categories) ? parsed.categories : DEFAULT_CATEGORIES;
+      const normalizedCategories = rawCategories.map((c) => (typeof c === 'string' ? c : c?.name || 'Abarrotes'));
+
+      const rawUnits = Array.isArray(parsed.units) ? parsed.units : DEFAULT_UNITS;
+      const normalizedUnits = rawUnits.map((u, idx) => {
+        if (typeof u === 'string') {
+          return { id: u.toLowerCase(), label: u, short: u.toLowerCase() };
+        }
+        return {
+          id: u?.id || `u-${idx}`,
+          label: u?.label || u?.name || 'unidad',
+          short: u?.short || u?.id || 'u',
+        };
+      });
+
       return {
-        stores: parsed.stores || DEFAULT_STORES,
-        staff: parsed.staff || DEFAULT_STAFF,
-        categories: parsed.categories || DEFAULT_CATEGORIES,
-        units: parsed.units || DEFAULT_UNITS,
+        stores: normalizedStores.length > 0 ? normalizedStores : DEFAULT_STORES,
+        staff: normalizedStaff.length > 0 ? normalizedStaff : DEFAULT_STAFF,
+        categories: normalizedCategories.length > 0 ? normalizedCategories : DEFAULT_CATEGORIES,
+        units: normalizedUnits.length > 0 ? normalizedUnits : DEFAULT_UNITS,
       };
     }
   } catch (e) {

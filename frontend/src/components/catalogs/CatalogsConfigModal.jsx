@@ -268,33 +268,42 @@ export default function CatalogsConfigModal({ isOpen, onClose, onCatalogsUpdated
     }
   };
 
-  // Filtered lists according to search query
-  const q = searchQuery.toLowerCase().trim();
+  // Filtered lists according to search query con proteccion defensiva
+  const q = (searchQuery || '').toLowerCase().trim();
   const filteredStores = useMemo(() => {
-    if (!q) return catalogs.stores;
-    return catalogs.stores.filter(s => 
-      s.name.toLowerCase().includes(q) || (s.category && s.category.toLowerCase().includes(q))
-    );
-  }, [catalogs.stores, q]);
+    if (!catalogs?.stores || !Array.isArray(catalogs.stores)) return [];
+    return catalogs.stores.filter((s) => {
+      const name = (s?.name || s || '').toString().toLowerCase();
+      const cat = (s?.category || '').toString().toLowerCase();
+      return !q || name.includes(q) || cat.includes(q);
+    });
+  }, [catalogs?.stores, q]);
 
   const filteredStaff = useMemo(() => {
-    if (!q) return catalogs.staff;
-    return catalogs.staff.filter(s => 
-      s.name.toLowerCase().includes(q) || (s.role && s.role.toLowerCase().includes(q))
-    );
-  }, [catalogs.staff, q]);
+    if (!catalogs?.staff || !Array.isArray(catalogs.staff)) return [];
+    return catalogs.staff.filter((s) => {
+      const name = (s?.name || s || '').toString().toLowerCase();
+      const role = (s?.role || '').toString().toLowerCase();
+      return !q || name.includes(q) || role.includes(q);
+    });
+  }, [catalogs?.staff, q]);
 
   const filteredCategories = useMemo(() => {
-    if (!q) return catalogs.categories;
-    return catalogs.categories.filter(c => c.toLowerCase().includes(q));
-  }, [catalogs.categories, q]);
+    if (!catalogs?.categories || !Array.isArray(catalogs.categories)) return [];
+    return catalogs.categories.filter((c) => {
+      const name = (typeof c === 'string' ? c : c?.name || '').toString().toLowerCase();
+      return !q || name.includes(q);
+    });
+  }, [catalogs?.categories, q]);
 
   const filteredUnits = useMemo(() => {
-    if (!q) return catalogs.units;
-    return catalogs.units.filter(u => 
-      u.label.toLowerCase().includes(q) || u.short.toLowerCase().includes(q)
-    );
-  }, [catalogs.units, q]);
+    if (!catalogs?.units || !Array.isArray(catalogs.units)) return [];
+    return catalogs.units.filter((u) => {
+      const label = (u?.label || u?.name || u || '').toString().toLowerCase();
+      const short = (u?.short || u?.id || '').toString().toLowerCase();
+      return !q || label.includes(q) || short.includes(q);
+    });
+  }, [catalogs?.units, q]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md animate-fade-in">
