@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.3.0-Titanium-Aurora-Perfection';
+export const SYSTEM_VERSION = 'v3.4.0-Titanium-Nova-Master';
 export const RELEASE_DATE = '11 Octubre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
@@ -160,14 +160,52 @@ export default function ChangelogModal({ isOpen, onClose }) {
         {activeTab === 'changelog' && (
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             
+            {/* Release v3.4.0-Master */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-[#E0B441]/60 hover:border-[#E0B441]/80 transition-all shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-[#E0B441] bg-[#E0B441]/20 border border-[#E0B441]/40 rounded-lg font-mono">
+                    v3.4.0-Master
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">11 Octubre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2 font-display">
+                Importador Inteligente OCR, Manual Operativo y Menú Dinámico Configurable
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Importador Bidireccional & OCR:</strong> Extracción visual con visión artificial Tesseract.js de libretas y tickets con pre-procesamiento de contraste, además de soporte para WhatsApp y archivos PDF/TXT.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Auditoría & Test Suite Aprobada:</strong> 100% de éxito en pruebas automatizadas de extracción de datos, filtrado de saludos y normalización de fracciones (1/2 kg).</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Menú Dinámico (Ocultar & Agregar Pestañas):</strong> Posibilidad de apagar visibilidad de secciones que no se utilicen, renombrar cualquiera y agregar nuevas pestañas personalizadas vinculadas a zonas del hogar.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Manual e Instructivo Integral en Pantalla:</strong> Guía interactiva de 9 secciones con buscador y opción de impresión/PDF para la carpeta del personal.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Web NFC & Códigos ALC-XXXX:</strong> Grabación de chips adhesivos con 1 toque y auto-generación de códigos permanentes.</span>
+                </li>
+              </ul>
+            </div>
+
             {/* Release v3.3.0-Perfection */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-emerald-500/50 hover:border-emerald-500/70 transition-all shadow-xl">
+            <div className="p-5 rounded-2xl bg-[#1C1916] border border-[#3D3630] transition-all">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
                     v3.3.0-Perfection
                   </span>
-                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                  <span className="text-xs font-semibold text-gray-400">ANTERIOR</span>
                 </div>
                 <span className="text-xs text-gray-400">11 Octubre 2026</span>
               </div>

@@ -174,18 +174,32 @@ P9. ¿Existe sistema de diseño en Flutter?
 P10. ¿Cuál es el dominio canónico?
      → `https://alacena-enterprise-prod.web.app` (Firebase Hosting activo).
 
+P11. ¿Cómo funciona la bidireccionalidad OCR y extracción de listas?
+     → Vía `SmartListImportModal.jsx`, `ocrService.js` (Tesseract.js con
+       preprocesamiento Canvas) y `smartListParser.js`. Extrae cantidades,
+       fracciones (1/2 kg), departamentos y tiendas de fotos de notas, tickets,
+       mensajes de WhatsApp y archivos PDF/TXT con suite de pruebas automatizadas.
+
+P12. ¿Cómo se personaliza el menú y las pestañas?
+     → Desde `CustomTabNamesModal.jsx` y `Header.jsx`. Permite ocultar
+       pestañas con switches de visibilidad (👁️/🚫), renombrarlas y agregar
+       nuevas pestañas personalizadas vinculadas a zonas físicas del hogar.
+
+P13. ¿Dónde está el Manual e Instructivo del Sistema?
+     → Integrado directamente en la web app vía `SystemManualModal.jsx`
+       con 9 capítulos interactivos, buscador en tiempo real e impresión/PDF.
+
 ═══════════════════════════════════════════════════════════════════════════════
 SECCIÓN 5 — PROTOCOLO DE DESPLIEGUE Y CONFIRMACIÓN
 ═══════════════════════════════════════════════════════════════════════════════
 
 Antes de dar por concluida cualquier sesión de trabajo:
   1. `cd frontend && npm run build` (debe salir 0 errores).
-  2. `C:\src\flutter\bin\flutter.bat analyze` (debe salir 0 issues).
-  3. `C:\src\flutter\bin\flutter.bat test` (todos los tests pasan).
-  4. `firebase deploy --only hosting:alacena-app --project alacena-enterprise-prod`.
-  5. `git add .` + commit convencional + `git push origin main`.
-  6. Versión reflejada en Header (`v3.3.0 · Perfection`) y ChangelogModal.
+  2. `node test_smart_parser.mjs` (todos los tests de extracción pasan).
+  3. `firebase deploy --only hosting:alacena-app --project alacena-enterprise-prod`.
+  4. `git add .` + commit convencional + `git push origin main`.
+  5. Versión reflejada en Header (`v3.4.0 · Pro Master`) y ChangelogModal.
 
 ═══════════════════════════════════════════════════════════════════════════════
-FIN DEL MASTER PROMPT CANÓNICO v3.3.0
+FIN DEL MASTER PROMPT CANÓNICO v3.4.0
 ═══════════════════════════════════════════════════════════════════════════════
