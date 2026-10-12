@@ -4,9 +4,11 @@ import {
   X, Printer, BookOpen, Search, Sparkles, 
   ShoppingCart, Check, Layers, Wine, Warehouse, 
   Scissors, Tag, Filter, FileText, CheckCircle2,
-  Plus, Minus, CheckSquare, Square
+  Plus, Minus, CheckSquare, Square, LayoutTemplate,
+  Calendar, ArrowDownRight, Package
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
+import { generateQrPdf } from '../../services/qrPdfService';
 
 export default function PantryQrBookletModal({
   isOpen,
@@ -18,7 +20,7 @@ export default function PantryQrBookletModal({
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedZoneFilter, setSelectedZoneFilter] = useState('ALL');
-  const [printFormat, setPrintFormat] = useState('STICKERS'); // 'STICKERS' | 'WINE_TAGS' | 'CATALOG'
+  const [printFormat, setPrintFormat] = useState('STICKERS'); // 'STICKERS' | 'TABLERO_PEDIDOS' | 'WINE_TAGS' | 'CATALOG'
   const [selectedProductIds, setSelectedProductIds] = useState(() => new Set(products.map(p => p.id)));
   const [copiesPerProduct, setCopiesPerProduct] = useState({});
 
@@ -75,9 +77,30 @@ export default function PantryQrBookletModal({
     return list;
   }, [filteredProducts, selectedProductIds, copiesPerProduct]);
 
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
   const handlePrint = () => {
     audio.click();
     window.print();
+  };
+
+  const handleDownloadPdf = async () => {
+    audio.click();
+    setIsGeneratingPdf(true);
+    try {
+      await generateQrPdf({
+        items: printableList,
+        format: printFormat,
+        activeHouse,
+        selectedZone: selectedZoneFilter === 'ALL' ? 'Todas las Zonas' : selectedZoneFilter,
+      });
+      audio.success();
+    } catch (e) {
+      console.warn('Error generando PDF:', e);
+      alert('Error generando PDF: ' + e.message);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   return (
@@ -100,7 +123,7 @@ export default function PantryQrBookletModal({
             top: 0 !important;
             width: 100% !important;
             margin: 0 !important;
-            padding: 5mm !important;
+            padding: 4mm !important;
             background: #ffffff !important;
             color: #000000 !important;
             box-shadow: none !important;
@@ -119,12 +142,17 @@ export default function PantryQrBookletModal({
           .print-grid-stickers {
             display: grid !important;
             grid-template-columns: repeat(3, 1fr) !important;
-            gap: 5mm !important;
+            gap: 4mm !important;
+          }
+          .print-grid-board {
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 3mm !important;
           }
           .print-grid-wine {
             display: grid !important;
             grid-template-columns: repeat(3, 1fr) !important;
-            gap: 6mm !important;
+            gap: 5mm !important;
           }
           .print-grid-catalog {
             display: grid !important;
@@ -145,26 +173,36 @@ export default function PantryQrBookletModal({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base sm:text-lg font-bold text-white font-display">
-                  Impresor de Etiquetas QR, Stickers & Cava
+                  Centro de Impresión QR: Botes, Tableros & Cava
                 </h3>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#E0B441]/15 text-[#E0B441] border border-[#E0B441]/30">
-                  {printableList.length} etiquetas a imprimir
+                  {printableList.length} ítems a imprimir
                 </span>
               </div>
               <p className="text-xs text-[#B8AFA3]">
-                Selecciona artículos, ajusta copias y manda a imprimir con líneas de corte limpias en papel blanco
+                Genera stickers para frascos, tableros de pedidos para puertas o collarines con troquel
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
+              onClick={handleDownloadPdf}
+              disabled={printableList.length === 0 || isGeneratingPdf}
+              className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-white/10 hover:bg-white/15 text-[#E0B441] border border-[#E0B441]/35 transition-all disabled:opacity-50 active:scale-95"
+              title="Descargar archivo PDF vectorial calibrado en milímetros"
+            >
+              <FileText className="w-4 h-4 text-[#E0B441]" />
+              <span>{isGeneratingPdf ? 'Generando...' : '📄 Descargar PDF'}</span>
+            </button>
+
+            <button
               onClick={handlePrint}
               disabled={printableList.length === 0}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-[#12100E] bg-gradient-to-r from-[#E0B441] to-[#E5724A] hover:brightness-110 shadow-lg shadow-[#E0B441]/20 transition-all disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-[#12100E] bg-gradient-to-r from-[#E0B441] to-[#E5724A] hover:brightness-110 shadow-lg shadow-[#E0B441]/20 transition-all disabled:opacity-50 active:scale-95"
             >
               <Printer className="w-4 h-4" />
-              <span>Imprimir ({printableList.length})</span>
+              <span>🖨️ Imprimir ({printableList.length})</span>
             </button>
             <button
               onClick={() => {
@@ -178,13 +216,15 @@ export default function PantryQrBookletModal({
           </div>
         </div>
 
-        {/* Barra de Controles y Formatos - Hidden on Print */}
+        {/* Barra de Controles y 4 Formatos Físicos - Hidden on Print */}
         <div className="p-3 sm:p-4 border-b border-[#2A2521] bg-[#171412] space-y-3 print:hidden no-print">
           
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             
-            {/* Formatos de Impresión */}
+            {/* 4 Formatos de Impresión Reales */}
             <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-[#1C1814] border border-[#2A2521] overflow-x-auto no-scrollbar">
+              
+              {/* Formato 1: Stickers para Botes & Sobres */}
               <button
                 onClick={() => { audio.click(); setPrintFormat('STICKERS'); }}
                 className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all shrink-0 ${
@@ -193,10 +233,25 @@ export default function PantryQrBookletModal({
                     : 'text-[#B8AFA3] hover:text-white'
                 }`}
               >
-                <Scissors className="w-3.5 h-3.5" />
-                <span>Planilla Frascos (3x4)</span>
+                <Package className="w-3.5 h-3.5" />
+                <span>Botes, Frascos & Sobres</span>
               </button>
 
+              {/* Formato 2: Tablero Maestro para Puerta de Alacena */}
+              <button
+                onClick={() => { audio.click(); setPrintFormat('TABLERO_PEDIDOS'); }}
+                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+                  printFormat === 'TABLERO_PEDIDOS'
+                    ? 'bg-[#E5724A] text-white font-bold shadow-sm'
+                    : 'text-[#B8AFA3] hover:text-white'
+                }`}
+                title="Tablero para pegar en la puerta de la alacena y escanear pedidos/salidas rápidamente"
+              >
+                <LayoutTemplate className="w-3.5 h-3.5" />
+                <span>Tablero Pedidos / Puerta</span>
+              </button>
+
+              {/* Formato 3: Collarines de Cava */}
               <button
                 onClick={() => { audio.click(); setPrintFormat('WINE_TAGS'); }}
                 className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all shrink-0 ${
@@ -209,6 +264,7 @@ export default function PantryQrBookletModal({
                 <span>Collarines para Botellas</span>
               </button>
 
+              {/* Formato 4: Catálogo Libro */}
               <button
                 onClick={() => { audio.click(); setPrintFormat('CATALOG'); }}
                 className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all shrink-0 ${
@@ -218,13 +274,13 @@ export default function PantryQrBookletModal({
                 }`}
               >
                 <BookOpen className="w-3.5 h-3.5" />
-                <span>Catálogo de Alacena</span>
+                <span>Catálogo Contable</span>
               </button>
             </div>
 
             {/* Búsqueda y Selección Rápida */}
             <div className="flex items-center gap-2">
-              <div className="relative flex-1 sm:w-56">
+              <div className="relative flex-1 sm:w-52">
                 <Search className="w-3.5 h-3.5 text-[#8B8378] absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
@@ -291,7 +347,9 @@ export default function PantryQrBookletModal({
                 </span>
                 <h1 className="text-lg font-black uppercase tracking-tight text-black mt-0.5">
                   {printFormat === 'STICKERS' 
-                    ? 'PLANILLA DE ETIQUETAS ADHESIVAS PARA FRASCOS (RECORTABLES)'
+                    ? 'PLANILLA DE ETIQUETAS ADHESIVAS PARA BOTES, FRASCOS Y SOBRES'
+                    : printFormat === 'TABLERO_PEDIDOS'
+                    ? 'TABLERO MAESTRO DE COCINA (ESCANEOS RÁPIDOS DE PEDIDOS Y SALIDAS)'
                     : printFormat === 'WINE_TAGS'
                     ? 'COLLARINES CON TROQUEL PARA CUELLO DE BOTELLAS DE CAVA'
                     : 'CATÁLOGO FÍSICO DE ALMACÉN Y ALACENA DE COCINA'}
@@ -301,13 +359,18 @@ export default function PantryQrBookletModal({
                 </p>
               </div>
               <div className="text-right text-[10px] font-mono text-gray-700">
-                Impreso: {new Date().toLocaleDateString('es-MX')} • Total: {printableList.length} etiquetas
+                Impreso: {new Date().toLocaleDateString('es-MX')} • Total: {printableList.length} ítems
               </div>
             </div>
+            {printFormat === 'TABLERO_PEDIDOS' && (
+              <div className="mt-2 p-1.5 bg-gray-100 rounded text-[9px] font-medium border border-gray-300">
+                📌 <strong>Instrucciones:</strong> Plastifica esta hoja y pégala en la puerta de la alacena. Con el modo Escáner en el celular, pasa por el código para: <strong>🛒 Pedir al Súper</strong> cuando veas que falta, o <strong>➖ Descontar Salida</strong> al sacar insumos para cocinar.
+              </div>
+            )}
           </div>
 
           {/* ═════════════════════════════════════════════════════════════
-              FORMATO 1: STICKERS PARA FRASCOS Y ENVASES (Con Guías de Corte)
+              FORMATO 1: STICKERS PARA BOTES, FRASCOS Y SOBRES
              ═════════════════════════════════════════════════════════════ */}
           {printFormat === 'STICKERS' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 print:print-grid-stickers">
@@ -315,8 +378,6 @@ export default function PantryQrBookletModal({
                 const isSelected = selectedProductIds.has(p.id);
                 const copies = copiesPerProduct[p.id] || 1;
                 const barcode = p.barcode || `ALC-${p.id.replace('prod-', '').toUpperCase()}`;
-                
-                // QR Ultracompacto para máxima legibilidad con cámara
                 const compactQr = barcode;
 
                 return (
@@ -368,25 +429,34 @@ export default function PantryQrBookletModal({
                     </div>
 
                     {/* Código QR Ultranítido */}
-                    <div className="my-2.5 flex justify-center">
+                    <div className="my-2 flex justify-center">
                       <div className="p-2 bg-white rounded-xl border border-gray-200 inline-block shadow-sm">
                         <QRCodeSVG
                           value={compactQr}
-                          size={110}
+                          size={105}
                           level="M"
                           includeMargin={false}
                         />
                       </div>
                     </div>
 
-                    {/* Pie con clave de escaneo y modo de uso */}
+                    {/* Clave de escaneo */}
                     <div className="text-center">
                       <span className="font-mono text-[11px] font-black text-white print:text-black tracking-wider block bg-white/5 print:bg-gray-100 py-0.5 px-2 rounded border border-white/5 print:border-gray-200">
                         {barcode}
                       </span>
-                      <span className="text-[7.5px] font-bold text-[#8B8378] print:text-gray-600 block mt-1">
-                        📱 Escanear: ➕ Entrada • ➖ Consumo • 🛒 Pedir
-                      </span>
+                    </div>
+
+                    {/* Campos para escribir a mano Fecha de Envasado / Caducidad */}
+                    <div className="mt-1.5 border border-dashed border-gray-400 rounded-lg p-1 bg-white/5 print:bg-gray-50 text-[8.5px] font-mono space-y-0.5 text-gray-700">
+                      <div className="flex justify-between border-b border-gray-200 pb-0.5">
+                        <span className="font-bold">Envasado:</span>
+                        <span className="text-gray-400">___/___/202_</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-bold">Caducidad:</span>
+                        <span className="text-gray-400">___/___/202_</span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -395,7 +465,77 @@ export default function PantryQrBookletModal({
           )}
 
           {/* ═════════════════════════════════════════════════════════════
-              FORMATO 2: COLLARINES PARA CAVA (Con Troquel para Cuello)
+              FORMATO 2: TABLERO MAESTRO DE COCINA (Para la Puerta)
+             ═════════════════════════════════════════════════════════════ */}
+          {printFormat === 'TABLERO_PEDIDOS' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 print:print-grid-board">
+              {filteredProducts.map((p) => {
+                const isSelected = selectedProductIds.has(p.id);
+                const barcode = p.barcode || `ALC-${p.id.replace('prod-', '').toUpperCase()}`;
+                const compactQr = barcode;
+
+                return (
+                  <div
+                    key={p.id}
+                    className={`p-3 rounded-xl border transition-all flex items-center gap-3 break-inside-avoid ${
+                      isSelected 
+                        ? 'bg-[#1C1814] border-[#3D3630] print:bg-white print:border print:border-gray-400 print:shadow-none' 
+                        : 'bg-[#14110F]/40 border-[#2A2521] opacity-40 print:hidden'
+                    }`}
+                  >
+                    {/* Checkbox en pantalla */}
+                    <button
+                      type="button"
+                      onClick={() => toggleSelectProduct(p.id)}
+                      className="print:hidden no-print text-[#B8AFA3] hover:text-white shrink-0"
+                    >
+                      {isSelected ? <CheckSquare className="w-4 h-4 text-[#E5724A]" /> : <Square className="w-4 h-4" />}
+                    </button>
+
+                    {/* QR Code Compacto para Lectura Rápida en Tablero */}
+                    <div className="p-1.5 bg-white rounded-lg border border-gray-200 shrink-0 shadow-sm">
+                      <QRCodeSVG
+                        value={compactQr}
+                        size={75}
+                        level="M"
+                        includeMargin={false}
+                      />
+                    </div>
+
+                    {/* Ficha de Pedido & Salida */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-black uppercase text-[#E5724A] print:text-gray-700 font-mono">
+                          {barcode}
+                        </span>
+                        <span className="text-[8px] font-bold text-gray-500">
+                          {p.zone || 'Alacena'}
+                        </span>
+                      </div>
+                      
+                      <h4 className="text-xs font-bold text-white print:text-black truncate leading-tight mt-0.5">
+                        {p.name}
+                      </h4>
+
+                      <div className="flex items-center justify-between text-[9px] text-[#B8AFA3] print:text-gray-600 mt-1">
+                        <span>Min: <strong>{p.minStock || 1}</strong></span>
+                        <span>Max: <strong>{p.maxStock || 4} {p.unit}</strong></span>
+                      </div>
+
+                      {/* Botones / Instrucciones de Escaneo */}
+                      <div className="mt-1 pt-1 border-t border-[#2A2521] print:border-gray-200 flex items-center justify-between text-[8px] font-bold">
+                        <span className="text-emerald-400 print:text-emerald-800">🛒 Pedir Súper</span>
+                        <span className="text-amber-400 print:text-amber-800">➖ Salida Cocina</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ═════════════════════════════════════════════════════════════
+              FORMATO 3: COLLARINES PARA CAVA (Con Troquel para Cuello)
              ═════════════════════════════════════════════════════════════ */}
           {printFormat === 'WINE_TAGS' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 print:print-grid-wine">
@@ -476,7 +616,7 @@ export default function PantryQrBookletModal({
           )}
 
           {/* ═════════════════════════════════════════════════════════════
-              FORMATO 3: CATÁLOGO TABULAR DE ALACENA (Para Encuadernar)
+              FORMATO 4: CATÁLOGO TABULAR DE ALACENA (Para Encuadernar)
              ═════════════════════════════════════════════════════════════ */}
           {printFormat === 'CATALOG' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 print:print-grid-catalog">
@@ -529,7 +669,7 @@ export default function PantryQrBookletModal({
         {/* Footer en Pantalla */}
         <div className="p-4 border-t border-[#2A2521] bg-[#1C1814] flex items-center justify-between text-xs text-[#8B8378] print:hidden no-print flex-wrap gap-2">
           <span>
-            💡 <strong>Consejo de impresión:</strong> En el cuadro de diálogo de la impresora, desactiva <em>"Encabezados y pies de página"</em> para obtener hojas 100% limpias.
+            💡 <strong>Consejo para el Hogar:</strong> Plastifica la hoja del <em>Tablero de Pedidos</em> y cuélgala en la puerta de la alacena para inventariar sin abrir cada frasco.
           </span>
           <button
             onClick={() => {

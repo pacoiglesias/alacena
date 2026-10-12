@@ -176,36 +176,46 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
         </div>
 
         {/* Selector de Formato de Etiqueta (Pantalla) */}
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-[#1C1814] border border-[#2A2521] print:hidden no-print">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 rounded-2xl bg-[#1C1814] border border-[#2A2521] print:hidden no-print">
           <button
             onClick={() => { audio.click(); setLabelSize('STANDARD'); }}
-            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold transition-all ${
+            className={`py-1.5 px-2 rounded-xl text-xs font-semibold transition-all text-center ${
               labelSize === 'STANDARD'
                 ? 'bg-[#E0B441] text-[#12100E] font-bold shadow-sm'
                 : 'text-[#B8AFA3] hover:text-white'
             }`}
           >
-            🏷️ Frasco / Tupper
+            🏷️ Estándar
+          </button>
+          <button
+            onClick={() => { audio.click(); setLabelSize('JAR_POUCH'); }}
+            className={`py-1.5 px-2 rounded-xl text-xs font-semibold transition-all text-center ${
+              labelSize === 'JAR_POUCH'
+                ? 'bg-[#E5724A] text-white font-bold shadow-sm'
+                : 'text-[#B8AFA3] hover:text-white'
+            }`}
+          >
+            📦 Bote / Sobre
           </button>
           <button
             onClick={() => { audio.click(); setLabelSize('MINI'); }}
-            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold transition-all ${
+            className={`py-1.5 px-2 rounded-xl text-xs font-semibold transition-all text-center ${
               labelSize === 'MINI'
                 ? 'bg-[#E0B441] text-[#12100E] font-bold shadow-sm'
                 : 'text-[#B8AFA3] hover:text-white'
             }`}
           >
-            🧂 Mini Especiero
+            🧂 Especiero
           </button>
           <button
             onClick={() => { audio.click(); setLabelSize('WINE_COLLAR'); }}
-            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold transition-all ${
+            className={`py-1.5 px-2 rounded-xl text-xs font-semibold transition-all text-center ${
               labelSize === 'WINE_COLLAR'
                 ? 'bg-[#A83A50] text-white font-bold shadow-sm'
                 : 'text-[#B8AFA3] hover:text-white'
             }`}
           >
-            🍷 Collar de Botella
+            🍷 Collar Cava
           </button>
         </div>
 
@@ -270,6 +280,20 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
               Escanea para: ➕ Entrada • ➖ Consumo • 🛒 Mandar al Súper
             </span>
           </div>
+
+          {/* Espacio para escribir a mano Fecha de Envasado / Caducidad para botes o sobres */}
+          {labelSize === 'JAR_POUCH' && (
+            <div className="border border-gray-300 rounded-lg p-1.5 bg-gray-50 text-[9px] font-mono space-y-1">
+              <div className="flex justify-between border-b border-gray-200 pb-0.5">
+                <span className="text-gray-700 font-bold">Envasado / Abierto:</span>
+                <span className="text-gray-400">___ / ___ / 202___</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-700 font-bold">Consumir antes de:</span>
+                <span className="text-gray-400">___ / ___ / 202___</span>
+              </div>
+            </div>
+          )}
 
           {/* Detalles de residencia y tienda */}
           <div className="text-[9px] space-y-0.5 text-gray-700 font-medium border-t border-gray-200 pt-1.5 flex justify-between">

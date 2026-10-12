@@ -12,6 +12,7 @@ import CavaProCommandCenterModal from './components/layout/CavaProCommandCenterM
 import ZoneModal from './components/zones/ZoneModal';
 import HouseholdsModal from './components/households/HouseholdsModal';
 import ChangelogModal from './components/changelog/ChangelogModal';
+import PurchaseHistoryModal from './components/shopping/PurchaseHistoryModal';
 import { audio } from './services/audioService';
 import { syncPantryToIndexedDb } from './services/db';
 import { 
@@ -111,6 +112,23 @@ export default function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isWineTastingOpen, setIsWineTastingOpen] = useState(false);
   const [selectedWineForTasting, setSelectedWineForTasting] = useState(null);
+  const [isPurchaseHistoryOpen, setIsPurchaseHistoryOpen] = useState(false);
+
+  // Historial de compras para devoluciones y auditoría
+  const [purchaseHistory, setPurchaseHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem('alacena_purchase_history');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('alacena_purchase_history', JSON.stringify(purchaseHistory));
+    } catch (e) {}
+  }, [purchaseHistory]);
 
   // Online / Offline network event detection
   useEffect(() => {
@@ -305,8 +323,117 @@ export default function App() {
     setShoppingList((prev) => prev.filter((item) => item.id !== itemId));
   };
 
+  // Shopping list actions con DEDUPLICACIÓN Y CONSOLIDACIÓN ESTRICTA
   const handleAddShoppingItem = (item) => {
-    setShoppingList((prev) => [item, ...prev]);
+    setShoppingList((prev) => {
+      const normName = (item.name || '').trim().toLowerCase();
+      const existingIdx = prev.findIndex(
+        (i) => (i.name || '').trim().toLowerCase() === normName || (i.barcode && item.barcode && i.barcode === item.barcode)
+      );
+
+      if (existingIdx >= 0) {
+        // Consolidar insumo existente sumando su cantidad
+        const updated = [...prev];
+        const existing = updated[existingIdx];
+        const newQty = (parseFloat(existing.quantity) || 0) + (parseFloat(item.quantity) || 1);
+        updated[existingIdx] = {
+          ...existing,
+          quantity: newQty,
+          store: item.store || existing.store,
+          estimatedPriceMxn: item.estimatedPriceMxn > 0 ? item.estimatedPriceMxn : existing.estimatedPriceMxn,
+          targetZone: item.targetZone || existing.targetZone,
+          checked: false, // desmarcar para comprar de nuevo
+        };
+        return updated;
+      }
+
+      return [item, ...prev];
+    });
+  };
+
+  const handleDeduplicateShoppingList = () => {
+    setShoppingList((prev) => {
+      const map = new Map();
+      let mergedCount = 0;
+
+      prev.forEach((item) => {
+        const key = (item.name || '').trim().toLowerCase();
+        if (!key) return;
+
+        if (map.has(key)) {
+          const existing = map.get(key);
+          existing.quantity = (parseFloat(existing.quantity) || 0) + (parseFloat(item.quantity) || 1);
+          if (item.store && !existing.store) existing.store = item.store;
+          if (item.estimatedPriceMxn > 0 && !existing.estimatedPriceMxn) existing.estimatedPriceMxn = item.estimatedPriceMxn;
+          mergedCount++;
+        } else {
+          map.set(key, { ...item });
+        }
+      });
+
+      const deduplicated = Array.from(map.values());
+      if (mergedCount > 0) {
+        alert(`🧹 ¡Lista de compras desduplicada con éxito! Se consolidaron ${mergedCount} registros repetidos en ${deduplicated.length} insumos únicos.`);
+      } else {
+        alert('✨ Tu lista de compras está 100% limpia y sin ningún producto duplicado.');
+      }
+      return deduplicated;
+    });
+  };
+
+  const handleClearCheckedShoppingItems = () => {
+    setShoppingList((prev) => prev.filter((i) => !i.checked));
+    audio.click();
+  };
+
+  const handleClearAllShoppingItems = () => {
+    if (confirm('¿Deseas vaciar por completo la lista de compras?')) {
+      setShoppingList([]);
+      audio.click();
+    }
+  };
+
+  const handleUndoPurchasedItem = (receiptId, item) => {
+    // 1. Descontar o eliminar del inventario
+    setProducts((prev) => {
+      const idx = prev.findIndex((p) => p.name.toLowerCase() === item.name.toLowerCase());
+      if (idx >= 0) {
+        const prod = prev[idx];
+        const newQty = (prod.quantity || 0) - (item.quantity || 0);
+        if (newQty <= 0) {
+          return prev.filter((_, i) => i !== idx);
+        } else {
+          const updated = [...prev];
+          updated[idx] = { ...prod, quantity: newQty, updatedAt: new Date().toISOString() };
+          return updated;
+        }
+      }
+      return prev;
+    });
+
+    // 2. Marcar como devuelto en el recibo
+    setPurchaseHistory((prev) =>
+      prev.map((r) => {
+        if (r.id === receiptId) {
+          return {
+            ...r,
+            items: r.items.map((it) => (it.name.toLowerCase() === item.name.toLowerCase() ? { ...it, reversed: true } : it)),
+          };
+        }
+        return r;
+      })
+    );
+
+    // 3. Auditoría
+    addAuditEntry(
+      'Administrador General',
+      'DEVOLUCION_COMPRA',
+      `Devolvió/eliminó ${item.quantity} ${item.unit} de "${item.name}" de la alacena`,
+      `Insumo comprado por error o devuelto al supermercado`
+    );
+
+    audio.success();
+    alert(`✅ Insumo "${item.name}" devuelto / descontado del inventario.`);
   };
 
   const handleAutoGenerateShoppingList = () => {
@@ -390,6 +517,24 @@ export default function App() {
     // Limpiar comprados de la lista de compras
     const checkedIds = new Set(checkedItems.map((i) => i.id));
     setShoppingList((prev) => prev.filter((i) => !checkedIds.has(i.id)));
+
+    // Guardar en historial de compras para devoluciones o anulaciones
+    const newReceipt = {
+      id: `rec-${Date.now()}`,
+      date: new Date().toISOString(),
+      items: checkedItems.map((i) => ({
+        id: i.id,
+        name: i.name,
+        quantity: i.quantity || 1,
+        unit: i.unit || 'piezas',
+        store: i.store || 'Supermercado',
+        estimatedPriceMxn: i.estimatedPriceMxn || 0,
+        zone: i.targetZone || 'Alacena Principal',
+        reversed: false,
+      })),
+      totalMxn: totalPurchasedMxn,
+    };
+    setPurchaseHistory((prev) => [newReceipt, ...prev.slice(0, 30)]);
 
     // Registrar en auditoría
     addAuditEntry(
@@ -648,6 +793,11 @@ export default function App() {
             onAutoGenerateFromPantry={handleAutoGenerateShoppingList}
             onCompletePurchaseToPantry={handleCompletePurchaseToPantry}
             onOpenScanner={() => setIsScannerOpen(true)}
+            onDeduplicateList={handleDeduplicateShoppingList}
+            onClearChecked={handleClearCheckedShoppingItems}
+            onClearAll={handleClearAllShoppingItems}
+            onOpenPurchaseHistory={() => setIsPurchaseHistoryOpen(true)}
+            purchaseHistoryCount={purchaseHistory.length}
           />
         )}
 
@@ -690,6 +840,7 @@ export default function App() {
         isOpen={isManualModalOpen}
         onClose={() => setIsManualModalOpen(false)}
         onSave={handleSaveProduct}
+        onDelete={handleDeleteProduct}
         zones={zones}
         staffList={staffList}
         initialProduct={editingProduct}
@@ -771,6 +922,14 @@ export default function App() {
       <ChangelogModal
         isOpen={isChangelogOpen}
         onClose={() => setIsChangelogOpen(false)}
+      />
+
+      {/* Modal de Historial de Compras y Devoluciones */}
+      <PurchaseHistoryModal
+        isOpen={isPurchaseHistoryOpen}
+        onClose={() => setIsPurchaseHistoryOpen(false)}
+        purchases={purchaseHistory}
+        onUndoPurchasedItem={handleUndoPurchasedItem}
       />
 
     </div>

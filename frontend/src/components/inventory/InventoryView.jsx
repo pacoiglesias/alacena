@@ -9,6 +9,7 @@ import { audio } from '../../services/audioService';
 import ZonesBar from '../zones/ZonesBar';
 import ProactiveHomeAdvisor from '../assistant/ProactiveHomeAdvisor';
 import ItemQrModal from '../shopping/ItemQrModal';
+import PantryQrBookletModal from '../shopping/PantryQrBookletModal';
 
 // Helper: cálculo del estado de caducidad FEFO
 export function getExpiryStatus(expiryDate) {
@@ -56,6 +57,7 @@ export default function InventoryView({
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
   const [quickAddedId, setQuickAddedId] = useState(null);
   const [selectedQrProduct, setSelectedQrProduct] = useState(null);
+  const [isQrBookletOpen, setIsQrBookletOpen] = useState(false);
   const searchInputRef = useRef(null);
 
   // Atajo global de teclado: presionar '/' o 'Ctrl+K' para enfocar búsqueda
@@ -370,6 +372,19 @@ export default function InventoryView({
               <span className="hidden sm:inline">Exportar Excel</span>
             </button>
 
+            {/* Botón Centro de Impresión de Stickers y QR */}
+            <button
+              onClick={() => {
+                audio.click();
+                setIsQrBookletOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[#E0B441]/10 hover:bg-[#E0B441]/20 text-[#E0B441] border border-[#E0B441]/35 transition-all active:scale-95 shadow-sm"
+              title="Abrir Centro de Impresión de Stickers para Frascos, Botes y Tablero de Pedidos"
+            >
+              <QrCode className="w-3.5 h-3.5 text-[#E0B441]" />
+              <span className="hidden sm:inline">Stickers & QR</span>
+            </button>
+
             {/* Botón Menú Zero-Waste Proactivo */}
             {onOpenRecipesTab && (
               <button
@@ -664,6 +679,19 @@ export default function InventoryView({
                         >
                           +
                         </button>
+
+                        <button
+                          onClick={() => {
+                            audio.click();
+                            if (confirm(`¿Estás seguro de que deseas eliminar "${p.name}" de la cava?`)) {
+                              onDeleteProduct(p.id);
+                            }
+                          }}
+                          className="p-2 rounded-xl bg-[#1C1916] hover:bg-rose-500/20 border border-[#2A2521] hover:border-rose-500/40 text-[#8B8378] hover:text-rose-400 transition-all ml-0.5"
+                          title="Eliminar botella del inventario"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -797,6 +825,18 @@ export default function InventoryView({
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
+                      <button
+                        onClick={() => {
+                          audio.click();
+                          if (confirm(`¿Estás seguro de que deseas eliminar permanentemente "${p.name}" del inventario?`)) {
+                            onDeleteProduct(p.id);
+                          }
+                        }}
+                        className="w-8 h-8 rounded-xl bg-[#1C1916] hover:bg-rose-500/20 border border-[#2A2521] hover:border-rose-500/40 text-[#8B8378] hover:text-rose-400 flex items-center justify-center transition-all ml-0.5"
+                        title="Eliminar producto del inventario"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
 
@@ -920,8 +960,21 @@ export default function InventoryView({
                           <button
                             onClick={() => { audio.click(); onEditProduct(p); }}
                             className="p-1.5 text-gray-400 hover:text-white rounded-lg ml-1"
+                            title="Editar insumo"
                           >
                             <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              audio.click();
+                              if (confirm(`¿Estás seguro de que deseas eliminar "${p.name}"?`)) {
+                                onDeleteProduct(p.id);
+                              }
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-rose-400 hover:bg-rose-500/20 rounded-lg ml-1"
+                            title="Eliminar del inventario"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
@@ -941,6 +994,15 @@ export default function InventoryView({
         onClose={() => setSelectedQrProduct(null)}
         item={selectedQrProduct}
         activeHouse={activeHouse}
+      />
+
+      {/* Modal de Catálogo Completo de Stickers QR */}
+      <PantryQrBookletModal
+        isOpen={isQrBookletOpen}
+        onClose={() => setIsQrBookletOpen(false)}
+        products={products}
+        activeHouse={activeHouse}
+        onQuickAddToShoppingList={onAddToShoppingList}
       />
 
     </div>

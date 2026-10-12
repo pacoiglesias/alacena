@@ -14,6 +14,7 @@ import PantryQrBookletModal from './PantryQrBookletModal';
 import QuickStaffShoppingModal from './QuickStaffShoppingModal';
 import PrintableShoppingListModal from './PrintableShoppingListModal';
 import SmartListImportModal from './SmartListImportModal';
+import { getCatalogs } from '../../services/catalogsService';
 
 // Departamentos estándar de supermercado físico
 export const SUPERMARKET_DEPARTMENTS = [
@@ -49,6 +50,11 @@ export default function ShoppingListView({
   onAutoGenerateFromPantry,
   onCompletePurchaseToPantry,
   onOpenScanner,
+  onDeduplicateList,
+  onClearChecked,
+  onClearAll,
+  onOpenPurchaseHistory,
+  purchaseHistoryCount = 0,
 }) {
   const [selectedDept, setSelectedDept] = useState('ALL');
   const [selectedStore, setSelectedStore] = useState('ALL');
@@ -402,6 +408,53 @@ export default function ShoppingListView({
             <Plus className="w-4 h-4" />
             <span>+ Manual</span>
           </button>
+
+          {/* 8. Botón: Desduplicar y Consolidar Lista */}
+          <button
+            onClick={() => {
+              audio.click();
+              if (onDeduplicateList) onDeduplicateList();
+            }}
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-[#E0B441] bg-[#E0B441]/10 hover:bg-[#E0B441]/20 border border-[#E0B441]/30 transition-all shadow-sm"
+            title="Consolidar artículos repetidos y sumar sus cantidades en un solo registro"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>🧹 Desduplicar</span>
+          </button>
+
+          {/* 9. Botón: Historial de Compras & Devoluciones */}
+          {onOpenPurchaseHistory && (
+            <button
+              onClick={() => {
+                audio.click();
+                onOpenPurchaseHistory();
+              }}
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-all shadow-sm"
+              title="Ver compras recientes y eliminar o devolver artículos comprados por error"
+            >
+              <ShoppingBag className="w-3.5 h-3.5" />
+              <span>🧾 Devoluciones</span>
+              {purchaseHistoryCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/30 text-[10px] font-mono">
+                  {purchaseHistoryCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* 10. Botón: Vaciar Lista */}
+          {shoppingList.length > 0 && onClearAll && (
+            <button
+              onClick={() => {
+                audio.click();
+                onClearAll();
+              }}
+              className="p-2.5 rounded-xl text-[#8B8378] hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 transition-all"
+              title="Vaciar toda la lista de compras"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -478,13 +531,31 @@ export default function ShoppingListView({
             <span>Pasillos del Supermercado:</span>
           </span>
           {metrics.inCartCount > 0 && (
-            <button
-              onClick={handleFinishPurchase}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-950/50 animate-pulse flex items-center gap-1.5"
-            >
-              <Warehouse className="w-4 h-4" />
-              <span>🏁 Guardar {metrics.inCartCount} Comprados en la Despensa</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleFinishPurchase}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-950/50 flex items-center gap-1.5"
+              >
+                <Warehouse className="w-4 h-4" />
+                <span>🏁 Guardar {metrics.inCartCount} en la Despensa</span>
+              </button>
+
+              {onClearChecked && (
+                <button
+                  onClick={() => {
+                    audio.click();
+                    if (confirm(`¿Deseas eliminar de la lista los ${metrics.inCartCount} artículos marcados sin guardarlos en el inventario?`)) {
+                      onClearChecked();
+                    }
+                  }}
+                  className="px-3 py-2 rounded-xl text-xs font-bold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 transition-all flex items-center gap-1.5"
+                  title="Eliminar de la lista solo los productos marcados"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Eliminar Marcados ({metrics.inCartCount})</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -769,11 +840,17 @@ export default function ShoppingListView({
                   </label>
                   <input
                     type="text"
+                    list="shopping-stores-datalist"
                     value={store}
                     onChange={(e) => setStore(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm"
                     placeholder="Costco, City Market..."
                   />
+                  <datalist id="shopping-stores-datalist">
+                    {getCatalogs().stores.map((s) => (
+                      <option key={s.id} value={s.name} />
+                    ))}
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-300 uppercase mb-1">

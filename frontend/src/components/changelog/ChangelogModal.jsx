@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.4.0-Titanium-Nova-Master';
+export const SYSTEM_VERSION = 'v3.5.0-Enterprise-Luxe';
 export const RELEASE_DATE = '11 Octubre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
@@ -160,14 +160,55 @@ export default function ChangelogModal({ isOpen, onClose }) {
         {activeTab === 'changelog' && (
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             
-            {/* Release v3.4.0-Master */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-[#E0B441]/60 hover:border-[#E0B441]/80 transition-all shadow-xl">
+            {/* Release v3.5.0-Enterprise-Luxe */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-[#E0B441] shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-[#E0B441] bg-[#E0B441]/20 border border-[#E0B441]/40 rounded-lg font-mono">
-                    v3.4.0-Master
+                    v3.5.0-Enterprise-Luxe
                   </span>
                   <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">11 Octubre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2 font-display">
+                Multi-Tema y Colores, Catálogos Proactivos, Desduplicación Estricta y Devolución de Compras
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Personalización de Temas & Paletas:</strong> 6 temas de lujo (Luxe Noir, Cava Forest, Borgoña Gran Reserva, Zafiro Presidencial, Espresso Cobrizo y Modo Claro Luxe Cream) con inyección dinámica de CSS variables y guardado local.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Centro de Catálogos & Opciones Desplegables:</strong> Gestión centralizada y menús interactivos para Tiendas Habituales (Costco, City Market, etc.) y Personal que Registra (María, Chef, Chofer, Patrón) con chips de 1 toque y adición instantánea en formularios.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Motor de Desduplicación y Consolidación de Compras:</strong> Fusión estricta de insumos repetidos con suma de cantidades en vez de duplicar filas, más botón "🧹 Desduplicar" y "🗑️ Limpiar Marcados".</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Historial de Compras & Devoluciones:</strong> Registro de órdenes de compra con capacidad de eliminar o revertir artículos ingresados por error descontándolos automáticamente de la despensa.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Eliminación Directa en Inventario:</strong> Botón de borrado con confirmación en tarjetas de alacena, cava, tabla y modal de edición.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Ecosistema QR Vectorial:</strong> Generador de stickers con líneas de envasado/caducidad para botes/sobres, collarines de cava y tablero maestro de pedidos para puertas.</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Release v3.4.0-Master */}
+            <div className="p-5 rounded-2xl bg-[#1C1916]/80 border border-[#2A2521] hover:border-[#3D3630] transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-[#B8AFA3] bg-white/5 border border-white/10 rounded-lg font-mono">
+                    v3.4.0-Master
+                  </span>
                 </div>
                 <span className="text-xs text-gray-400">11 Octubre 2026</span>
               </div>

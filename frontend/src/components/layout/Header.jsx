@@ -3,12 +3,14 @@ import {
   Sparkles, Volume2, VolumeX, MapPin, 
   ChevronDown, Utensils, History, Layers, RefreshCw, 
   ShoppingCart, Camera, Wine, User, Shield, Check, Sliders,
-  BookOpen
+  BookOpen, Palette, Store
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { SYSTEM_VERSION } from '../changelog/ChangelogModal';
 import CustomTabNamesModal, { DEFAULT_MENU_TABS, ICON_MAP } from './CustomTabNamesModal';
 import SystemManualModal from '../manual/SystemManualModal';
+import CatalogsConfigModal from '../catalogs/CatalogsConfigModal';
+import ThemeCustomizerModal from '../theme/ThemeCustomizerModal';
 
 export const SYSTEM_ROLES = [
   { id: 'admin', name: 'Paco I.', label: 'Patrón / Admin', icon: Shield, color: 'text-amber-400 bg-amber-500/20' },
@@ -42,6 +44,8 @@ export default function Header({
   const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
   const [isTabConfigModalOpen, setIsTabConfigModalOpen] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [isCatalogsModalOpen, setIsCatalogsModalOpen] = useState(false);
   
   // Menú dinámico configurable (renombrar, ocultar, y agregar pestañas)
   const [menuTabs, setMenuTabs] = useState(() => {
@@ -139,7 +143,7 @@ export default function Header({
                     title="Ver Ficha Técnica y Changelog Luxe"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>v3.4.0 · Pro Master</span>
+                    <span>v3.5.0 · Enterprise Luxe</span>
                   </button>
                 </div>
                 {!isScrolled && (
@@ -331,6 +335,32 @@ export default function Header({
             <span className="hidden sm:inline">Configurar Menú</span>
           </button>
 
+          {/* Botón para Personalizar Tema & Color del Sistema */}
+          <button
+            onClick={() => {
+              audio.click();
+              setIsThemeModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-[#8B8378] hover:text-[#E0B441] hover:bg-white/5 border border-transparent hover:border-[#E0B441]/30 transition-all shrink-0"
+            title="Personalizar color del sistema y temas visuales"
+          >
+            <Palette className="w-3.5 h-3.5 text-[#E0B441]" />
+            <span className="hidden sm:inline">Color & Tema</span>
+          </button>
+
+          {/* Botón para Configurar Catálogos y Opciones Desplegables */}
+          <button
+            onClick={() => {
+              audio.click();
+              setIsCatalogsModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-[#8B8378] hover:text-[#E0B441] hover:bg-white/5 border border-transparent hover:border-[#E0B441]/30 transition-all shrink-0"
+            title="Configurar tiendas de compra habitual, personal que registra, categorías y unidades"
+          >
+            <Store className="w-3.5 h-3.5 text-[#E0B441]" />
+            <span className="hidden sm:inline">Catálogos & Opciones</span>
+          </button>
+
         </nav>
 
         {/* Modal para Renombrar, Ocultar y Agregar Pestañas */}
@@ -346,6 +376,18 @@ export default function Header({
         <SystemManualModal
           isOpen={isManualModalOpen}
           onClose={() => setIsManualModalOpen(false)}
+        />
+
+        {/* Modal para Personalizar Color & Tema del Sistema */}
+        <ThemeCustomizerModal
+          isOpen={isThemeModalOpen}
+          onClose={() => setIsThemeModalOpen(false)}
+        />
+
+        {/* Modal de Catálogos y Opciones Desplegables */}
+        <CatalogsConfigModal
+          isOpen={isCatalogsModalOpen}
+          onClose={() => setIsCatalogsModalOpen(false)}
         />
 
       </div>
