@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { 
   X, Camera, ScanLine, CheckCircle2, Plus, 
-  ShoppingCart, Warehouse, AlertCircle, Sparkles, Keyboard 
+  ShoppingCart, Warehouse, AlertCircle, Sparkles, 
+  Keyboard, Image, RefreshCw 
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { lookupBarcode } from '../../services/barcodeLookupService';
@@ -21,11 +22,16 @@ export default function CameraScannerModal({
   const [manualCode, setManualCode] = useState('');
   const [scannedResult, setScannedResult] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [cameras, setCameras] = useState([]);
+  const [selectedCameraId, setSelectedCameraId] = useState('');
 
   const html5QrCodeRef = useRef(null);
+  const fileInputRef = useRef(null);
   const scannerContainerId = 'qr-reader-container';
 
   useEffect(() => {
+    let timeoutId;
+
     if (!isOpen) {
       stopScanner();
       setScannedResult(null);
@@ -34,44 +40,83 @@ export default function CameraScannerModal({
       return;
     }
 
-    // Iniciar escáner al abrir modal
-    startScanner();
+    // Esperar a que el elemento div esté montado en el DOM antes de iniciar la cámara
+    timeoutId = setTimeout(() => {
+      initCamerasAndStart();
+    }, 250);
 
     return () => {
+      clearTimeout(timeoutId);
       stopScanner();
     };
   }, [isOpen]);
 
-  const startScanner = async () => {
+  const initCamerasAndStart = async () => {
     try {
       setCameraError(null);
+
+      const availableCameras = await Html5Qrcode.getCameras().catch(() => []);
+      setCameras(availableCameras);
+
       if (!html5QrCodeRef.current) {
         html5QrCodeRef.current = new Html5Qrcode(scannerContainerId);
       }
 
+      // Elegir cámara trasera si existe, de lo contrario la primera disponible o constraint
+      let cameraConfig = { facingMode: 'environment' };
+      if (availableCameras && availableCameras.length > 0) {
+        const backCam = availableCameras.find(c => 
+          c.label.toLowerCase().includes('back') || 
+          c.label.toLowerCase().includes('trasera') || 
+          c.label.toLowerCase().includes('rear')
+        );
+        const chosenCam = backCam || availableCameras[0];
+        setSelectedCameraId(chosenCam.id);
+        cameraConfig = chosenCam.id;
+      }
+
       await html5QrCodeRef.current.start(
-        { facingMode: 'environment' }, // Cámara trasera en móviles
+        cameraConfig,
         {
           fps: 15,
           qrbox: { width: 280, height: 180 },
           aspectRatio: 1.333,
         },
         onScanSuccess,
-        () => {} // Ignorar errores de frame vacío
+        () => {} // Ignorar errores de frames sin código
       );
       setScannerActive(true);
     } catch (err) {
-      console.warn('Error al iniciar cámara:', err);
-      setCameraError('No se pudo acceder a la cámara. Puedes ingresar el código de barras manualmente abajo.');
+      console.warn('Error al iniciar cámara WebRTC:', err);
+      // Intentar fallback simple con constraints genéricas
+      try {
+        if (html5QrCodeRef.current) {
+          await html5QrCodeRef.current.start(
+            { facingMode: 'user' },
+            { fps: 10, qrbox: { width: 260, height: 160 } },
+            onScanSuccess,
+            () => {}
+          );
+          setScannerActive(true);
+          return;
+        }
+      } catch (e) {
+        console.warn('Fallback de cámara también falló:', e);
+      }
+
+      setCameraError('No se pudo abrir la cámara en vivo. Puedes tomar una foto con el botón "Subir Foto" o ingresar el código abajo.');
       setScannerActive(false);
     }
   };
 
   const stopScanner = async () => {
     try {
-      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-        await html5QrCodeRef.current.stop();
+      if (html5QrCodeRef.current) {
+        if (html5QrCodeRef.current.isScanning) {
+          await html5QrCodeRef.current.stop();
+        }
         html5QrCodeRef.current.clear();
+        html5QrCodeRef.current = null;
       }
     } catch (err) {
       console.warn('Error al detener cámara:', err);
@@ -82,6 +127,25 @@ export default function CameraScannerModal({
   const onScanSuccess = async (decodedText) => {
     audio.success();
     await processBarcode(decodedText);
+  };
+
+  // Escaneo a través de archivo / captura de imagen (100% compatible con iPhone/Android/PC)
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      audio.click();
+      setIsSearching(true);
+      const scanner = html5QrCodeRef.current || new Html5Qrcode(scannerContainerId);
+      const decoded = await scanner.scanFile(file, true);
+      audio.success();
+      await processBarcode(decoded);
+    } catch (err) {
+      alert('No se detectó un código de barras legible en la foto. Intenta con mejor iluminación o escribe el código.');
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const processBarcode = async (code) => {
@@ -160,10 +224,10 @@ export default function CameraScannerModal({
             </div>
             <div>
               <h3 className="text-base font-bold text-white">
-                Escáner de Código de Barras & QR
+                Escáner de Código de Barras & QR en Vivo
               </h3>
               <p className="text-xs text-gray-400">
-                Apunta con la cámara en el súper o en casa para capturar y controlar productos.
+                Apunta con tu celular o cámara web. También puedes subir una foto o escribir el código.
               </p>
             </div>
           </div>
@@ -182,7 +246,7 @@ export default function CameraScannerModal({
         <div className="p-6 space-y-5">
           
           {/* Camera Viewport with Visual Overlay */}
-          <div className="relative w-full rounded-2xl overflow-hidden bg-black/80 border border-white/10 min-h-[240px] flex items-center justify-center">
+          <div className="relative w-full rounded-2xl overflow-hidden bg-black/90 border border-white/10 min-h-[260px] flex items-center justify-center">
             <div id={scannerContainerId} className="w-full" />
 
             {/* Target Reticle Overlay */}
@@ -200,19 +264,79 @@ export default function CameraScannerModal({
               </div>
             )}
 
-            {cameraError && (
-              <div className="p-4 text-center text-xs text-amber-300 max-w-sm">
-                <AlertCircle className="w-6 h-6 mx-auto mb-2 text-amber-400" />
-                {cameraError}
+            {/* Camera error / Fallback trigger */}
+            {!scannerActive && (
+              <div className="p-6 text-center space-y-3">
+                <AlertCircle className="w-8 h-8 mx-auto text-amber-400" />
+                <p className="text-xs text-amber-200 max-w-xs mx-auto">
+                  {cameraError || 'Iniciando conexión con la cámara del dispositivo...'}
+                </p>
+                <div className="flex justify-center gap-2 pt-2">
+                  <button
+                    onClick={initCamerasAndStart}
+                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-emerald-300 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 rounded-xl transition-all"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Reintentar Abrir Cámara</span>
+                  </button>
+
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all"
+                  >
+                    <Image className="w-3.5 h-3.5" />
+                    <span>Tomar / Subir Foto</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
 
+          {/* Hidden File Input for Direct Camera Snapshot */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            capture="environment"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+
+          {/* Selector de Cámara si hay varias */}
+          {cameras.length > 1 && (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-gray-400">Cambiar Cámara:</span>
+              <select
+                value={selectedCameraId}
+                onChange={async (e) => {
+                  setSelectedCameraId(e.target.value);
+                  await stopScanner();
+                  if (html5QrCodeRef.current) {
+                    await html5QrCodeRef.current.start(
+                      e.target.value,
+                      { fps: 15, qrbox: { width: 280, height: 180 } },
+                      onScanSuccess,
+                      () => {}
+                    );
+                    setScannerActive(true);
+                  }
+                }}
+                className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs"
+              >
+                {cameras.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label || `Cámara ${c.id}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Test Barcodes Quick Buttons */}
           <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1.5">
             <div className="flex items-center justify-between text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-              <span>Probar Códigos Demo de Ejemplo:</span>
-              <span className="text-emerald-400">1-Clic</span>
+              <span>Probar Códigos de Ejemplo (1-Clic):</span>
+              <span className="text-emerald-400">Sin Cámara</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {[

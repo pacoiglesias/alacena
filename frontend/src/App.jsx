@@ -6,6 +6,8 @@ import ShoppingListView from './components/shopping/ShoppingListView';
 import RecipesView from './components/recipes/RecipesView';
 import AuditTrailView from './components/audit/AuditTrailView';
 import CameraScannerModal from './components/scanner/CameraScannerModal';
+import AddWineModal from './components/sommelier/AddWineModal';
+import CavaProCommandCenterModal from './components/layout/CavaProCommandCenterModal';
 import ZoneModal from './components/zones/ZoneModal';
 import HouseholdsModal from './components/households/HouseholdsModal';
 import ChangelogModal from './components/changelog/ChangelogModal';
@@ -97,6 +99,8 @@ export default function App() {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isCommandCenterOpen, setIsCommandCenterOpen] = useState(false);
+  const [isAddWineOpen, setIsAddWineOpen] = useState(false);
   const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
   const [editingZone, setEditingZone] = useState(null);
   const [isHouseModalOpen, setIsHouseModalOpen] = useState(false);
@@ -429,6 +433,29 @@ export default function App() {
     );
   };
 
+  // Backup Export
+  const handleExportBackupJson = () => {
+    const backup = {
+      app: 'ALACENA_ENTERPRISE_CAVAPRO',
+      version: 'v2.4.0-Titanium-Nova',
+      exportDate: new Date().toISOString(),
+      household: activeHouse,
+      products,
+      shoppingList,
+      zones,
+      recipes,
+      auditLogs,
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `alacena-cavapro-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    alert('💾 Copia de seguridad descargada exitosamente en formato JSON.');
+  };
+
   // Reset demo data
   const handleResetDemoData = () => {
     if (window.confirm('¿Deseas restaurar los datos de demostración con precios en MXN?')) {
@@ -455,6 +482,7 @@ export default function App() {
         onOpenChangelog={() => setIsChangelogOpen(true)}
         onResetDemoData={handleResetDemoData}
         onOpenScanner={() => setIsScannerOpen(true)}
+        onOpenCommandCenter={() => setIsCommandCenterOpen(true)}
         shoppingCount={shoppingList.filter((i) => !i.checked).length}
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
@@ -530,6 +558,35 @@ export default function App() {
         zones={zones}
         staffList={staffList}
         initialProduct={editingProduct}
+      />
+
+      <AddWineModal
+        isOpen={isAddWineOpen}
+        onClose={() => setIsAddWineOpen(false)}
+        onSave={handleSaveProduct}
+        zones={zones}
+      />
+
+      <CavaProCommandCenterModal
+        isOpen={isCommandCenterOpen}
+        onClose={() => setIsCommandCenterOpen(false)}
+        onOpenAddProduct={() => {
+          setEditingProduct(null);
+          setIsManualModalOpen(true);
+        }}
+        onOpenAddWine={() => setIsAddWineOpen(true)}
+        onOpenScanner={() => setIsScannerOpen(true)}
+        onAutoGenerateShopping={handleAutoGenerateShoppingList}
+        onOpenShoppingTab={() => setActiveTab('shopping')}
+        onOpenInventoryTab={() => setActiveTab('inventory')}
+        onOpenRecipesTab={() => setActiveTab('recipes')}
+        onOpenAuditTab={() => setActiveTab('audit')}
+        onExportBackupJson={handleExportBackupJson}
+        onResetDemoData={handleResetDemoData}
+        onOpenChangelog={() => setIsChangelogOpen(true)}
+        onToggleMute={handleToggleMute}
+        isMuted={isMuted}
+        lowStockCount={products.filter((p) => (p.quantity || 0) <= (p.minStock || 0)).length}
       />
 
       <CameraScannerModal

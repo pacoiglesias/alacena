@@ -15,6 +15,7 @@ export default function Header({
   onOpenChangelog, 
   onResetDemoData,
   onOpenScanner,
+  onOpenCommandCenter,
   shoppingCount = 0,
   isMuted,
   onToggleMute 
@@ -67,7 +68,20 @@ export default function Header({
 
           {/* Right Controls: Scanner, Version Badge & Sound Toggle */}
           <div className="flex items-center gap-2 sm:gap-2.5">
-            
+            {/* Centro de Mando CAVAPRO v5.0 */}
+            <button
+              onClick={() => {
+                audio.click();
+                onOpenCommandCenter();
+              }}
+              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+              title="Abrir Centro de Mando CAVAPRO (Menú Maestro)"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Centro de Mando</span>
+              <span className="text-[10px] text-amber-400">▾</span>
+            </button>
+
             {/* Prominent Scanner Button (Available anywhere in 1-tap) */}
             <button
               onClick={() => {
