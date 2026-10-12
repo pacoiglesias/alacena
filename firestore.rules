@@ -24,11 +24,8 @@ service cloud.firestore {
 
     // Verificar si el usuario pertenece al Workspace
     function isWorkspaceMember(workspaceId) {
-      return isAuthenticated() && (
-        request.auth.token.workspaceId == workspaceId ||
-        request.auth.token.tenantId == workspaceId ||
-        exists(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid))
-      );
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid));
     }
 
     // Rol Admin / Owner del Workspace (Control total: precios, auditoría, configuración)
