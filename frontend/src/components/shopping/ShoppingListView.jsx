@@ -12,6 +12,7 @@ import ItemQrModal from './ItemQrModal';
 import ShoppingListQrTicketModal from './ShoppingListQrTicketModal';
 import PantryQrBookletModal from './PantryQrBookletModal';
 import QuickStaffShoppingModal from './QuickStaffShoppingModal';
+import PrintableShoppingListModal from './PrintableShoppingListModal';
 
 // Departamentos estándar de supermercado físico
 export const SUPERMARKET_DEPARTMENTS = [
@@ -55,6 +56,7 @@ export default function ShoppingListView({
   const [isOrderTicketQrOpen, setIsOrderTicketQrOpen] = useState(false);
   const [isQrBookletOpen, setIsQrBookletOpen] = useState(false);
   const [isQuickStaffOpen, setIsQuickStaffOpen] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isWalkingMode, setIsWalkingMode] = useState(false);
 
   // New manual item state
@@ -314,12 +316,12 @@ export default function ShoppingListView({
           <button
             onClick={() => {
               audio.click();
-              window.print();
+              setIsPrintModalOpen(true);
             }}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-blue-300 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 transition-all"
-            title="Imprimir lista en papel o guardar en PDF"
+            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-blue-300 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 transition-all shadow-sm active:scale-95 hover:scale-105"
+            title="Abrir hoja de compras imprimible o guardar en PDF"
           >
-            <Printer className="w-4 h-4" />
+            <Printer className="w-4 h-4 text-blue-400" />
             <span>🖨️ Imprimir / PDF</span>
           </button>
 
@@ -828,56 +830,15 @@ export default function ShoppingListView({
         onAddItem={onAddItem}
       />
 
-      {/* Vista de Impresión en Papel / PDF (Visible solo al imprimir) */}
-      <div className="hidden print:block text-black bg-white p-4">
-        <div className="border-b-2 border-black pb-3 mb-4 flex justify-between items-end">
-          <div>
-            <h1 className="text-2xl font-black uppercase tracking-tight">
-              LISTA DE COMPRAS DEL SUPERMERCADO
-            </h1>
-            <p className="text-xs font-bold text-gray-700">
-              {activeHouse?.name?.toUpperCase() || 'RESIDENCIA'} • Organizada por Pasillos
-            </p>
-          </div>
-          <div className="text-right text-xs">
-            <div>Fecha: {new Date().toLocaleDateString('es-MX')}</div>
-            <div className="font-bold">Presupuesto Aprox: ${metrics.totalEstimatedMxn.toFixed(2)} MXN</div>
-          </div>
-        </div>
+      {/* Modal Editorial: Lista de Compras Imprimible / Exportar PDF */}
+      <PrintableShoppingListModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        shoppingList={enrichedList}
+        activeHouse={activeHouse}
+        totalEstimatedMxn={metrics.totalEstimatedMxn}
+      />
 
-        <div className="space-y-4">
-          {SUPERMARKET_DEPARTMENTS.filter(d => d.id !== 'ALL').map((dept) => {
-            const items = enrichedList.filter(i => i.computedDept === dept.id && !i.checked);
-            if (items.length === 0) return null;
-
-            return (
-              <div key={dept.id} className="break-inside-avoid">
-                <div className="bg-gray-100 px-3 py-1 font-bold text-xs uppercase border border-gray-400 mb-1">
-                  {dept.name} ({items.length})
-                </div>
-                <table className="w-full text-xs border-collapse">
-                  <tbody>
-                    {items.map((it) => (
-                      <tr key={it.id} className="border-b border-gray-200">
-                        <td className="w-6 py-1.5 text-center font-mono">[ ]</td>
-                        <td className="py-1.5 font-bold">{it.name}</td>
-                        <td className="w-24 py-1.5 text-right font-mono">{it.quantity} {it.unit}</td>
-                        <td className="w-32 py-1.5 text-right text-gray-600">{it.store || 'Super'}</td>
-                        <td className="w-20 py-1.5 text-right font-mono">${((it.estimatedPriceMxn || 0) * (it.quantity || 1)).toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-8 pt-4 border-t border-black flex justify-between text-xs">
-          <div>Firma Encargado de Compras: ____________________</div>
-          <div>Recibido en Alacena: ____________________</div>
-        </div>
-      </div>
 
       {/* Botón Flotante Permanente: Modo Súper (Fase 8.5) */}
       {enrichedList.length > 0 && !isWalkingMode && (

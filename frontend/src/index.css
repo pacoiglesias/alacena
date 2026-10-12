@@ -63,3 +63,50 @@
   transform: translateY(-2px);
   box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.45);
 }
+
+/* ============================================================ */
+/* REGLAS DE IMPRESIÓN Y EXPORTACIÓN A PDF (PÁGINA BLANCA PURA) */
+/* ============================================================ */
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 1.2cm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 10pt !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ocultar encabezados fijos de la app, navegadores, botones e interfaces oscuras */
+  header,
+  nav,
+  button,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* El contenedor de papel imprimible se expande nítidamente */
+  .printable-paper-sheet {
+    display: block !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Evitar saltos de página partidos a mitad de una tabla o pasillo */
+  .break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
+
