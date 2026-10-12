@@ -100,5 +100,12 @@ O de forma manual:
 ```cmd
 cd frontend
 npm run build
-firebase deploy --only hosting:alacena-app --project alacena-enterprise-prod
+firebase deploy --only hosting --project alacena-enterprise-prod
 ```
+
+---
+
+## 🌐 Dominio Personalizado: `alacena.cobertores.com`
+
+Para conectar tu dominio registrado en **Hostinger** con Firebase Hosting, consulta la guía detallada:
+👉 [CONFIGURAR_DOMINIO_HOSTINGER.md](file:///c:/Users/pacoi/ALACENA/CONFIGURAR_DOMINIO_HOSTINGER.md)
