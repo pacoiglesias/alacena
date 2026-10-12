@@ -7,17 +7,19 @@ echo ========================================================
 
 cd /d "%~dp0\.."
 
-echo [1/2] Compilando bundle de produccion Web Flutter...
-call C:\src\flutter\bin\flutter.bat build web --release
+echo [1/2] Compilando bundle de produccion Frontend (React + Vite)...
+cd frontend
+call npm run build
 if errorlevel 1 (
-    echo [ERROR] Fallo la compilacion de Flutter Web.
+    echo [ERROR] Fallo la compilacion del Frontend.
     exit /b 1
 )
+cd ..
 
 echo [2/2] Desplegando en Firebase Hosting (Proyecto: alacena-enterprise-prod)...
-firebase deploy --only hosting:alacena-app --project alacena-enterprise-prod
+call npx firebase-tools deploy --only hosting:alacena-app --project alacena-enterprise-prod
 if errorlevel 1 (
-    echo [AVISO] Ejecuta 'firebase login' si no has autenticado tu sesion CLI.
+    echo [AVISO] Ejecuta 'login_and_fix_mcp.bat' para renovar tu sesion CLI.
     exit /b 1
 )
 
