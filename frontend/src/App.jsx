@@ -29,6 +29,7 @@ import {
   subscribeToAuditLogs,
   seedCloudIfEmpty
 } from './services/firestoreSyncService';
+import { learnProduct, trackConsumption } from './services/learningService';
 import { 
   INITIAL_PRODUCTS, 
   INITIAL_ZONES, 
@@ -412,6 +413,7 @@ export default function App() {
           `Costo: ${activeHouse?.currency === 'EUR' ? '€' : '$'}${itemWithHouse.unitPriceMxn.toFixed(2)} ${activeHouse?.currency || 'MXN'}`
         );
         saveProductToCloud(itemWithHouse);
+        learnProduct(itemWithHouse);
         return [itemWithHouse, ...prev];
       }
     });
@@ -443,6 +445,14 @@ export default function App() {
             `${delta > 0 ? 'Aumentó' : 'Ajustó/Consumió'} ${Math.abs(delta).toFixed(1)} ${exists.unit} de ${exists.name}${reason ? ` (${reason})` : ''}`,
             `Nuevo stock: ${newQuantity} ${exists.unit}`
           );
+
+          if (delta < 0) {
+            // Rastrear consumo para análisis de hábitos
+            trackConsumption(exists, Math.abs(delta));
+          } else {
+            // Rastrear compra recurrente
+            learnProduct(exists);
+          }
         }
         const updatedItem = { ...exists, quantity: newQuantity, updatedAt: new Date().toISOString() };
         saveProductToCloud(updatedItem);
@@ -464,6 +474,7 @@ export default function App() {
           `Ubicación: ${newProductObj.zone}`
         );
         saveProductToCloud(newProductObj);
+        learnProduct(newProductObj);
         return [newProductObj, ...prev];
       }
       return prev;

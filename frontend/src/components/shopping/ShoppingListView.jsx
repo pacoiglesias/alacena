@@ -108,13 +108,20 @@ export default function ShoppingListView({
     });
   }, [products, shoppingList]);
 
-  // Enriquecer artículos con departamento
+  // Enriquecer artículos con departamento y filtrar por el Hogar Activo (México o España)
   const enrichedList = useMemo(() => {
-    return shoppingList.map((item) => ({
-      ...item,
-      computedDept: item.department || getDepartmentForItem(item),
-    }));
-  }, [shoppingList]);
+    return shoppingList
+      .filter((item) => {
+        if (activeHouse?.id && item.householdId && item.householdId !== activeHouse.id) {
+          return false;
+        }
+        return true;
+      })
+      .map((item) => ({
+        ...item,
+        computedDept: item.department || getDepartmentForItem(item),
+      }));
+  }, [shoppingList, activeHouse]);
 
   // Métricas
   const metrics = useMemo(() => {
@@ -520,17 +527,21 @@ export default function ShoppingListView({
           </div>
         </div>
 
-        {/* Presupuesto en Pesos Mexicanos (MXN) */}
+        {/* Presupuesto Estimado (Moneda Dinámica: EUR o MXN según el Hogar) */}
         <div className="glass-panel p-5 rounded-3xl flex items-center justify-between border border-white/10">
           <div>
             <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
-              Presupuesto Estimado
+              Presupuesto Estimado ({activeHouse?.currency || 'MXN'})
             </span>
             <div className="text-2xl sm:text-3xl font-extrabold text-white mt-1 font-mono">
-              ${metrics.totalEstimatedMxn.toLocaleString('es-MX', { minimumFractionDigits: 2 })} <span className="text-xs text-emerald-400 font-sans font-bold">MXN</span>
+              {activeHouse?.currency === 'EUR' ? '€' : '$'}
+              {metrics.totalEstimatedMxn.toLocaleString(activeHouse?.currency === 'EUR' ? 'es-ES' : 'es-MX', { minimumFractionDigits: 2 })}{' '}
+              <span className="text-xs text-emerald-400 font-sans font-bold">
+                {activeHouse?.currency || 'MXN'}
+              </span>
             </div>
             <span className="text-xs text-gray-400 mt-1 block">
-              Llevas en carrito: ${metrics.cartTotalMxn.toFixed(2)} MXN
+              Llevas en carrito: {activeHouse?.currency === 'EUR' ? '€' : '$'}{metrics.cartTotalMxn.toFixed(2)} {activeHouse?.currency || 'MXN'}
             </span>
           </div>
           <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400">

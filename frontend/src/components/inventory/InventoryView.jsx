@@ -108,9 +108,13 @@ export default function InventoryView({
     return { totalItems, lowStockCount, totalValuationMxn, expiringSoonCount };
   }, [products]);
 
-  // Filtered products
+  // Filtered products (Filtrados por Residencia Activa México vs España)
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
+      // Si el producto tiene hogar asignado y la app tiene un hogar activo seleccionado, filtrar por hogar
+      if (activeHouse?.id && p.householdId && p.householdId !== activeHouse.id) {
+        return false;
+      }
       if (selectedZone && p.zone !== selectedZone) return false;
       if (selectedCategory !== 'ALL' && p.category !== selectedCategory) return false;
       if (statusFilter === 'LOW' && p.quantity > p.minStock) return false;
@@ -132,7 +136,7 @@ export default function InventoryView({
 
       return true;
     });
-  }, [products, selectedZone, selectedCategory, statusFilter, search]);
+  }, [products, selectedZone, selectedCategory, statusFilter, search, activeHouse]);
 
   const handleAdjustQuantity = (product, delta) => {
     const newQty = Math.max(0, (product.quantity || 0) + delta);

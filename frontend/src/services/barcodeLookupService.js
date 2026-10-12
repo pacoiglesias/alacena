@@ -2,11 +2,24 @@
 // Combina: Catálogo Local (0ms) + Open Food Facts (MX y Mundial) + Open Beauty/Products Facts + UPCitemdb + Prefijos GS1 Internacionales
 
 import { extractCodeFromScan } from '../utils/scanHelper';
+import { findLearnedProduct } from './learningService';
 
 export async function lookupBarcode(rawBarcode) {
   if (!rawBarcode) return null;
   const cleanCode = extractCodeFromScan(rawBarcode).toString().trim();
   if (!cleanCode) return null;
+
+  // 0. Capa de Memoria Aprendida del Usuario (Productos ya memorizados previamente por la familia)
+  const learned = findLearnedProduct(cleanCode);
+  if (learned) {
+    return {
+      barcode: cleanCode,
+      ...learned,
+      source: 'MEMORIZED_HISTORY',
+      googleSearchUrl: `https://www.google.com/search?q=${encodeURIComponent(`${cleanCode} ${learned.name}`)}`,
+      chedrauiSearchUrl: `https://www.chedraui.com.mx/search?text=${encodeURIComponent(cleanCode)}`,
+    };
+  }
 
   // 1. Catálogo Local de Códigos de Alta Frecuencia para respuesta instantánea (0ms)
   const LOCAL_BARCODE_CATALOG = {

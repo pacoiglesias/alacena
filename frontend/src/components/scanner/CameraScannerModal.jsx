@@ -855,6 +855,10 @@ export default function CameraScannerModal({
                         <span className="text-[10px] font-bold text-emerald-400 uppercase flex items-center gap-1">
                           ✓ Encontrado en tu Despensa
                         </span>
+                      ) : scannedResult.product.source === 'MEMORIZED_HISTORY' ? (
+                        <span className="text-[10px] font-bold text-purple-400 uppercase flex items-center gap-1">
+                          🧠 Memorizado de tus Compras Anteriores
+                        </span>
                       ) : scannedResult.product.source === 'INTERNET_OPENFOODFACTS' ? (
                         <span className="text-[10px] font-bold text-sky-400 uppercase flex items-center gap-1">
                           🌐 Encontrado en Open Food Facts
