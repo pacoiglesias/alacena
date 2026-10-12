@@ -3,7 +3,7 @@ import {
   Sparkles, Volume2, VolumeX, MapPin, 
   ChevronDown, Utensils, History, Layers, RefreshCw, 
   ShoppingCart, Camera, Wine, User, Shield, Check, Sliders,
-  BookOpen, Palette, Store
+  BookOpen, Palette, Store, Sun
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { SYSTEM_VERSION } from '../changelog/ChangelogModal';
@@ -11,6 +11,7 @@ import CustomTabNamesModal, { DEFAULT_MENU_TABS, ICON_MAP } from './CustomTabNam
 import SystemManualModal from '../manual/SystemManualModal';
 import CatalogsConfigModal from '../catalogs/CatalogsConfigModal';
 import ThemeCustomizerModal from '../theme/ThemeCustomizerModal';
+import KitchenDaySummaryModal from './KitchenDaySummaryModal';
 
 export const SYSTEM_ROLES = [
   { id: 'admin', name: 'Paco I.', label: 'Patrón / Admin', icon: Shield, color: 'text-amber-400 bg-amber-500/20' },
@@ -34,7 +35,12 @@ export default function Header({
   isOnline = true,
   onFilterWines,
   onSelectZoneFilter,
-  zones = []
+  zones = [],
+  products = [],
+  shoppingList = [],
+  recipes = [],
+  onAddMissingToShoppingList,
+  onCookRecipe,
 }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeRole, setActiveRole] = useState(() => {
@@ -46,6 +52,19 @@ export default function Header({
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isCatalogsModalOpen, setIsCatalogsModalOpen] = useState(false);
+  const [isKitchenDayModalOpen, setIsKitchenDayModalOpen] = useState(false);
+
+  // Alertas críticas del día
+  const criticalAlertCount = React.useMemo(() => {
+    const now = new Date();
+    const expiring = products.filter((p) => {
+      if (!p.expirationDate) return false;
+      const diffDays = Math.ceil((new Date(p.expirationDate) - now) / (1000 * 60 * 60 * 24));
+      return diffDays <= 3 && (p.quantity || 0) > 0;
+    }).length;
+    const lowStock = products.filter((p) => (p.quantity || 0) <= (p.minStock || 0)).length;
+    return expiring + (lowStock > 0 ? 1 : 0);
+  }, [products]);
   
   // Menú dinámico configurable (renombrar, ocultar, y agregar pestañas)
   const [menuTabs, setMenuTabs] = useState(() => {
@@ -143,7 +162,7 @@ export default function Header({
                     title="Ver Ficha Técnica y Changelog Luxe"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>v3.5.3 · Enterprise Luxe</span>
+                    <span>v3.5.4 · Enterprise Luxe</span>
                   </button>
                 </div>
                 {!isScrolled && (
@@ -227,6 +246,22 @@ export default function Header({
                 </div>
               )}
             </div>
+
+            {/* Botón: Resumen Diario de Cocina */}
+            <button
+              onClick={() => {
+                audio.click();
+                setIsKitchenDayModalOpen(true);
+              }}
+              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all hover:scale-105 active:scale-95 shadow-sm"
+              title="Ver Resumen Diario de Cocina, Caducidades y Alertas de Hogar"
+            >
+              <Sun className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Día / Cocina</span>
+              {criticalAlertCount > 0 && (
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse absolute -top-0.5 -right-0.5" />
+              )}
+            </button>
 
             {/* Botón: Instructivo y Manual Completo */}
             <button
@@ -388,6 +423,18 @@ export default function Header({
         <CatalogsConfigModal
           isOpen={isCatalogsModalOpen}
           onClose={() => setIsCatalogsModalOpen(false)}
+        />
+
+        {/* Modal: Resumen Diario de Cocina & Alertas de Hogar */}
+        <KitchenDaySummaryModal
+          isOpen={isKitchenDayModalOpen}
+          onClose={() => setIsKitchenDayModalOpen(false)}
+          products={products}
+          shoppingList={shoppingList}
+          recipes={recipes}
+          activeHouse={activeHouse}
+          onAddMissingToShoppingList={onAddMissingToShoppingList}
+          onCookRecipe={onCookRecipe}
         />
 
       </div>

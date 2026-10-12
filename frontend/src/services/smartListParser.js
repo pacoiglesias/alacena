@@ -14,15 +14,20 @@ export const UNIT_SYNONYMS = {
   bolsas: ['bolsa', 'bolsas'],
   manojos: ['manojo', 'manojos'],
   charolas: ['charola', 'charolas', 'bandeja', 'bandejas'],
+  dientes: ['diente', 'dientes'],
+  cabezas: ['cabeza', 'cabezas'],
+  trozos: ['trozo', 'trozos', 'cubo', 'cubos'],
+  cucharadas: ['cucharada', 'cucharadas', 'cda', 'cdas', 'cucharadita', 'cdita'],
+  chorrito: ['chorrito', 'chorro', 'gotas'],
 };
 
 export const DEPT_KEYWORDS = {
-  'Frutas & Verduras': ['jitomate', 'tomate', 'cebolla', 'aguacate', 'limon', 'limón', 'manzana', 'platano', 'plátano', 'papa', 'cilantro', 'lechuga', 'zanahoria', 'calabaza', 'chile', 'serrano', 'jalapeño', 'fresa', 'uva', 'naranja', 'espinaca', 'apio', 'ajo', 'champignon', 'champiñon', 'moras', 'mango', 'pepino'],
-  'Carnes & Proteínas': ['carne', 'pollo', 'res', 'pechuga', 'ribeye', 'arrachera', 'molida', 'salmon', 'salmón', 'atun', 'pescado', 'camaron', 'camarón', 'tocino', 'jamon', 'jamón', 'lomo', 'costilla', 'chuleta', 'filete'],
+  'Frutas & Verduras': ['jitomate', 'tomate', 'cebolla', 'aguacate', 'limon', 'limón', 'manzana', 'platano', 'plátano', 'papa', 'cilantro', 'lechuga', 'zanahoria', 'calabaza', 'chile', 'serrano', 'jalapeño', 'fresa', 'uva', 'naranja', 'espinaca', 'apio', 'ajo', 'ajos', 'puerro', 'morrón', 'morron', 'laurel', 'champignon', 'champiñon', 'moras', 'mango', 'pepino'],
+  'Carnes & Proteínas': ['carne', 'pollo', 'res', 'pechuga', 'ribeye', 'arrachera', 'molida', 'salmon', 'salmón', 'atun', 'pescado', 'camaron', 'camarón', 'tocino', 'jamon', 'jamón', 'lomo', 'costilla', 'chuleta', 'filete', 'chorizo', 'morcilla', 'compango', 'chistorra', 'panceta'],
   'Lácteos & Huevos': ['huevo', 'huevos', 'leche', 'queso', 'crema', 'mantequilla', 'yogurt', 'yoghurt', 'parmesano', 'manchego', 'gouda', 'oaxaca'],
   'Vinos & Licores': ['vino', 'tinto', 'blanco', 'cabernet', 'malbec', 'tequila', 'mezcal', 'ron', 'whisky', 'whiskey', 'gin', 'ginebra', 'cerveza', 'champagne', 'cava', 'prosecco', 'bodega'],
-  'Aceites & Condimentos': ['aceite', 'oliva', 'sal', 'pimienta', 'vinagre', 'oregano', 'orégano', 'comino', 'canela', 'soya', 'mayonesa', 'mostaza', 'catsup'],
-  'Abarrotes': ['arroz', 'frijol', 'pasta', 'harina', 'azucar', 'azúcar', 'cereal', 'avena', 'galletas', 'pan', 'atun', 'atún', 'cafe', 'café', 'te', 'té', 'miel', 'mermelada', 'lenteja', 'garbanzo'],
+  'Aceites & Condimentos': ['aceite', 'oliva', 'sal', 'pimienta', 'vinagre', 'oregano', 'orégano', 'comino', 'canela', 'soya', 'mayonesa', 'mostaza', 'catsup', 'pimentón', 'pimenton'],
+  'Abarrotes': ['arroz', 'frijol', 'frijoles', 'negritos', 'alubia', 'alubias', 'legumbres', 'pasta', 'harina', 'azucar', 'azúcar', 'cereal', 'avena', 'galletas', 'pan', 'atun', 'atún', 'cafe', 'café', 'te', 'té', 'miel', 'mermelada', 'lenteja', 'garbanzo'],
   'Limpieza & Hogar': ['jabon', 'jabón', 'detergente', 'suavizante', 'cloro', 'papel', 'higienico', 'higiénico', 'servilleta', 'servilletas', 'bolsas de basura', 'trapeador', 'escoba', 'fabuloso', 'pinol', 'lavatrastes', 'esponja', 'aluminio', 'kleenex'],
   'Bebidas & Refrescos': ['agua', 'refresco', 'coca', 'coca-cola', 'mineral', 'peñafiel', 'jugo', 'tehuacan', 'squirt', 'sprite', 'tonica', 'tónica'],
 };
@@ -41,37 +46,51 @@ export const IGNORED_LINE_PATTERNS = [
   /^(hola|buen[ao]s|saludos|oiga|don|doña|buenas tardes|buenos días)/i,
   /^(esto falta|falta en la cocina|te paso la lista|lista del super|lista de compras|por favor|gracias|adjunto|saludos)/i,
   /^(total|subtotal|ticket|caja|cajero|fecha|folio|cambio|iva|atendido|supermercado|cliente)/i,
+  /^[🛒]\s*lista\s+de\s+compras/i,
+  /^lista\s+de\s+compras/i,
 ];
+
+// Detectar encabezados de categoría (ej: "🫘 Legumbres", "🥩 Carnes y Compango...")
+export const CATEGORY_HEADER_REGEX = /^(?:🫘|🥩|🥬|🥫|🍚|🍷|☕|🧼|🧀|🍞)\s*([A-Za-zÁÉÍÓÚáéíóúñÑ\s\/\(\)]+)/i;
 
 export function parseRawShoppingText(rawText, existingProducts = []) {
   if (!rawText || typeof rawText !== 'string') return [];
 
-  // Dividir por líneas o por comas si es una sola línea con comas
   let lines = rawText
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
 
-  // Si solo viene una línea con comas o puntos, dividir por comas
   if (lines.length === 1 && lines[0].includes(',')) {
     lines = lines[0].split(',').map((l) => l.trim()).filter(Boolean);
   }
 
   const parsedItems = [];
+  let currentDeptContext = null;
 
   for (let line of lines) {
-    // 1. Filtrar saludos o encabezados
+    // 1. Filtrar saludos o encabezados globales
     if (IGNORED_LINE_PATTERNS.some((pat) => pat.test(line))) {
       continue;
     }
 
-    // 2. Limpiar SOLO viñetas tipográficas (sin borrar números reales)
-    let cleanLine = line
-      .replace(/^[\s-*•·–—>~•]+/, '') // Quita viñetas
-      .trim();
+    // 2. Detectar si la línea es un encabezado de sección con emoji
+    const headerMatch = line.match(CATEGORY_HEADER_REGEX);
+    if (headerMatch && !line.match(/^\d/) && !line.match(/^(?:un|una|\d+)/i)) {
+      const headerTitle = headerMatch[1].toLowerCase();
+      if (headerTitle.includes('legumbre') || headerTitle.includes('abarrote')) currentDeptContext = 'Abarrotes';
+      else if (headerTitle.includes('carne') || headerTitle.includes('compango')) currentDeptContext = 'Carnes & Proteínas';
+      else if (headerTitle.includes('verdura') || headerTitle.includes('aromatic')) currentDeptContext = 'Frutas & Verduras';
+      else if (headerTitle.includes('especia') || headerTitle.includes('despensa')) currentDeptContext = 'Aceites & Condimentos';
+      else if (headerTitle.includes('arroz')) currentDeptContext = 'Abarrotes';
+      continue;
+    }
 
-    // 3. Quitar enumeración de lista como "1. ", "2) ", "10.- " solo si va seguido de espacio
-    cleanLine = cleanLine.replace(/^\d+[\.\)\-]+\s+/, '').trim();
+    // 3. Limpiar viñetas tipográficas y enumeraciones
+    let cleanLine = line
+      .replace(/^[\s-*•·–—>~•]+/, '')
+      .replace(/^\d+[\.\)\-]+\s+/, '')
+      .trim();
 
     if (!cleanLine || cleanLine.length < 2) continue;
 
@@ -89,21 +108,22 @@ export function parseRawShoppingText(rawText, existingProducts = []) {
       }
     }
 
-    // 4. Quitar códigos de barras o números EAN de ticket al inicio (ej: "7501000111223 HARINA")
+    // Quitar códigos de barras numéricos al inicio
     cleanLine = cleanLine.replace(/^\d{8,14}\s+/, '').trim();
 
-    // 5. Detectar cantidad
+    // Detectar expresiones coloquiales como "Un chorrito de...", "Un/Una..."
+    cleanLine = cleanLine.replace(/^un\s+chorrito\s+de\s+/i, '1 chorrito ');
+    cleanLine = cleanLine.replace(/^un[a]?\s+/i, '1 ');
+
+    // 4. Detectar cantidad
     let quantity = 1;
     let unit = 'piezas';
-    let productName = cleanLine;
 
-    // 5a. Detectar fracciones tipo "1/2", "1/4", "3/4"
     const fractionMatch = cleanLine.match(/^(\d+)\/(\d+)\s*/);
     if (fractionMatch) {
       quantity = parseFloat((parseInt(fractionMatch[1], 10) / parseInt(fractionMatch[2], 10)).toFixed(2));
       cleanLine = cleanLine.replace(fractionMatch[0], '').trim();
     } else {
-      // 5b. Detectar número entero o decimal al inicio
       const numberMatch = cleanLine.match(/^(\d+(?:[.,]\d+)?)\s*/);
       if (numberMatch) {
         quantity = parseFloat(numberMatch[1].replace(',', '.'));
@@ -111,7 +131,7 @@ export function parseRawShoppingText(rawText, existingProducts = []) {
       }
     }
 
-    // 6. Detectar unidad de medida después del número
+    // 5. Detectar unidad de medida después del número
     let words = cleanLine.split(/\s+/);
     if (words.length > 0) {
       const firstWordLower = words[0].toLowerCase();
@@ -126,8 +146,7 @@ export function parseRawShoppingText(rawText, existingProducts = []) {
 
       if (matchedUnit) {
         unit = matchedUnit;
-        words.shift(); // Quitar la palabra de la unidad
-        // Si la siguiente palabra es "de" o "del", quitarla también
+        words.shift();
         if (words.length > 0 && ['de', 'del', 'd'].includes(words[0].toLowerCase())) {
           words.shift();
         }
@@ -135,7 +154,7 @@ export function parseRawShoppingText(rawText, existingProducts = []) {
       }
     }
 
-    // 7. También detectar unidad al FINAL de la línea (muy común en tickets: "HARINA DE TRIGO 1 KG")
+    // 6. Detectar unidad al final de la línea si no se encontró al inicio
     words = cleanLine.split(/\s+/);
     if (words.length >= 2) {
       const lastWordLower = words[words.length - 1].toLowerCase();
@@ -143,7 +162,6 @@ export function parseRawShoppingText(rawText, existingProducts = []) {
         if (synonyms.includes(lastWordLower)) {
           unit = standardUnit;
           words.pop();
-          // Si el penúltimo es un número ej: "1", extraerlo como cantidad si aún era 1
           if (words.length > 0 && /^\d+(?:[.,]\d+)?$/.test(words[words.length - 1])) {
             quantity = parseFloat(words[words.length - 1].replace(',', '.'));
             words.pop();
@@ -154,15 +172,14 @@ export function parseRawShoppingText(rawText, existingProducts = []) {
       }
     }
 
-    // Capitalizar nombre
-    productName = cleanLine
-      .replace(/^[de\s]+/i, '') // quita "de " residual al principio
-      .trim();
+    // Quitar "de " residual al principio de forma precisa
+    cleanLine = cleanLine.replace(/^(?:de|del|d)\s+/i, '').trim();
 
+    let productName = cleanLine;
     if (!productName || productName.length < 2) continue;
 
-    // Normalizar capitalización agradable
-    productName = productName.charAt(0).toUpperCase() + productName.slice(1).toLowerCase();
+    // Capitalizar primera letra respetando el resto del texto
+    productName = productName.charAt(0).toUpperCase() + productName.slice(1);
 
     // Cruzar con productos existentes en el inventario de casa para enriquecer
     const prodLower = productName.toLowerCase();
@@ -172,7 +189,7 @@ export function parseRawShoppingText(rawText, existingProducts = []) {
     });
 
     // Inferencia de Departamento
-    let department = 'Abarrotes';
+    let department = currentDeptContext || 'Abarrotes';
     if (matchedPantryProd?.category) {
       department = matchedPantryProd.category;
     } else {
@@ -195,22 +212,30 @@ export function parseRawShoppingText(rawText, existingProducts = []) {
       }
     }
 
-    // Precio estimado en MXN
-    const estimatedPriceMxn = matchedPantryProd?.price || (department.includes('Vinos') ? 850 : 45);
-    const targetZone = matchedPantryProd?.zone || (department.includes('Vinos') ? 'Cava Subterránea' : 'Alacena Principal');
+    // Precios referenciales según departamento
+    let estimatedPriceMxn = 45.0;
+    if (department.includes('Carnes')) estimatedPriceMxn = 120.0;
+    if (department.includes('Aceites') && prodLower.includes('oliva')) estimatedPriceMxn = 220.0;
+    if (prodLower.includes('pimentón') || prodLower.includes('pimenton')) estimatedPriceMxn = 95.0;
+    if (prodLower.includes('morcilla') || prodLower.includes('chorizo')) estimatedPriceMxn = 85.0;
+    if (prodLower.includes('tocino')) estimatedPriceMxn = 55.0;
+
+    const targetZone = matchedPantryProd?.zone || (
+      department.includes('Carnes') ? 'Refrigerador' : 
+      department.includes('Frutas') ? 'Alacena Fresca' : 
+      'Alacena Principal'
+    );
 
     parsedItems.push({
-      id: `import-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      id: `shop-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       name: productName,
-      quantity: quantity || 1,
-      unit: matchedPantryProd?.unit || unit,
+      quantity,
+      unit,
       department,
       store,
       estimatedPriceMxn,
       targetZone,
       checked: false,
-      isImported: true,
-      matchedInPantry: Boolean(matchedPantryProd),
     });
   }
 

@@ -14,6 +14,8 @@ import PantryQrBookletModal from './PantryQrBookletModal';
 import QuickStaffShoppingModal from './QuickStaffShoppingModal';
 import PrintableShoppingListModal from './PrintableShoppingListModal';
 import SmartListImportModal from './SmartListImportModal';
+import ReceiptReconciliationModal from './ReceiptReconciliationModal';
+import WeeklyStaplesModal from './WeeklyStaplesModal';
 import { getCatalogs } from '../../services/catalogsService';
 import { areItemsEquivalent, deduplicateShoppingItems } from '../../utils/deduplication';
 
@@ -68,6 +70,8 @@ export default function ShoppingListView({
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isWalkingMode, setIsWalkingMode] = useState(false);
   const [isSmartImportOpen, setIsSmartImportOpen] = useState(false);
+  const [isReconciliationOpen, setIsReconciliationOpen] = useState(false);
+  const [isWeeklyStaplesOpen, setIsWeeklyStaplesOpen] = useState(false);
 
   // Batch import callback con desduplicación previa
   const handleBatchImportItems = (importedItems) => {
@@ -234,17 +238,8 @@ export default function ShoppingListView({
       alert('Toca los artículos que ya compraste para marcarlos con palomita verde antes de guardar.');
       return;
     }
-
-    audio.cook();
-    try {
-      confetti({
-        particleCount: 90,
-        spread: 80,
-        origin: { y: 0.6 },
-      });
-    } catch (_) {}
-
-    onCompletePurchaseToPantry(checkedItems);
+    audio.click();
+    setIsReconciliationOpen(true);
   };
 
   return (
@@ -324,6 +319,19 @@ export default function ShoppingListView({
           >
             <Sparkles className="w-4 h-4 text-amber-200" />
             <span>📝 ¿Qué Falta en Casa?</span>
+          </button>
+
+          {/* 1.2. Canasta Básica Semanal en 1 Toque */}
+          <button
+            onClick={() => {
+              audio.click();
+              setIsWeeklyStaplesOpen(true);
+            }}
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 transition-all shadow-sm hover:scale-105 active:scale-95"
+            title="Agregar insumos esenciales y recurrentes del hogar sin escribir"
+          >
+            <ShoppingBag className="w-4 h-4 text-amber-300" />
+            <span>🧺 Canasta Básica</span>
           </button>
 
           {/* 1.5. Importador Inteligente / OCR */}
@@ -986,6 +994,27 @@ export default function ShoppingListView({
         onImportItems={handleBatchImportItems}
         existingProducts={products}
         zones={zones}
+      />
+
+      {/* Modal: Reconciliación de Ticket y Costo Real de Compra */}
+      <ReceiptReconciliationModal
+        isOpen={isReconciliationOpen}
+        onClose={() => setIsReconciliationOpen(false)}
+        checkedItems={enrichedList.filter((i) => i.checked)}
+        onConfirmPurchase={(purchasePayload) => {
+          onCompletePurchaseToPantry(purchasePayload);
+        }}
+      />
+
+      {/* Modal: Canasta Básica Semanal del Hogar */}
+      <WeeklyStaplesModal
+        isOpen={isWeeklyStaplesOpen}
+        onClose={() => setIsWeeklyStaplesOpen(false)}
+        shoppingList={shoppingList}
+        products={products}
+        onAddStaples={(items) => {
+          items.forEach((it) => onAddItem(it));
+        }}
       />
 
 

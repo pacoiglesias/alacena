@@ -504,8 +504,16 @@ export default function App() {
     }
   };
 
-  const handleCompletePurchaseToPantry = (checkedItems) => {
-    let totalPurchasedMxn = 0;
+  const handleCompletePurchaseToPantry = (purchasePayload) => {
+    const isPayloadObj = !Array.isArray(purchasePayload) && purchasePayload?.checkedItems;
+    const checkedItems = isPayloadObj ? purchasePayload.checkedItems : purchasePayload;
+    const realTotalPurchased = isPayloadObj && purchasePayload.realTotalMxn !== undefined 
+      ? purchasePayload.realTotalMxn 
+      : null;
+    const buyer = isPayloadObj?.buyerName || 'Administrador General';
+    const notes = isPayloadObj?.ticketNotes || '';
+
+    let totalEstimatedPurchasedMxn = 0;
 
     // Transferir al inventario
     setProducts((prev) => {
@@ -517,7 +525,7 @@ export default function App() {
         );
 
         const cost = (purchased.quantity || 1) * (purchased.estimatedPriceMxn || 0);
-        totalPurchasedMxn += cost;
+        totalEstimatedPurchasedMxn += cost;
 
         if (existingIdx >= 0) {
           const existing = currentList[existingIdx];
@@ -525,6 +533,7 @@ export default function App() {
             ...existing,
             quantity: parseFloat(((existing.quantity || 0) + (purchased.quantity || 1)).toFixed(2)),
             unitPriceMxn: purchased.estimatedPriceMxn > 0 ? purchased.estimatedPriceMxn : existing.unitPriceMxn,
+            lastLoggedBy: buyer,
             updatedAt: new Date().toISOString(),
           };
         } else {
@@ -539,7 +548,7 @@ export default function App() {
             idealStock: 5,
             unitPriceMxn: purchased.estimatedPriceMxn || 0,
             store: purchased.store || 'Supermercado',
-            lastLoggedBy: 'Administrador General (Recepción Compra)',
+            lastLoggedBy: `${buyer} (Recepción Compra)`,
             updatedAt: new Date().toISOString(),
           });
         }
@@ -551,6 +560,8 @@ export default function App() {
     // Limpiar comprados de la lista de compras
     const checkedIds = new Set(checkedItems.map((i) => i.id));
     setShoppingList((prev) => prev.filter((i) => !checkedIds.has(i.id)));
+
+    const finalRecordedTotal = realTotalPurchased !== null ? realTotalPurchased : totalEstimatedPurchasedMxn;
 
     // Guardar en historial de compras para devoluciones o anulaciones
     const newReceipt = {
@@ -566,16 +577,19 @@ export default function App() {
         zone: i.targetZone || 'Alacena Principal',
         reversed: false,
       })),
-      totalMxn: totalPurchasedMxn,
+      totalMxn: finalRecordedTotal,
+      estimatedMxn: totalEstimatedPurchasedMxn,
+      buyer,
+      notes,
     };
     setPurchaseHistory((prev) => [newReceipt, ...prev.slice(0, 30)]);
 
     // Registrar en auditoría
     addAuditEntry(
-      'Administrador General',
+      buyer,
       'INGRESO_COMPRA_SUPER',
-      `Ingresó compra de ${checkedItems.length} artículos a la residencia`,
-      `Valor total ingresado: $${totalPurchasedMxn.toFixed(2)} MXN`
+      `Ingresó compra de ${checkedItems.length} artículos a la residencia por ${buyer}`,
+      `Importe cobrado en ticket: $${finalRecordedTotal.toFixed(2)} MXN (Estimado: $${totalEstimatedPurchasedMxn.toFixed(2)} MXN)${notes ? ` · Notas: ${notes}` : ''}`
     );
 
     setActiveTab('inventory');
@@ -776,6 +790,9 @@ export default function App() {
         onToggleMute={handleToggleMute}
         isOnline={isOnline}
         zones={zones}
+        products={products}
+        shoppingList={shoppingList}
+        recipes={recipes}
       />
 
       {/* Main Body */}

@@ -61,6 +61,39 @@ export default function RecipesView({
     { productName: '', amount: 1, unit: 'kg' },
   ]);
 
+  // Detección proactiva de recetas para rescate de insumos (Chef Zero-Waste)
+  const zeroWasteSuggestions = useMemo(() => {
+    const now = new Date();
+    // Insumos que caducan en <= 6 días con existencia
+    const expiring = products.filter((p) => {
+      if (!p.expirationDate || (p.quantity || 0) <= 0) return false;
+      const diffDays = Math.ceil((new Date(p.expirationDate) - now) / (1000 * 60 * 60 * 24));
+      return diffDays <= 6;
+    });
+
+    if (expiring.length === 0 || recipes.length === 0) return [];
+
+    const matched = [];
+    recipes.forEach((recipe) => {
+      const rescued = [];
+      recipe.ingredients?.forEach((ing) => {
+        const found = expiring.find((ep) => areItemsEquivalent(ep.name, ing.productName));
+        if (found) {
+          rescued.push(found);
+        }
+      });
+
+      if (rescued.length > 0) {
+        matched.push({
+          recipe,
+          rescuedItems: rescued,
+        });
+      }
+    });
+
+    return matched.slice(0, 2);
+  }, [products, recipes]);
+
   // Evaluar receta con porciones escaladas
   const evaluateRecipeWithPortions = (recipe, customPortions = null) => {
     const basePortions = recipe.portions || 1;
@@ -253,6 +286,43 @@ export default function RecipesView({
           <span>+ Agregar Nueva Receta</span>
         </button>
       </div>
+
+      {/* Banner Proactivo: Chef Zero-Waste / Rescate de Insumos */}
+      {zeroWasteSuggestions.length > 0 && (
+        <div className="p-5 rounded-3xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-transparent border border-amber-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fade-in shadow-lg">
+          <div className="flex items-start gap-3.5">
+            <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+              <Sparkles className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-amber-300">
+                  💡 Chef Zero-Waste · Rescate de Insumos Próximos a Vencer
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-amber-500/25 text-amber-200 text-[10px] font-bold">
+                  Recomendado Hoy
+                </span>
+              </div>
+              <p className="text-xs text-white font-medium mt-1">
+                Detectamos ingredientes en alacena que vencen pronto ({zeroWasteSuggestions[0].rescuedItems.map(i => i.name).join(', ')}). 
+                ¡Aprovecha para cocinar <strong>{zeroWasteSuggestions[0].recipe.name}</strong> y evitar desperdicio!
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
+            <button
+              onClick={() => {
+                handleOpenCookMode(zeroWasteSuggestions[0].recipe);
+              }}
+              className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:brightness-110 shadow-md shadow-amber-950/40 transition-all active:scale-95"
+            >
+              <Flame className="w-4 h-4 text-amber-200" />
+              <span>🍳 Cocinar {zeroWasteSuggestions[0].recipe.name}</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Recipes Empty State */}
       {recipes.length === 0 ? (

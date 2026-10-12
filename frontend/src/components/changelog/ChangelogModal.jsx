@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.5.3-Enterprise-Luxe';
+export const SYSTEM_VERSION = 'v3.5.4-Enterprise-Luxe';
 export const RELEASE_DATE = '12 Octubre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
@@ -160,14 +160,48 @@ export default function ChangelogModal({ isOpen, onClose }) {
         {activeTab === 'changelog' && (
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             
+            {/* Release v3.5.4-Enterprise-Luxe */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-emerald-500 shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
+                    v3.5.4-Enterprise-Luxe
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">12 Octubre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2 font-display">
+                Reconciliación de Ticket de Compra, Canasta Básica Semanal, Resumen Diario y Chef Zero-Waste
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Reconciliación y Recepción de Ticket de Supermercado:</strong> Al ingresar las compras a la despensa, modal interactivo para declarar el cobro real de caja en $ MXN, quién realizó la compra (chofer, cocinera, etc.) y desglose de ahorro/varianza contra el estimado.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Canasta Básica Semanal del Hogar:</strong> Botón directo en la lista de compras que despliega los 12 insumos indispensables de la casa para agregarlos a la lista en 1 toque sin escribir.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Resumen Diario de Cocina & WhatsApp:</strong> Centro matutino en el encabezado que resume alimentos por caducar en ≤4 días, faltantes de stock y botón para enviar el reporte formateado a la cocinera por WhatsApp.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Chef Zero-Waste (Rescate de Insumos):</strong> Detector en el recetario que cruza ingredientes perecederos próximos a vencer con las recetas disponibles para sugerir qué cocinar de inmediato.</span>
+                </li>
+              </ul>
+            </div>
+
             {/* Release v3.5.3-Enterprise-Luxe */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-[#E0B441] shadow-xl">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-[#2A2521] shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-[#E0B441] bg-[#E0B441]/20 border border-[#E0B441]/40 rounded-lg font-mono">
                     v3.5.3-Enterprise-Luxe
                   </span>
-                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                  <span className="text-xs font-semibold text-gray-400">ANTERIOR</span>
                 </div>
                 <span className="text-xs text-gray-400">12 Octubre 2026</span>
               </div>
