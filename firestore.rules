@@ -30,10 +30,12 @@ service cloud.firestore {
 
     // Rol Admin / Owner del Workspace (Control total: precios, auditoría, configuración)
     function isWorkspaceAdmin(workspaceId) {
-      return isWorkspaceMember(workspaceId) && (
-        request.auth.token.role in ['admin', 'owner', 'superadmin'] ||
-        getWorkspaceMember(workspaceId).role in ['admin', 'owner']
-      );
+      return isWorkspaceMember(workspaceId) &&
+        exists(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid)) &&
+        (
+          request.auth.token.role in ['admin', 'owner', 'superadmin'] ||
+          get(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid)).data.role in ['admin', 'owner']
+        );
     }
 
     // Rol Servicio del Workspace (Operación rápida: consumir, reabastecer; CERO acceso financiero)
