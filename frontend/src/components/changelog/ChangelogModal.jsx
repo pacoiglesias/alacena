@@ -5,8 +5,8 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.5.0-Enterprise-Luxe';
-export const RELEASE_DATE = '11 Octubre 2026';
+export const SYSTEM_VERSION = 'v3.5.1-Enterprise-Luxe';
+export const RELEASE_DATE = '12 Octubre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState('changelog'); // 'changelog' | 'plan30'
@@ -160,14 +160,44 @@ export default function ChangelogModal({ isOpen, onClose }) {
         {activeTab === 'changelog' && (
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             
-            {/* Release v3.5.0-Enterprise-Luxe */}
+            {/* Release v3.5.1-Enterprise-Luxe */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-[#E0B441] shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-[#E0B441] bg-[#E0B441]/20 border border-[#E0B441]/40 rounded-lg font-mono">
-                    v3.5.0-Enterprise-Luxe
+                    v3.5.1-Enterprise-Luxe
                   </span>
                   <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">12 Octubre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2 font-display">
+                Resolución de Hojas QR en Blanco, Vectorización PDF Real y Aislamiento de Impresión
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Corrección de Hook Ordering en Modal QR:</strong> Eliminación de condición temprana que rompía la ejecución de React (#310), asegurando apertura instantánea sin pantallas blancas.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Aislamiento CSS @media print:</strong> Desbloqueo de contenedores con scroll para que la impresión física (`window.print()`) pagine limpiamente en papel blanco con tinta negra de máximo contraste.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Motor Vectorial de QR con qrcode:</strong> Generación de matrices QR reales en los 4 formatos (Stickers para frascos, Tablero maestro de cocina, Collarines de cava y Catálogo) para escaneo 100% certero con teléfonos móviles.</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Release v3.5.0-Enterprise-Luxe */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-white/10 opacity-80">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-gray-400 bg-white/5 border border-white/10 rounded-lg font-mono">
+                    v3.5.0-Enterprise-Luxe
+                  </span>
+                  <span className="text-xs font-medium text-gray-400">PREVIO</span>
                 </div>
                 <span className="text-xs text-gray-400">11 Octubre 2026</span>
               </div>

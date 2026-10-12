@@ -1,25 +1,28 @@
 // Generador Oficial de PDFs Vectoriales para Impresión Perfecta de Códigos QR
-// Produce documentos A4 / Carta milimétricamente calibrados con líneas de corte (✂️)
-// Garantiza 0% de gasto de tinta innecesaria y 100% de nitidez en cualquier impresora.
+// Produce documentos Carta milimétricamente calibrados con códigos QR reales y nítidos.
+// Garantiza 0% de gasto de tinta innecesaria y 100% de legibilidad en cualquier escáner móvil.
 
 import jsPDF from 'jspdf';
+import QRCode from 'qrcode';
 
 /**
- * Convierte un código QR a un DataURL de imagen PNG en memoria usando un canvas temporal
+ * Convierte un código QR a un DataURL de imagen PNG en memoria usando la librería oficial QRCode
  */
-function createQrDataUrl(text, size = 200) {
-  // Usamos el renderizado de svg/canvas si está disponible o generamos mediante un canvas virtual
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  
-  // Fondo blanco
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(0, 0, size, size);
-
-  // Intentamos clonar desde un SVG en el DOM si existe, o usamos canvas básico
-  return canvas.toDataURL('image/png');
+async function createQrDataUrl(text, size = 256) {
+  try {
+    return await QRCode.toDataURL(text, {
+      width: size,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF',
+      },
+      errorCorrectionLevel: 'M',
+    });
+  } catch (err) {
+    console.warn('Error generating QR code data URL:', err);
+    return null;
+  }
 }
 
 /**
@@ -43,7 +46,6 @@ export async function generateQrPdf({
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 10;
   const dateStr = new Date().toLocaleDateString('es-MX');
   const houseName = (activeHouse?.name || 'RESIDENCIA PRINCIPAL').toUpperCase();
@@ -88,7 +90,7 @@ export async function generateQrPdf({
       const p = items[i];
       const barcode = p.barcode || `ALC-${(p.id || '').replace('prod-', '').toUpperCase()}`;
 
-      // Salto de página cada 12 etiquetas
+      // Salto de página cada 12 etiquetas (4 filas)
       if (row >= 4) {
         doc.addPage();
         pageCount++;
@@ -134,34 +136,24 @@ export async function generateQrPdf({
       doc.text(`${p.quantity || 1} ${p.unit || 'piezas'} • ${p.category || 'Abarrotes'}`, x + 3, y + 17);
 
       // Caja de Código QR
-      const qrBoxSize = 21;
+      const qrBoxSize = 22;
       const qrX = x + (cardWidth - qrBoxSize) / 2;
-      const qrY = y + 19;
+      const qrY = y + 18.5;
 
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.2);
-      doc.rect(qrX, qrY, qrBoxSize, qrBoxSize, 'S');
-
-      // Dibujar QR simulado vector nítido con cuadritos representativos de alta densidad
-      doc.setFillColor(0, 0, 0);
-      // Marcos esquineros de QR (Finder patterns)
-      doc.rect(qrX + 1.5, qrY + 1.5, 5, 5, 'F');
-      doc.rect(qrX + qrBoxSize - 6.5, qrY + 1.5, 5, 5, 'F');
-      doc.rect(qrX + 1.5, qrY + qrBoxSize - 6.5, 5, 5, 'F');
-      doc.setFillColor(255, 255, 255);
-      doc.rect(qrX + 2.5, qrY + 2.5, 3, 3, 'F');
-      doc.rect(qrX + qrBoxSize - 5.5, qrY + 2.5, 3, 3, 'F');
-      doc.rect(qrX + 2.5, qrY + qrBoxSize - 5.5, 3, 3, 'F');
-      doc.setFillColor(0, 0, 0);
-      doc.rect(qrX + 3.2, qrY + 3.2, 1.6, 1.6, 'F');
-      doc.rect(qrX + qrBoxSize - 4.8, qrY + 3.2, 1.6, 1.6, 'F');
-      doc.rect(qrX + 3.2, qrY + qrBoxSize - 4.8, 1.6, 1.6, 'F');
+      // Código QR Real
+      const qrDataUrl = await createQrDataUrl(barcode, 256);
+      if (qrDataUrl) {
+        doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrBoxSize, qrBoxSize);
+      } else {
+        doc.setDrawColor(180, 180, 180);
+        doc.rect(qrX, qrY, qrBoxSize, qrBoxSize, 'S');
+      }
 
       // Clave alfanumérica centrada
       doc.setFont('courier', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(20, 20, 20);
-      doc.text(barcode, x + (cardWidth / 2), y + 43, { align: 'center' });
+      doc.text(barcode, x + (cardWidth / 2), y + 43.5, { align: 'center' });
 
       // Líneas para escribir a mano fecha de envasado / caducidad
       doc.setFont('helvetica', 'normal');
@@ -190,11 +182,11 @@ export async function generateQrPdf({
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.setTextColor(50, 50, 50);
-    doc.text('📌 INSTRUCCIONES: Pega esta hoja en la puerta interior de la alacena. Con el celular, escanea cualquier código para:', margin + 3, 26);
+    doc.text('📌 INSTRUCCIONES: Pega esta hoja en la puerta de la alacena. Con el celular, escanea cualquier código para:', margin + 3, 26);
     doc.setTextColor(20, 100, 50);
-    doc.text('🛒 Pedir al Súper (+1 a la lista)', margin + 115, 26);
+    doc.text('🛒 Pedir al Súper (+1 a lista)', margin + 115, 26);
     doc.setTextColor(140, 50, 20);
-    doc.text('➖ Registrar Salida de Cocina', margin + 155, 26);
+    doc.text('➖ Registrar Salida', margin + 155, 26);
 
     const cols = 3;
     const itemWidth = (pageWidth - (margin * 2) - 6) / cols;
@@ -226,16 +218,15 @@ export async function generateQrPdf({
       doc.setLineWidth(0.2);
       doc.rect(x, y, itemWidth, itemHeight, 'S');
 
-      // Cuadrado QR
-      const qrSize = 16;
-      doc.setDrawColor(180, 180, 180);
-      doc.rect(x + 2, y + 3, qrSize, qrSize, 'S');
-
-      // QR Finder patterns
-      doc.setFillColor(0, 0, 0);
-      doc.rect(x + 3, y + 4, 3.5, 3.5, 'F');
-      doc.rect(x + qrSize - 2.5, y + 4, 3.5, 3.5, 'F');
-      doc.rect(x + 3, y + qrSize - 1.5, 3.5, 3.5, 'F');
+      // Cuadrado QR Real
+      const qrSize = 17;
+      const qrDataUrl = await createQrDataUrl(barcode, 200);
+      if (qrDataUrl) {
+        doc.addImage(qrDataUrl, 'PNG', x + 2, y + 2.5, qrSize, qrSize);
+      } else {
+        doc.setDrawColor(180, 180, 180);
+        doc.rect(x + 2, y + 2.5, qrSize, qrSize, 'S');
+      }
 
       // Datos a la derecha del QR
       const textX = x + qrSize + 4;
@@ -344,18 +335,18 @@ export async function generateQrPdf({
       doc.setTextColor(80, 80, 80);
       doc.text(`${p.category || 'Vino Tinto'} • ${p.zone || 'Cava'}`, circleCenterX, y + 66, { align: 'center' });
 
-      // QR Code en el collarín
+      // QR Code Real en el collarín
       const qrSize = 22;
       const qrX = x + (tagWidth - qrSize) / 2;
       const qrY = y + 70;
 
-      doc.setDrawColor(180, 180, 180);
-      doc.rect(qrX, qrY, qrSize, qrSize, 'S');
-
-      doc.setFillColor(0, 0, 0);
-      doc.rect(qrX + 2, qrY + 2, 5, 5, 'F');
-      doc.rect(qrX + qrSize - 7, qrY + 2, 5, 5, 'F');
-      doc.rect(qrX + 2, qrY + qrSize - 7, 5, 5, 'F');
+      const qrDataUrl = await createQrDataUrl(barcode, 256);
+      if (qrDataUrl) {
+        doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+      } else {
+        doc.setDrawColor(180, 180, 180);
+        doc.rect(qrX, qrY, qrSize, qrSize, 'S');
+      }
 
       // Clave
       doc.setFont('courier', 'bold');
@@ -367,6 +358,79 @@ export async function generateQrPdf({
       doc.setFontSize(6);
       doc.setTextColor(110, 110, 110);
       doc.text('Escanear al descorchar para registrar salida', circleCenterX, y + 104, { align: 'center' });
+
+      col++;
+      if (col >= cols) {
+        col = 0;
+        row++;
+      }
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // FORMATO 4: CATÁLOGO DE ALMACÉN (2 Columnas, Estilo Libro / Auditoría)
+  // ═════════════════════════════════════════════════════════════════════════
+  else if (format === 'CATALOG') {
+    drawPageHeader('CATÁLOGO FÍSICO DE ALMACÉN & ALACENA DE COCINA');
+
+    const cols = 2;
+    const itemWidth = (pageWidth - (margin * 2) - 6) / cols;
+    const itemHeight = 24; // mm
+    const startY = 24;
+
+    let col = 0;
+    let row = 0;
+    let pageCount = 1;
+
+    for (let i = 0; i < items.length; i++) {
+      const p = items[i];
+      const barcode = p.barcode || `ALC-${(p.id || '').replace('prod-', '').toUpperCase()}`;
+
+      // Salto de página cada 18 productos (9 filas)
+      if (row >= 9) {
+        doc.addPage();
+        pageCount++;
+        drawPageHeader(`CATÁLOGO DE ALMACÉN (Hoja ${pageCount})`);
+        row = 0;
+        col = 0;
+      }
+
+      const x = margin + (col * (itemWidth + 6));
+      const y = startY + (row * (itemHeight + 3));
+
+      // Borde de la celda
+      doc.setDrawColor(210, 210, 210);
+      doc.setLineWidth(0.2);
+      doc.roundedRect(x, y, itemWidth, itemHeight, 1.5, 1.5, 'S');
+
+      // Cuadrado QR Real
+      const qrSize = 18;
+      const qrDataUrl = await createQrDataUrl(barcode, 200);
+      if (qrDataUrl) {
+        doc.addImage(qrDataUrl, 'PNG', x + 2.5, y + 3, qrSize, qrSize);
+      } else {
+        doc.setDrawColor(180, 180, 180);
+        doc.rect(x + 2.5, y + 3, qrSize, qrSize, 'S');
+      }
+
+      // Datos a la derecha del QR
+      const textX = x + qrSize + 5;
+      doc.setFont('courier', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(180, 70, 30);
+      doc.text(barcode, textX, y + 5);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(20, 20, 20);
+      const splitName = doc.splitTextToSize(p.name, itemWidth - qrSize - 7);
+      doc.text(splitName[0] || '', textX, y + 9.5);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(90, 90, 90);
+      doc.text(`Ubicación: ${p.zone || 'Alacena'} • Categoría: ${p.category || 'General'}`, textX, y + 14);
+      doc.text(`Stock: ${p.quantity || 0} ${p.unit || ''} • Tienda: ${p.store || 'Supermercado'}`, textX, y + 18.5);
 
       col++;
       if (col >= cols) {
