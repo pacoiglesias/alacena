@@ -619,6 +619,23 @@ export default function App() {
             staffList={staffList}
             onCookRecipe={handleCookRecipe}
             onCreateRecipe={handleCreateRecipe}
+            onAddMissingToShoppingList={(missingItems) => {
+              missingItems.forEach((item) => {
+                const deficit = Math.max(1, (item.required || 1) - (item.available || 0));
+                handleAddShoppingItem({
+                  id: `shop-${Date.now()}-${item.name}`,
+                  name: item.name,
+                  quantity: deficit,
+                  unit: item.unit || 'kg',
+                  department: 'ABARROTES',
+                  store: 'Supermercado',
+                  estimatedPriceMxn: 0,
+                  targetZone: 'Alacena Principal',
+                  checked: false,
+                });
+              });
+              setActiveTab('shopping');
+            }}
           />
         )}
 

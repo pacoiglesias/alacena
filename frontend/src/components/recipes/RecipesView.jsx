@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Utensils, ChefHat, CheckCircle2, AlertCircle, Sparkles, 
-  Plus, Users, DollarSign, X, Check 
+  Plus, Users, DollarSign, X, Check, ShoppingCart 
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
@@ -12,6 +12,7 @@ export default function RecipesView({
   staffList,
   onCookRecipe,
   onCreateRecipe,
+  onAddMissingToShoppingList,
 }) {
   const [cookingRecipe, setCookingRecipe] = useState(null);
   const [selectedStaff, setSelectedStaff] = useState('');
@@ -230,9 +231,9 @@ export default function RecipesView({
                     <span>🍳 Cocinar y Descontar</span>
                   </button>
                 ) : (
-                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
+                  <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs space-y-2">
                     <div className="flex items-center gap-1.5 font-bold mb-1">
-                      <AlertCircle className="w-3.5 h-3.5" />
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
                       <span>Faltan Insumos en Alacena:</span>
                     </div>
                     <ul className="text-[11px] text-gray-400 list-disc list-inside">
@@ -242,6 +243,18 @@ export default function RecipesView({
                         </li>
                       ))}
                     </ul>
+                    {onAddMissingToShoppingList && (
+                      <button
+                        onClick={() => {
+                          audio.success();
+                          onAddMissingToShoppingList(evalResult.missingIngredients);
+                        }}
+                        className="w-full py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/35 text-amber-300 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                      >
+                        <ShoppingCart className="w-3.5 h-3.5" />
+                        <span>🛒 Agregar Faltantes al Súper (1 Clic)</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
