@@ -3,7 +3,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import { 
   X, Printer, BookOpen, Search, Sparkles, 
   ShoppingCart, Check, Layers, Wine, Warehouse, 
-  Scissors, Tag, Filter, FileText, CheckCircle2
+  Scissors, Tag, Filter, FileText, CheckCircle2,
+  Plus, Minus, CheckSquare, Square
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
@@ -18,47 +19,73 @@ export default function PantryQrBookletModal({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedZoneFilter, setSelectedZoneFilter] = useState('ALL');
   const [printFormat, setPrintFormat] = useState('STICKERS'); // 'STICKERS' | 'WINE_TAGS' | 'CATALOG'
-  const [addedItems, setAddedItems] = useState({});
+  const [selectedProductIds, setSelectedProductIds] = useState(() => new Set(products.map(p => p.id)));
+  const [copiesPerProduct, setCopiesPerProduct] = useState({});
 
   if (!isOpen) return null;
 
   // Filtrado de insumos
   const filteredProducts = products.filter((p) => {
     const matchesZone = selectedZoneFilter === 'ALL' || p.zone === selectedZoneFilter;
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (p.category || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (p.category || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (p.barcode || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchesZone && matchesSearch;
   });
+
+  // Toggle selección de un producto individual
+  const toggleSelectProduct = (id) => {
+    setSelectedProductIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Seleccionar / Deseleccionar todos
+  const toggleSelectAll = () => {
+    if (selectedProductIds.size === filteredProducts.length) {
+      setSelectedProductIds(new Set());
+    } else {
+      setSelectedProductIds(new Set(filteredProducts.map(p => p.id)));
+    }
+  };
+
+  // Manejar copias por producto
+  const handleCopiesChange = (id, delta) => {
+    setCopiesPerProduct(prev => {
+      const current = prev[id] || 1;
+      const next = Math.max(1, Math.min(10, current + delta));
+      return { ...prev, [id]: next };
+    });
+  };
+
+  // Lista final a imprimir multiplicada por copias
+  const printableList = useMemo(() => {
+    const list = [];
+    filteredProducts.forEach(p => {
+      if (selectedProductIds.has(p.id)) {
+        const copies = copiesPerProduct[p.id] || 1;
+        for (let i = 0; i < copies; i++) {
+          list.push({ ...p, copyIndex: i });
+        }
+      }
+    });
+    return list;
+  }, [filteredProducts, selectedProductIds, copiesPerProduct]);
 
   const handlePrint = () => {
     audio.click();
     window.print();
   };
 
-  const handleQuickAdd = (product) => {
-    audio.success();
-    if (onQuickAddToShoppingList) {
-      onQuickAddToShoppingList({
-        id: `shop-${Date.now()}-${product.id}`,
-        name: product.name,
-        quantity: 1,
-        unit: product.unit || 'piezas',
-        store: product.store || 'Supermercado',
-        estimatedPriceMxn: product.unitPriceMxn || 0,
-        targetZone: product.zone || 'Alacena Principal',
-        checked: false,
-      });
-      setAddedItems(prev => ({ ...prev, [product.id]: true }));
-      setTimeout(() => {
-        setAddedItems(prev => ({ ...prev, [product.id]: false }));
-      }, 2000);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-5 bg-black/85 backdrop-blur-md animate-fade-in print:bg-white print:p-0 print:static print:z-0">
       
-      {/* Estilos CSS Específicos para Aislamiento Absoluto en Impresión */}
+      {/* ═══════════════════════════════════════════════════════════════
+          ESTILOS DE AISLAMIENTO ABSOLUTO PARA IMPRESIÓN LIMPIA EN PAPEL
+         ═══════════════════════════════════════════════════════════════ */}
       <style>{`
         @media print {
           body * {
@@ -73,16 +100,36 @@ export default function PantryQrBookletModal({
             top: 0 !important;
             width: 100% !important;
             margin: 0 !important;
-            padding: 0 !important;
+            padding: 5mm !important;
             background: #ffffff !important;
             color: #000000 !important;
+            box-shadow: none !important;
           }
           .no-print {
             display: none !important;
           }
-          .page-break {
-            page-break-after: always;
-            break-after: page;
+          @page {
+            size: letter portrait;
+            margin: 8mm;
+          }
+          .break-inside-avoid {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+          .print-grid-stickers {
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 5mm !important;
+          }
+          .print-grid-wine {
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 6mm !important;
+          }
+          .print-grid-catalog {
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 3mm !important;
           }
         }
       `}</style>
@@ -98,14 +145,14 @@ export default function PantryQrBookletModal({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base sm:text-lg font-bold text-white font-display">
-                  Centro de Impresión Profesional de Códigos QR
+                  Impresor de Etiquetas QR, Stickers & Cava
                 </h3>
-                <span className="px-2 py-0.5 text-[10px] font-extrabold text-[#E0B441] bg-[#E0B441]/20 border border-[#E0B441]/30 rounded-full font-mono">
-                  {filteredProducts.length} etiquetas
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#E0B441]/15 text-[#E0B441] border border-[#E0B441]/30">
+                  {printableList.length} etiquetas a imprimir
                 </span>
               </div>
-              <p className="text-xs text-[#B8AFA3] mt-0.5">
-                Stickers adhesivos para frascos, fichas para botellas de cava y catálogo físico de cocina.
+              <p className="text-xs text-[#B8AFA3]">
+                Selecciona artículos, ajusta copias y manda a imprimir con líneas de corte limpias en papel blanco
               </p>
             </div>
           </div>
@@ -113,193 +160,233 @@ export default function PantryQrBookletModal({
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-[#C8542A] to-[#E0B441] hover:brightness-110 rounded-xl transition-all shadow-md shadow-[#C8542A]/30 active:scale-95"
+              disabled={printableList.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-[#12100E] bg-gradient-to-r from-[#E0B441] to-[#E5724A] hover:brightness-110 shadow-lg shadow-[#E0B441]/20 transition-all disabled:opacity-50"
             >
               <Printer className="w-4 h-4" />
-              <span>🖨️ Mandar a Imprimir (PDF)</span>
+              <span>Imprimir ({printableList.length})</span>
             </button>
             <button
               onClick={() => {
                 audio.click();
                 onClose();
               }}
-              className="p-1.5 text-gray-400 hover:text-white rounded-xl hover:bg-white/10"
+              className="p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/10 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Controles de Formato y Filtros - Hidden on Print */}
-        <div className="p-4 border-b border-[#2A2521] bg-[#161311] space-y-3 print:hidden no-print">
+        {/* Barra de Controles y Formatos - Hidden on Print */}
+        <div className="p-3 sm:p-4 border-b border-[#2A2521] bg-[#171412] space-y-3 print:hidden no-print">
+          
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             
-            {/* Selector de Formato de Impresión */}
-            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#1C1814] border border-[#2A2521] overflow-x-auto">
-              {[
-                { id: 'STICKERS', label: '🏷️ Stickers Frascos (Guías de Corte)', icon: Scissors },
-                { id: 'WINE_TAGS', label: '🍷 Fichas de Cava (Botellas)', icon: Wine },
-                { id: 'CATALOG', label: '📖 Catálogo Editorial (Carpeta)', icon: BookOpen },
-              ].map((fmt) => (
-                <button
-                  key={fmt.id}
-                  onClick={() => {
-                    audio.click();
-                    setPrintFormat(fmt.id);
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-                    printFormat === fmt.id
-                      ? 'bg-[#E0B441] text-black shadow-sm'
-                      : 'text-[#B8AFA3] hover:text-white'
-                  }`}
-                >
-                  {fmt.label}
-                </button>
-              ))}
+            {/* Formatos de Impresión */}
+            <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-[#1C1814] border border-[#2A2521] overflow-x-auto no-scrollbar">
+              <button
+                onClick={() => { audio.click(); setPrintFormat('STICKERS'); }}
+                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+                  printFormat === 'STICKERS'
+                    ? 'bg-[#E0B441] text-[#12100E] font-bold shadow-sm'
+                    : 'text-[#B8AFA3] hover:text-white'
+                }`}
+              >
+                <Scissors className="w-3.5 h-3.5" />
+                <span>Planilla Frascos (3x4)</span>
+              </button>
+
+              <button
+                onClick={() => { audio.click(); setPrintFormat('WINE_TAGS'); }}
+                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+                  printFormat === 'WINE_TAGS'
+                    ? 'bg-[#A83A50] text-white font-bold shadow-sm'
+                    : 'text-[#B8AFA3] hover:text-white'
+                }`}
+              >
+                <Wine className="w-3.5 h-3.5" />
+                <span>Collarines para Botellas</span>
+              </button>
+
+              <button
+                onClick={() => { audio.click(); setPrintFormat('CATALOG'); }}
+                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+                  printFormat === 'CATALOG'
+                    ? 'bg-[#3D8B6E] text-white font-bold shadow-sm'
+                    : 'text-[#B8AFA3] hover:text-white'
+                }`}
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Catálogo de Alacena</span>
+              </button>
             </div>
 
-            {/* Búsqueda rápida */}
-            <div className="relative flex-1 sm:max-w-xs">
-              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Filtrar insumo..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[#12100E] border border-[#2A2521] text-white text-xs placeholder-gray-500 focus:outline-none focus:border-[#E0B441]"
-              />
+            {/* Búsqueda y Selección Rápida */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 sm:w-56">
+                <Search className="w-3.5 h-3.5 text-[#8B8378] absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar insumo..."
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[#1C1814] border border-[#3D3630] text-xs text-[#F2EDE4] placeholder:text-[#6E655F] outline-none"
+                />
+              </div>
+
+              <button
+                onClick={toggleSelectAll}
+                className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-[#E0B441] border border-[#3D3630] transition-all shrink-0"
+              >
+                {selectedProductIds.size === filteredProducts.length ? 'Deseleccionar' : 'Todos'}
+              </button>
             </div>
+
           </div>
 
-          {/* Filtro por Ubicación (Zonas del Hogar) */}
+          {/* Filtro de Zonas */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
-            <span className="text-[11px] font-bold text-[#8B8378] uppercase shrink-0 mr-1">
+            <span className="text-[11px] font-bold text-[#8B8378] uppercase tracking-wider shrink-0 mr-1">
               Zona:
             </span>
             <button
-              onClick={() => { audio.click(); setSelectedZoneFilter('ALL'); }}
+              onClick={() => setSelectedZoneFilter('ALL')}
               className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 ${
                 selectedZoneFilter === 'ALL'
-                  ? 'bg-white/20 text-white border border-white/30'
+                  ? 'bg-white/20 text-white font-bold'
                   : 'bg-white/5 text-[#8B8378] hover:text-white'
               }`}
             >
-              Todas las Zonas
+              Todas ({products.length})
             </button>
             {zones.map((z) => (
               <button
                 key={z.id}
-                onClick={() => { audio.click(); setSelectedZoneFilter(z.name); }}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 ${
+                onClick={() => setSelectedZoneFilter(z.name)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 ${
                   selectedZoneFilter === z.name
-                    ? 'bg-[#E0B441]/20 text-[#E0B441] border border-[#E0B441]/40'
+                    ? 'bg-[#E0B441]/25 text-[#E0B441] font-bold border border-[#E0B441]/40'
                     : 'bg-white/5 text-[#8B8378] hover:text-white'
-                }`}
+              }`}
               >
-                {z.type === 'WINE_CELLAR' ? '🍷' : '🏠'}
-                <span>{z.name}</span>
+                {z.name}
               </button>
             ))}
           </div>
+
         </div>
 
-        {/* ═════════════════════════════════════════════════════════════════
-            ÁREA DE IMPRESIÓN OFICIAL (100% LIMPIA PARA IMPRESORA Y PDF)
-           ═════════════════════════════════════════════════════════════════ */}
-        <div id="printable-qr-catalog" className="flex-1 overflow-y-auto p-4 sm:p-6 print:p-6 print:overflow-visible bg-[#0F0D0B] print:bg-white text-white print:text-black">
+        {/* ═══════════════════════════════════════════════════════════════
+            ÁREA DE IMPRESIÓN AISLADA (#printable-qr-catalog)
+           ═══════════════════════════════════════════════════════════════ */}
+        <div id="printable-qr-catalog" className="flex-1 overflow-y-auto p-4 sm:p-6 print:p-4 bg-[#0F0D0B] print:bg-white text-white print:text-black custom-scrollbar">
           
-          {/* Cabecera Impresa del Documento (Solo en papel) */}
-          <div className="hidden print:block pb-4 mb-5 border-b-2 border-black text-black">
+          {/* Encabezado Oficial Impreso en Papel */}
+          <div className="hidden print:block pb-3 mb-4 border-b-2 border-black text-black">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-600 block">
-                  SISTEMA ALACENA & CAVA • CONTROL DE INVENTARIO DEL HOGAR
+                <span className="text-[8px] font-black uppercase tracking-widest text-gray-700 block">
+                  ALACENA ENTERPRISE • SISTEMA RESIDENCIAL DE ALMACÉN & CAVA
                 </span>
-                <h1 className="text-xl font-black uppercase tracking-tight text-black mt-0.5">
+                <h1 className="text-lg font-black uppercase tracking-tight text-black mt-0.5">
                   {printFormat === 'STICKERS' 
-                    ? 'PLANILLA DE ETIQUETAS ADHESIVAS PARA FRASCOS Y ENVASES'
+                    ? 'PLANILLA DE ETIQUETAS ADHESIVAS PARA FRASCOS (RECORTABLES)'
                     : printFormat === 'WINE_TAGS'
-                    ? 'CATÁLOGO DE COLLARINES PARA CAVA Y BOTELLAS'
-                    : 'CATÁLOGO FÍSICO DE ALACENA Y COCINA'}
+                    ? 'COLLARINES CON TROQUEL PARA CUELLO DE BOTELLAS DE CAVA'
+                    : 'CATÁLOGO FÍSICO DE ALMACÉN Y ALACENA DE COCINA'}
                 </h1>
-                <p className="text-xs font-semibold text-gray-700 mt-1">
-                  Residencia: {activeHouse?.name || 'Residencia Principal'} • Ubicación: {selectedZoneFilter === 'ALL' ? 'Todas las Zonas' : selectedZoneFilter}
+                <p className="text-[10px] font-semibold text-gray-700">
+                  Residencia: <strong>{activeHouse?.name || 'Residencia Principal'}</strong> • Ubicación: <strong>{selectedZoneFilter === 'ALL' ? 'Todas las Zonas' : selectedZoneFilter}</strong>
                 </p>
               </div>
-              <div className="text-right text-xs font-mono text-gray-600">
-                Impreso: {new Date().toLocaleDateString('es-MX')} • {filteredProducts.length} ítems
+              <div className="text-right text-[10px] font-mono text-gray-700">
+                Impreso: {new Date().toLocaleDateString('es-MX')} • Total: {printableList.length} etiquetas
               </div>
-            </div>
-            <div className="text-[10px] bg-gray-100 p-2 rounded-lg mt-2 border border-gray-300 font-medium">
-              💡 <strong>Instrucciones para el Personal del Hogar:</strong> Apunta con la app en tu celular al código para agregar (+1), descontar consumo (-1) o enviar a la lista de compras cuando el envase esté por acabarse.
             </div>
           </div>
 
           {/* ═════════════════════════════════════════════════════════════
-              FORMATO 1: STICKERS PARA FRASCOS Y TUPPERS (3x4 con guías de corte)
+              FORMATO 1: STICKERS PARA FRASCOS Y ENVASES (Con Guías de Corte)
              ═════════════════════════════════════════════════════════════ */}
           {printFormat === 'STICKERS' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 print:grid-cols-3 print:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 print:print-grid-stickers">
               {filteredProducts.map((p) => {
+                const isSelected = selectedProductIds.has(p.id);
+                const copies = copiesPerProduct[p.id] || 1;
                 const barcode = p.barcode || `ALC-${p.id.replace('prod-', '').toUpperCase()}`;
-                const qrPayload = JSON.stringify({
-                  app: 'ALACENA_ENTERPRISE',
-                  type: 'PANTRY_ITEM',
-                  id: p.id,
-                  barcode,
-                  name: p.name,
-                  unit: p.unit || 'kg',
-                  zone: p.zone || 'Alacena Principal',
-                });
+                
+                // QR Ultracompacto para máxima legibilidad con cámara
+                const compactQr = barcode;
 
                 return (
                   <div
                     key={p.id}
-                    className="p-3.5 rounded-2xl bg-[#1C1814] border border-[#2A2521] flex flex-col justify-between print:bg-white print:text-black print:border-2 print:border-dashed print:border-gray-400 print:rounded-xl print:p-3 print:break-inside-avoid shadow-sm relative group"
+                    className={`p-3.5 rounded-2xl border transition-all flex flex-col justify-between break-inside-avoid relative ${
+                      isSelected 
+                        ? 'bg-[#1C1814] border-[#3D3630] print:bg-white print:border-2 print:border-dashed print:border-gray-500' 
+                        : 'bg-[#14110F]/40 border-[#2A2521] opacity-40 print:hidden'
+                    }`}
                   >
-                    {/* Tijera decorativa de recorte en papel */}
-                    <div className="hidden print:flex absolute -top-2.5 right-3 bg-white px-1 text-[9px] text-gray-500 font-mono items-center gap-0.5">
+                    {/* Guía de tijera recortable en papel */}
+                    <div className="hidden print:flex absolute -top-2.5 right-3 bg-white px-1 text-[8px] text-gray-600 font-mono items-center gap-0.5 border border-gray-300 rounded">
                       <Scissors className="w-2.5 h-2.5" />
                       <span>recortar</span>
                     </div>
 
-                    <div className="text-center border-b border-[#2A2521] print:border-gray-200 pb-2">
-                      <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#E0B441] print:text-gray-600 block">
-                        {p.category || 'Abarrotes'} • {p.zone || 'Alacena'}
+                    {/* Controles de Selección en Pantalla */}
+                    <div className="print:hidden no-print flex items-center justify-between pb-2 border-b border-[#2A2521]">
+                      <button
+                        type="button"
+                        onClick={() => toggleSelectProduct(p.id)}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-[#B8AFA3] hover:text-white"
+                      >
+                        {isSelected ? <CheckSquare className="w-4 h-4 text-[#E0B441]" /> : <Square className="w-4 h-4" />}
+                        <span>{isSelected ? 'Incluido' : 'Omitir'}</span>
+                      </button>
+
+                      {isSelected && (
+                        <div className="flex items-center gap-1 bg-[#14110F] px-1.5 py-0.5 rounded-lg border border-[#3D3630]">
+                          <button onClick={() => handleCopiesChange(p.id, -1)} className="text-xs text-[#8B8378] hover:text-white px-1">-</button>
+                          <span className="text-[11px] font-mono font-bold text-[#E0B441]">{copies} copias</span>
+                          <button onClick={() => handleCopiesChange(p.id, 1)} className="text-xs text-[#8B8378] hover:text-white px-1">+</button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Cabecera del Sticker */}
+                    <div className="text-center pt-1 pb-1.5 border-b border-[#2A2521] print:border-gray-300">
+                      <span className="text-[8px] font-black uppercase tracking-widest text-[#E0B441] print:text-gray-700 block">
+                        ALACENA • {p.zone || 'DESPENSA'}
                       </span>
-                      <h4 className="font-display text-sm font-bold text-white print:text-black leading-tight mt-0.5 truncate">
+                      <h4 className="font-display text-sm font-extrabold text-white print:text-black leading-tight mt-0.5 line-clamp-1">
                         {p.name}
                       </h4>
-                      <span className="text-[10px] font-mono font-bold text-[#8B8378] print:text-gray-600 block mt-0.5">
-                        {barcode}
+                      <span className="text-[10px] font-bold text-[#8B8378] print:text-gray-600 block mt-0.5">
+                        {p.quantity} {p.unit} • {p.category || 'Insumo'}
                       </span>
                     </div>
 
-                    {/* QR Code Nítido */}
+                    {/* Código QR Ultranítido */}
                     <div className="my-2.5 flex justify-center">
-                      <div className="p-2.5 bg-white rounded-xl border border-gray-200 inline-block shadow-sm">
+                      <div className="p-2 bg-white rounded-xl border border-gray-200 inline-block shadow-sm">
                         <QRCodeSVG
-                          value={qrPayload}
+                          value={compactQr}
                           size={110}
-                          level="H"
+                          level="M"
                           includeMargin={false}
                         />
                       </div>
                     </div>
 
-                    {/* Pie del sticker */}
-                    <div className="text-[9px] text-center font-bold text-[#8B8378] print:text-black bg-white/5 print:bg-gray-100 py-1 px-2 rounded-lg border border-white/5 print:border-gray-200">
-                      📱 ➕ Entrada • ➖ Consumo • 🛒 Súper
-                    </div>
-
-                    {/* Botón rápido en pantalla (oculto en papel) */}
-                    <div className="print:hidden no-print pt-2 mt-2 border-t border-[#2A2521] flex justify-center">
-                      <button
-                        onClick={() => handleQuickAdd(p)}
-                        className="text-[11px] font-bold text-[#E0B441] hover:underline flex items-center gap-1"
-                      >
-                        {addedItems[p.id] ? '✓ Agregado al Súper' : '+ Añadir al Súper'}
-                      </button>
+                    {/* Pie con clave de escaneo y modo de uso */}
+                    <div className="text-center">
+                      <span className="font-mono text-[11px] font-black text-white print:text-black tracking-wider block bg-white/5 print:bg-gray-100 py-0.5 px-2 rounded border border-white/5 print:border-gray-200">
+                        {barcode}
+                      </span>
+                      <span className="text-[7.5px] font-bold text-[#8B8378] print:text-gray-600 block mt-1">
+                        📱 Escanear: ➕ Entrada • ➖ Consumo • 🛒 Pedir
+                      </span>
                     </div>
                   </div>
                 );
@@ -308,66 +395,79 @@ export default function PantryQrBookletModal({
           )}
 
           {/* ═════════════════════════════════════════════════════════════
-              FORMATO 2: FICHAS / COLLARINES DE CAVA (Para Cuello de Botella)
+              FORMATO 2: COLLARINES PARA CAVA (Con Troquel para Cuello)
              ═════════════════════════════════════════════════════════════ */}
           {printFormat === 'WINE_TAGS' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 print:grid-cols-3 print:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 print:print-grid-wine">
               {filteredProducts.map((p) => {
+                const isSelected = selectedProductIds.has(p.id);
                 const barcode = p.barcode || `ALC-${p.id.replace('prod-', '').toUpperCase()}`;
-                const qrPayload = JSON.stringify({
-                  app: 'ALACENA_ENTERPRISE',
-                  type: 'PANTRY_ITEM',
-                  id: p.id,
-                  barcode,
-                  name: p.name,
-                  vintage: p.vintage,
-                  zone: p.zone || 'Cava',
-                });
+                const compactQr = barcode;
 
                 return (
                   <div
                     key={p.id}
-                    className="p-4 rounded-2xl bg-[#1C1814] border border-[#2A2521] flex flex-col justify-between print:bg-white print:text-black print:border-2 print:border-dashed print:border-gray-400 print:rounded-2xl print:p-4 print:break-inside-avoid shadow-sm relative"
+                    className={`p-4 rounded-2xl border transition-all flex flex-col justify-between break-inside-avoid relative text-center ${
+                      isSelected 
+                        ? 'bg-[#1C1814] border-[#A83A50]/40 print:bg-white print:border-2 print:border-gray-600' 
+                        : 'bg-[#14110F]/40 border-[#2A2521] opacity-40 print:hidden'
+                    }`}
                   >
-                    {/* Círculo guía para perforar cuello de botella */}
-                    <div className="hidden print:flex flex-col items-center justify-center mb-2 pb-2 border-b border-gray-200">
-                      <div className="w-8 h-8 rounded-full border border-dashed border-gray-400 flex items-center justify-center text-[7px] text-gray-400 font-mono">
-                        corte
-                      </div>
-                      <span className="text-[7px] text-gray-400 mt-0.5">Colgar en cuello de botella</span>
+                    {/* Controles en Pantalla */}
+                    <div className="print:hidden no-print flex items-center justify-between pb-2 border-b border-[#2A2521] mb-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleSelectProduct(p.id)}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-[#B8AFA3] hover:text-white"
+                      >
+                        {isSelected ? <CheckSquare className="w-4 h-4 text-rose-400" /> : <Square className="w-4 h-4" />}
+                        <span>{isSelected ? 'Incluido' : 'Omitir'}</span>
+                      </button>
                     </div>
 
-                    <div className="text-center">
-                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#E0B441] print:text-[#6B1F2E] block">
-                        🍷 CAVA DE VINOS & RESERVA
+                    {/* Orificio Troquelable para Cuello de Botella (38mm) */}
+                    <div className="flex flex-col items-center justify-center pb-3 border-b-2 border-dashed border-gray-400">
+                      <div className="w-14 h-14 rounded-full border-2 border-dashed border-rose-500 bg-rose-50 flex items-center justify-center text-[8px] font-bold text-rose-800 text-center px-1">
+                        ✂️ Cortar círculo para cuello
+                      </div>
+                      <span className="text-[8px] font-mono text-gray-500 mt-1 uppercase">
+                        Colgar en rack de cava
                       </span>
-                      <h4 className="font-display text-base font-bold text-white print:text-black leading-tight mt-1">
+                    </div>
+
+                    {/* Ficha Sommelier de la Botella */}
+                    <div className="py-2">
+                      <span className="text-[8px] font-black uppercase tracking-widest text-[#A83A50] block">
+                        CAVAPRO • GRAN RESERVA
+                      </span>
+                      <h4 className="font-display text-sm font-bold text-white print:text-black leading-tight mt-0.5 line-clamp-1">
                         {p.name}
                       </h4>
-                      <p className="text-xs text-[#E0B441] print:text-gray-700 font-bold mt-0.5">
-                        {p.vintage ? `Añada ${p.vintage}` : ''} • {p.region || 'Cava'} • {p.sommelierPoints ? `${p.sommelierPoints} Pts` : ''}
-                      </p>
+                      <span className="text-[10px] font-bold text-gray-500 block mt-0.5">
+                        {p.category || 'Vino Tinto'} • {p.zone || 'Cava'}
+                      </span>
                     </div>
 
-                    <div className="my-3 flex justify-center">
-                      <div className="p-2.5 bg-white rounded-xl border border-gray-200 inline-block">
-                        <QRCodeSVG value={qrPayload} size={110} level="H" />
+                    {/* QR Code */}
+                    <div className="my-2 flex justify-center">
+                      <div className="p-2 bg-white rounded-xl border border-gray-200 inline-block shadow-sm">
+                        <QRCodeSVG
+                          value={compactQr}
+                          size={105}
+                          level="M"
+                          includeMargin={false}
+                        />
                       </div>
                     </div>
 
-                    <div className="text-[9px] text-gray-400 print:text-gray-700 border-t border-[#2A2521] print:border-gray-200 pt-2 space-y-0.5">
-                      <div className="flex justify-between">
-                        <span>Ubicación:</span>
-                        <strong className="text-white print:text-black">{p.cavaLocation || p.zone || 'Cava'}</strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Maridaje:</span>
-                        <span className="truncate max-w-[130px]">{p.foodPairing || 'Cortes y quesos'}</span>
-                      </div>
-                      <div className="flex justify-between font-mono">
-                        <span>Código:</span>
-                        <span>{barcode}</span>
-                      </div>
+                    {/* Código y notas */}
+                    <div>
+                      <span className="font-mono text-xs font-black text-white print:text-black tracking-wider block bg-white/5 print:bg-gray-100 py-0.5 px-2 rounded">
+                        {barcode}
+                      </span>
+                      <span className="text-[8px] font-bold text-gray-500 block mt-1">
+                        Escanear al descorchar para registrar salida
+                      </span>
                     </div>
                   </div>
                 );
@@ -376,56 +476,47 @@ export default function PantryQrBookletModal({
           )}
 
           {/* ═════════════════════════════════════════════════════════════
-              FORMATO 3: CATÁLOGO EDITORIAL DE COCINA (Lista Compacta Carpeta)
+              FORMATO 3: CATÁLOGO TABULAR DE ALACENA (Para Encuadernar)
              ═════════════════════════════════════════════════════════════ */}
           {printFormat === 'CATALOG' && (
-            <div className="space-y-3 print:space-y-2">
-              {filteredProducts.map((p, idx) => {
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 print:print-grid-catalog">
+              {filteredProducts.map((p) => {
+                const isSelected = selectedProductIds.has(p.id);
                 const barcode = p.barcode || `ALC-${p.id.replace('prod-', '').toUpperCase()}`;
-                const qrPayload = JSON.stringify({
-                  type: 'PANTRY_ITEM',
-                  id: p.id,
-                  barcode,
-                  name: p.name,
-                  zone: p.zone,
-                });
+                const compactQr = barcode;
 
                 return (
                   <div
                     key={p.id}
-                    className="p-3 rounded-xl bg-[#1C1814] border border-[#2A2521] flex items-center justify-between gap-4 print:bg-white print:text-black print:border-b print:border-gray-300 print:rounded-none print:break-inside-avoid"
+                    className={`p-3 rounded-xl border transition-all flex items-center gap-3 break-inside-avoid ${
+                      isSelected 
+                        ? 'bg-[#1C1814] border-[#3D3630] print:bg-white print:border print:border-gray-300' 
+                        : 'bg-[#14110F]/40 border-[#2A2521] opacity-40 print:hidden'
+                    }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-6 text-xs font-mono text-[#8B8378] print:text-gray-500 shrink-0">
-                        #{idx + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <h4 className="text-sm font-bold text-white print:text-black truncate">
-                          {p.name}
-                        </h4>
-                        <div className="text-[11px] text-[#8B8378] print:text-gray-600 flex items-center gap-2 mt-0.5">
-                          <span>{p.category}</span>
-                          <span>•</span>
-                          <span>{p.zone}</span>
-                          <span>•</span>
-                          <span className="font-mono text-[#E0B441] print:text-black">{barcode}</span>
-                        </div>
-                      </div>
+                    <div className="p-1.5 bg-white rounded-lg border border-gray-200 shrink-0">
+                      <QRCodeSVG
+                        value={compactQr}
+                        size={65}
+                        level="M"
+                        includeMargin={false}
+                      />
                     </div>
-
-                    <div className="flex items-center gap-3 shrink-0">
-                      <div className="text-right hidden sm:block print:block text-xs">
-                        <div className="font-bold text-white print:text-black">
-                          {p.quantity} {p.unit}
-                        </div>
-                        <div className="text-[10px] text-[#8B8378] print:text-gray-500">
-                          ${(p.unitPriceMxn || 0).toFixed(2)} MXN
-                        </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-black uppercase text-[#E0B441] print:text-gray-600 font-mono">
+                          {barcode}
+                        </span>
+                        <span className="text-[9px] font-bold text-gray-500">
+                          {p.zone || 'Alacena'}
+                        </span>
                       </div>
-
-                      <div className="p-1.5 bg-white rounded-lg border border-gray-200">
-                        <QRCodeSVG value={qrPayload} size={55} level="M" />
-                      </div>
+                      <h4 className="text-xs font-bold text-white print:text-black truncate leading-tight mt-0.5">
+                        {p.name}
+                      </h4>
+                      <p className="text-[10px] text-gray-400 print:text-gray-600 mt-0.5">
+                        Existencia: <strong>{p.quantity} {p.unit}</strong> • Tienda: {p.store || 'Supermercado'}
+                      </p>
                     </div>
                   </div>
                 );
@@ -435,21 +526,19 @@ export default function PantryQrBookletModal({
 
         </div>
 
-        {/* Footer Bar - Hidden on Print */}
-        <div className="p-4 border-t border-[#2A2521] bg-[#161311] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#8B8378] print:hidden no-print">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-[#E0B441]" />
-            <span>
-              <strong>Recomendación:</strong> Puedes imprimir en papel normal y recortar con tijera, o imprimir sobre hojas de etiquetas autoadhesivas tamaño carta.
-            </span>
-          </div>
-
+        {/* Footer en Pantalla */}
+        <div className="p-4 border-t border-[#2A2521] bg-[#1C1814] flex items-center justify-between text-xs text-[#8B8378] print:hidden no-print flex-wrap gap-2">
+          <span>
+            💡 <strong>Consejo de impresión:</strong> En el cuadro de diálogo de la impresora, desactiva <em>"Encabezados y pies de página"</em> para obtener hojas 100% limpias.
+          </span>
           <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-gradient-to-r from-[#C8542A] to-[#E0B441] hover:brightness-110 rounded-xl transition-all shadow-md shrink-0 active:scale-95"
+            onClick={() => {
+              audio.click();
+              onClose();
+            }}
+            className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold transition-all"
           >
-            <Printer className="w-4 h-4" />
-            <span>Imprimir {filteredProducts.length} Etiquetas</span>
+            Cerrar
           </button>
         </div>
 

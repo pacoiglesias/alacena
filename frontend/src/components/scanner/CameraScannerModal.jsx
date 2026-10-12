@@ -372,44 +372,52 @@ export default function CameraScannerModal({
     const cavaZone = zones.find(z => z.type === 'WINE_CELLAR') || zones[0];
     const pantryZone = zones.find(z => z.type === 'DRY_PANTRY') || zones[0];
 
-    // 2. ¿Es un código QR / NFC propio de ALACENA?
-    if (code.trim().startsWith('{') && code.includes('ALACENA_ENTERPRISE')) {
+    const cleanCode = code.trim();
+
+    // 2. ¿Es un código QR / NFC propio de ALACENA con JSON o prefijo?
+    if (cleanCode.startsWith('{') && cleanCode.includes('ALACENA_ENTERPRISE')) {
       try {
-        const qrJson = JSON.parse(code.trim());
-        if (qrJson.type === 'PANTRY_ITEM') {
-          const matchedProd = products.find(p => p.id === qrJson.id) || {
-            id: qrJson.id,
-            name: qrJson.name,
-            quantity: qrJson.qty || 1,
-            unit: qrJson.unit || 'kg',
-            zone: qrJson.zone || pantryZone.name,
-            store: qrJson.store || 'Supermercado',
-          };
+        const qrJson = JSON.parse(cleanCode);
+        const searchKey = qrJson.barcode || qrJson.id;
+        const matchedProd = products.find(p => 
+          p.id === searchKey || 
+          p.barcode === searchKey || 
+          (p.name && p.name.toLowerCase() === (qrJson.name || '').toLowerCase())
+        ) || {
+          id: qrJson.id,
+          name: qrJson.name,
+          quantity: qrJson.qty || 1,
+          unit: qrJson.unit || 'kg',
+          zone: qrJson.zone || pantryZone.name,
+          store: qrJson.store || 'Supermercado',
+        };
 
-          if (scanDirectionMode !== 'INTERACTIVE') {
-            executeDirectAction(matchedProd, scanDirectionMode);
-            setIsSearching(false);
-            return;
-          }
-
-          setScannedResult({
-            barcode: qrJson.id,
-            product: matchedProd,
-            isExisting: true,
-            isQrLabel: true,
-          });
+        if (scanDirectionMode !== 'INTERACTIVE') {
+          executeDirectAction(matchedProd, scanDirectionMode);
           setIsSearching(false);
           return;
         }
+
+        setScannedResult({
+          barcode: qrJson.id,
+          product: matchedProd,
+          isExisting: true,
+          isQrLabel: true,
+        });
+        setIsSearching(false);
+        return;
       } catch (e) {
-        console.warn('Error parseando QR:', e);
+        console.warn('Error parseando QR JSON:', e);
       }
     }
 
-    // 3. Buscar si ya existe en la despensa
-    const existingInPantry = products.find(
-      (p) => p.barcode === code || p.id === code || p.name.toLowerCase().includes(code.toLowerCase())
-    );
+    // 3. Buscar si ya existe en la despensa (por barcode comercial, clave ALC-XXXX o ID)
+    const existingInPantry = products.find((p) => {
+      if (p.barcode && p.barcode.toUpperCase() === cleanCode.toUpperCase()) return true;
+      if (p.id && p.id.toUpperCase() === cleanCode.toUpperCase()) return true;
+      if (p.id && cleanCode.toUpperCase() === `ALC-${p.id.replace('prod-', '').toUpperCase()}`) return true;
+      return false;
+    });
 
     if (existingInPantry) {
       const assignedZone = selectedTargetZone || existingInPantry.zone || pantryZone.name;
@@ -422,7 +430,7 @@ export default function CameraScannerModal({
       }
 
       setScannedResult({
-        barcode: code,
+        barcode: cleanCode,
         product: targetProd,
         isExisting: true,
       });
