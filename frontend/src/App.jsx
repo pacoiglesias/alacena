@@ -13,6 +13,7 @@ import ZoneModal from './components/zones/ZoneModal';
 import HouseholdsModal from './components/households/HouseholdsModal';
 import ChangelogModal from './components/changelog/ChangelogModal';
 import { audio } from './services/audioService';
+import { syncPantryToIndexedDb } from './services/db';
 import { 
   INITIAL_PRODUCTS, 
   INITIAL_ZONES, 
@@ -159,6 +160,11 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('alacena_audit_logs', JSON.stringify(auditLogs));
   }, [auditLogs]);
+
+  // IndexedDB Primario (Dexie.js) - Persistencia Offline Real en Segundo Plano
+  useEffect(() => {
+    syncPantryToIndexedDb(products, shoppingList, recipes, auditLogs);
+  }, [products, shoppingList, recipes, auditLogs]);
 
   // Audio mute toggle
   const handleToggleMute = () => {
@@ -547,7 +553,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090D14] text-gray-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-white">
+    <div className="min-h-screen bg-[#12100E] text-[#F2EDE4] flex flex-col font-body selection:bg-[#6B1F2E]/30 selection:text-white">
       
       {/* Top Header */}
       <Header

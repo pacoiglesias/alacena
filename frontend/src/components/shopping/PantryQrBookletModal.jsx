@@ -168,37 +168,32 @@ export default function PantryQrBookletModal({
               return (
                 <div
                   key={p.id}
-                  className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col justify-between transition-all hover:border-purple-500/40 print:border print:border-black print:bg-white print:text-black print:break-inside-avoid shadow-sm"
+                  className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col justify-between transition-all hover:border-purple-500/40 print:border print:border-dashed print:border-gray-500 print:bg-white print:text-black print:break-inside-avoid print:p-3 shadow-sm"
                 >
                   {/* Top Product info */}
-                  <div>
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 print:bg-gray-100 print:text-black">
-                        {p.category || 'Abarrotes'}
-                      </span>
-                      <span className="text-[10px] text-gray-400 print:text-gray-600 font-mono">
-                        {p.zone || 'Alacena'}
-                      </span>
-                    </div>
+                  <div className="text-center">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 print:bg-gray-100 print:text-black inline-block mb-1">
+                      {p.category || 'Abarrotes'}
+                    </span>
 
-                    <h4 className="text-sm font-bold text-white print:text-black leading-snug">
+                    <h4 className="font-display text-base print:text-lg font-bold text-white print:text-black leading-snug">
                       {p.name}
                     </h4>
-                    <p className="text-xs text-gray-400 print:text-gray-600 mt-0.5 font-mono">
-                      Stock sugerido: {p.idealStock || p.minStock || 1} {p.unit} ({p.store || 'Super'})
+                    <p className="text-xs text-[#8B8378] print:text-gray-600 mt-0.5 font-medium">
+                      {p.unit || 'unidad'} • {p.store || 'Super'} • {p.zone || 'Alacena'}
                     </p>
                   </div>
 
-                  {/* QR Code in High Contrast White Square */}
+                  {/* QR Code 40x40mm Level H (30% error correction) */}
                   <div className="my-3 flex flex-col items-center justify-center p-3 rounded-xl bg-white border border-black/10 shadow-inner">
                     <QRCodeSVG
                       value={qrPayload}
-                      size={120}
-                      level="M"
+                      size={130}
+                      level="H"
                       includeMargin={false}
                     />
-                    <span className="text-[9px] font-bold text-gray-500 mt-1 uppercase tracking-wider text-center print:text-black">
-                      Escanear para pedir al súper
+                    <span className="text-[10px] font-bold text-gray-700 mt-2 tracking-wide text-center uppercase print:text-black">
+                      Si se acabó, escanea aquí
                     </span>
                   </div>
 

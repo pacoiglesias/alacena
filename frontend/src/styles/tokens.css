@@ -1,0 +1,215 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ALACENA Enterprise & CavaPro — Design Tokens v3.1.0-Luxe
+   Luxe Cream (Light) & Midnight Cava (Dark)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* TIPOGRAFÍA */
+  --font-display: 'Fraunces', serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-numeric: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* ESCALA TIPOGRÁFICA */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 36px;
+  --text-hero: 48px;
+
+  /* RADIOS */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* ESPACIADO (Escala 4px) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* CURVAS Y DURACIONES */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 150ms;
+  --dur-base: 240ms;
+  --dur-slow: 400ms;
+
+  /* SEMÁNTICOS (compartidos) */
+  --success: #2F7D5C;
+  --warning: #C08A1E;
+  --danger: #B33A3A;
+  --info: #3A6EA5;
+
+  /* PALETA MODO CLARO (Luxe Cream) */
+  --bg-base: #FAF7F2;
+  --bg-elevated: #FFFFFF;
+  --bg-sunken: #F0EBE2;
+  --ink-primary: #1A1614;
+  --ink-secondary: #5C544D;
+  --ink-tertiary: #8B8378;
+  --border-soft: #E8E1D5;
+  --border-strong: #C9BFAD;
+
+  /* ACENTOS POR PILAR (Modo Claro) */
+  --accent-super: #C8542A;   /* Terracota — Lista del súper */
+  --accent-cava: #6B1F2E;    /* Vino tinto profundo — CavaPro */
+  --accent-cocina: #B8860B;  /* Dorado antiguo — Recetas */
+  --accent-audit: #2C4A52;   /* Azul pizarra — Bitácora */
+  --accent-qr: #1F4D3A;      /* Verde bosque — Catálogo QR */
+
+  /* SOMBRAS MULTICAPA (Luxe Cream) */
+  --shadow-sm: 0 1px 2px rgba(26, 22, 20, 0.06), 0 1px 3px rgba(26, 22, 20, 0.04);
+  --shadow-md: 0 2px 4px rgba(26, 22, 20, 0.05), 0 4px 12px rgba(26, 22, 20, 0.06);
+  --shadow-lg: 0 4px 8px rgba(26, 22, 20, 0.05), 0 12px 32px rgba(26, 22, 20, 0.08);
+  --shadow-xl: 0 8px 16px rgba(26, 22, 20, 0.06), 0 24px 48px rgba(26, 22, 20, 0.10);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* PALETA MODO OSCURO (Midnight Cava) */
+html.dark,
+:root.dark,
+[data-theme="dark"] {
+  --bg-base: #12100E;
+  --bg-elevated: #1C1916;
+  --bg-sunken: #0A0908;
+  --ink-primary: #F2EDE4;
+  --ink-secondary: #B8AFA3;
+  --ink-tertiary: #7A7268;
+  --border-soft: #2A2521;
+  --border-strong: #3D3630;
+
+  /* Acentos más saturados en oscuridad */
+  --accent-super: #E5724A;
+  --accent-cava: #A83A50;
+  --accent-cocina: #E0B441;
+  --accent-audit: #5C8894;
+  --accent-qr: #3D8B6E;
+
+  /* Sombras oscuras profundas */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 3px 6px rgba(0, 0, 0, 0.45), 0 6px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 6px 12px rgba(0, 0, 0, 0.5), 0 16px 36px rgba(0, 0, 0, 0.45);
+  --shadow-xl: 0 12px 24px rgba(0, 0, 0, 0.6), 0 28px 56px rgba(0, 0, 0, 0.55);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   CLASES DE UTILIDAD LUXE
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+.font-mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.font-numeric {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Card Luxe Base */
+.card-luxe {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out);
+}
+
+.card-luxe:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+/* Shimmer Skeletons (No spinners circulares) */
+@keyframes luxe-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-sunken) 25%,
+    var(--border-soft) 50%,
+    var(--bg-sunken) 75%
+  );
+  background-size: 200% 100%;
+  animation: luxe-shimmer 1.5s var(--ease-in-out) infinite;
+  border-radius: var(--radius-md);
+}
+
+/* Micro-interacciones táctiles */
+.btn-press {
+  transition: transform var(--dur-fast) var(--ease-out),
+              opacity var(--dur-fast) var(--ease-out);
+}
+
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+/* Shake para errores */
+@keyframes shake-horizontal {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake-horizontal 300ms var(--ease-out);
+}
+
+/* Modal Spring Scale */
+@keyframes modal-spring-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-modal-in {
+  animation: modal-spring-in var(--dur-base) var(--ease-spring) forwards;
+}
+
+/* Respeto a preferencia de movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

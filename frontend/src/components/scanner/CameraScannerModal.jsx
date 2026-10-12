@@ -136,7 +136,7 @@ export default function CameraScannerModal({
   };
 
   const onScanSuccess = async (decodedText) => {
-    audio.success();
+    audio.tripleFeedback(880, 35);
     await processBarcode(decodedText);
   };
 

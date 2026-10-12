@@ -1,15 +1,16 @@
 @import "tailwindcss";
+@import "./styles/tokens.css";
 
 @layer base {
   :root {
-    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: var(--font-body);
+    --font-mono: var(--font-mono);
   }
 
   body {
-    font-family: var(--font-sans);
-    background-color: #090D14;
-    color: #F3F4F6;
+    font-family: var(--font-body);
+    background-color: var(--bg-base);
+    color: var(--ink-primary);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;

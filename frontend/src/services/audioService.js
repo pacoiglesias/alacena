@@ -168,6 +168,75 @@ class LuxuryAudioService {
       console.warn('Audio error:', e);
     }
   }
+
+  // Tono corto exacto 660Hz 120ms para palomeo en Modo Súper
+  superCheck() {
+    this.haptic(30);
+    if (this.muted) return;
+    try {
+      const ctx = this.init();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(660, now);
+
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } catch (e) {
+      console.warn('Audio error:', e);
+    }
+  }
+
+  playTone(freq = 440, durationMs = 80) {
+    if (this.muted) return;
+    try {
+      const ctx = this.init();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+
+      const durSec = durationMs / 1000;
+      gain.gain.setValueAtTime(0.10, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + durSec);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + durSec);
+    } catch (e) {
+      console.warn('Tone error:', e);
+    }
+  }
+
+  haptic(ms = 30) {
+    if (typeof window !== 'undefined' && 'navigator' in window && typeof navigator.vibrate === 'function') {
+      try {
+        navigator.vibrate(ms);
+      } catch (err) {
+        // Ignorar si el navegador bloquea vibración
+      }
+    }
+  }
+
+  tripleFeedback(freq = 660, ms = 30) {
+    this.haptic(ms);
+    this.playTone(freq, 100);
+  }
 }
 
 export const audio = new LuxuryAudioService();
+

@@ -55,6 +55,7 @@ export default function ShoppingListView({
   const [isOrderTicketQrOpen, setIsOrderTicketQrOpen] = useState(false);
   const [isQrBookletOpen, setIsQrBookletOpen] = useState(false);
   const [isQuickStaffOpen, setIsQuickStaffOpen] = useState(false);
+  const [isWalkingMode, setIsWalkingMode] = useState(false);
 
   // New manual item state
   const [itemName, setItemName] = useState('');
@@ -187,6 +188,17 @@ export default function ShoppingListView({
     setIsManualAddOpen(false);
   };
 
+  const handleToggleWalkingItem = (itemId) => {
+    audio.superCheck();
+    onToggleItem(itemId);
+    setTimeout(() => {
+      const nextUnchecked = document.querySelector('[data-walk-unchecked="true"]');
+      if (nextUnchecked) {
+        nextUnchecked.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 800);
+  };
+
   const handleFinishPurchase = () => {
     const checkedItems = enrichedList.filter((i) => i.checked);
     if (checkedItems.length === 0) {
@@ -259,6 +271,19 @@ export default function ShoppingListView({
 
         {/* Botones de Acción Inmediata para el Súper y Personal */}
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+          {/* 0. Botón Especial: Modo Caminando por el Súper */}
+          <button
+            onClick={() => {
+              audio.superCheck();
+              setIsWalkingMode(!isWalkingMode);
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#C8542A] to-[#E5724A] hover:brightness-110 transition-all shadow-md shadow-[#C8542A]/35"
+            title="Activar vista táctil gigante para caminar en el supermercado"
+          >
+            <span className="text-sm">👟</span>
+            <span>Modo Súper</span>
+          </button>
+
           {/* 1. ¿Qué Falta en Casa? (Para personal de servicio) */}
           <button
             onClick={() => {
@@ -464,30 +489,34 @@ export default function ShoppingListView({
 
       {/* 5. Lista Agrupada por Departamentos con Tarjetas Táctiles Gigantes */}
       {enrichedList.length === 0 ? (
-        <div className="glass-panel text-center py-20 border border-dashed border-white/10 rounded-3xl">
-          <ShoppingCart className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-          <h4 className="text-lg font-bold text-white">No hay compras pendientes</h4>
-          <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
-            Presiona el botón de abajo para que el sistema detecte automáticamente qué productos están por agotarse en la alacena.
+        <div className="card-luxe text-center py-20 border border-dashed border-[#3D3630] rounded-3xl bg-[#1C1916]/40 p-6">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#C8542A]/15 border border-[#C8542A]/30 flex items-center justify-center text-[#E5724A] shadow-md">
+            <ShoppingCart className="w-8 h-8" />
+          </div>
+          <h4 className="font-display text-xl sm:text-2xl font-bold text-[#F2EDE4]">
+            🛒 Tu carrito está limpio. Añade lo que falta en casa.
+          </h4>
+          <p className="text-xs text-[#8B8378] mt-2 max-w-md mx-auto">
+            El personal de servicio puede agregar faltantes con 1 toque o el sistema detecta lo que está por agotarse en la alacena.
           </p>
-          <div className="flex justify-center gap-3 mt-5">
+          <div className="flex flex-wrap justify-center gap-3 mt-6">
+            <button
+              onClick={() => {
+                audio.success();
+                setIsQuickStaffOpen(true);
+              }}
+              className="px-6 py-3 text-sm font-bold text-white bg-gradient-to-r from-[#C8542A] to-[#E5724A] hover:brightness-110 rounded-2xl transition-all shadow-lg shadow-[#C8542A]/30 active:scale-95"
+            >
+              📝 ¿Qué Falta en Casa?
+            </button>
             <button
               onClick={() => {
                 audio.success();
                 onAutoGenerateFromPantry();
               }}
-              className="px-5 py-2.5 text-xs font-bold text-amber-300 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/35 rounded-xl transition-all shadow-md"
+              className="px-5 py-3 text-xs font-bold text-[#E0B441] bg-[#E0B441]/10 hover:bg-[#E0B441]/20 border border-[#E0B441]/30 rounded-2xl transition-all"
             >
               ⚡ Auto-Detectar Faltantes de Casa
-            </button>
-            <button
-              onClick={() => {
-                audio.click();
-                setIsManualAddOpen(true);
-              }}
-              className="px-5 py-2.5 text-xs font-bold text-white bg-white/10 hover:bg-white/20 rounded-xl transition-all"
-            >
-              + Agregar Artículo Manual
             </button>
           </div>
         </div>
@@ -524,7 +553,7 @@ export default function ShoppingListView({
                     <div
                       key={item.id}
                       onClick={() => {
-                        audio.click();
+                        audio.superCheck();
                         onToggleItem(item.id);
                       }}
                       className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between select-none ${
@@ -849,6 +878,146 @@ export default function ShoppingListView({
           <div>Recibido en Alacena: ____________________</div>
         </div>
       </div>
+
+      {/* Botón Flotante Permanente: Modo Súper (Fase 8.5) */}
+      {enrichedList.length > 0 && !isWalkingMode && (
+        <button
+          onClick={() => {
+            audio.superCheck();
+            setIsWalkingMode(true);
+          }}
+          className="fixed bottom-6 right-6 z-30 flex items-center gap-2.5 px-5 py-3.5 rounded-full bg-gradient-to-r from-[#C8542A] to-[#E5724A] text-white font-bold text-sm shadow-xl shadow-[#C8542A]/40 hover:scale-105 active:scale-95 transition-all border border-white/20"
+          title="Abrir modo táctil caminando por el súper"
+        >
+          <span className="text-lg">👟</span>
+          <span>Modo Súper</span>
+        </button>
+      )}
+
+      {/* MODO CAMINANDO POR EL SÚPER (Fase 8.5 - Experiencia Táctil Inmersiva) */}
+      {isWalkingMode && (
+        <div className="fixed inset-0 z-50 bg-[#0A0908] text-[#F2EDE4] overflow-y-auto p-4 sm:p-6 pb-28 animate-modal-in">
+          {/* Header Sticky con Contador y Barra de Progreso */}
+          <div className="sticky top-0 z-20 bg-[#12100E]/95 backdrop-blur-md -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 px-4 py-3 sm:px-6 border-b border-[#2A2521] shadow-xl">
+            {/* Barra de progreso full-width 6px --accent-super */}
+            <div className="w-full bg-[#1C1916] h-1.5 rounded-full overflow-hidden mb-3">
+              <div 
+                className="bg-[#E5724A] h-full transition-all duration-300"
+                style={{ width: `${metrics.progressPercent}%` }}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <span className="font-display text-xl sm:text-2xl font-bold text-white block">
+                  {metrics.inCartCount} de {metrics.totalItems} ✓
+                </span>
+                <span className="font-mono-num text-xs sm:text-sm text-[#E0B441] font-semibold">
+                  ${metrics.totalEstimatedMxn.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN estimado
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {metrics.inCartCount > 0 && (
+                  <button
+                    onClick={handleFinishPurchase}
+                    className="px-3 sm:px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#2F7D5C] hover:bg-[#2F7D5C]/90 shadow-md flex items-center gap-1.5"
+                  >
+                    <Warehouse className="w-4 h-4" />
+                    <span>Guardar ({metrics.inCartCount})</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    audio.click();
+                    setIsWalkingMode(false);
+                  }}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-[#F2EDE4] bg-[#1C1916] hover:bg-[#2A2521] border border-[#3D3630]"
+                >
+                  ✕ Salir Modo Súper
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Pasillos en Modo Caminando */}
+          <div className="max-w-3xl mx-auto mt-6 space-y-8">
+            {SUPERMARKET_DEPARTMENTS.filter(d => d.id !== 'ALL').map((dept) => {
+              const items = groupedByDepartment[dept.id] || [];
+              if (items.length === 0) return null;
+
+              return (
+                <section key={dept.id} className="space-y-4">
+                  {/* Encabezado sticky por pasillo */}
+                  <div className="sticky top-16 z-10 py-2.5 px-4 rounded-2xl bg-[#1C1916]/90 backdrop-blur-md border border-[#3D3630] flex items-center justify-between shadow-md">
+                    <h3 className="font-display text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                      <span>{dept.name}</span>
+                    </h3>
+                    <span className="font-mono-num text-xs font-bold text-[#E5724A] bg-[#E5724A]/10 px-2.5 py-0.5 rounded-full border border-[#E5724A]/25">
+                      {items.filter(i => !i.checked).length} pendientes
+                    </span>
+                  </div>
+
+                  {/* Artículos en el pasillo: Checkbox 56x56, tipografía 2xl */}
+                  <div className="space-y-3">
+                    {items.map((item) => (
+                      <div
+                        key={item.id}
+                        data-walk-unchecked={!item.checked ? "true" : undefined}
+                        onClick={() => handleToggleWalkingItem(item.id)}
+                        className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer flex items-center gap-4 select-none ${
+                          item.checked
+                            ? 'bg-[#2F7D5C]/15 border-[#2F7D5C]/50 text-[#7A7268]'
+                            : 'bg-[#1C1916] border-[#2A2521] hover:border-[#E5724A]/50 text-[#F2EDE4] shadow-sm'
+                        }`}
+                      >
+                        {/* Checkbox cuadrado 56x56 con borde 3px */}
+                        <div
+                          className={`w-14 h-14 min-w-[56px] min-h-[56px] rounded-2xl border-[3px] flex items-center justify-center transition-all shrink-0 ${
+                            item.checked
+                              ? 'bg-[#2F7D5C] border-[#2F7D5C] text-white shadow-lg'
+                              : 'border-[#F2EDE4] bg-[#0A0908] hover:border-[#E5724A]'
+                          }`}
+                        >
+                          {item.checked && (
+                            <svg className="w-8 h-8 stroke-white stroke-[3] fill-none" viewBox="0 0 24 24">
+                              <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </div>
+
+                        {/* Datos del producto en tamaño 2xl */}
+                        <div className="min-w-0 flex-1">
+                          <span className={`font-display text-xl sm:text-2xl font-bold block leading-snug ${
+                            item.checked ? 'line-through text-[#7A7268]' : 'text-white'
+                          }`}>
+                            {item.name}
+                          </span>
+                          <div className="flex items-center gap-3 mt-1 text-sm text-[#B8AFA3]">
+                            <span className="font-mono-num font-bold text-[#E5724A] bg-[#E5724A]/10 px-2.5 py-0.5 rounded-lg border border-[#E5724A]/25">
+                              {item.quantity} {item.unit}
+                            </span>
+                            <span>•</span>
+                            <span>{item.store || 'Supermercado'}</span>
+                            {item.estimatedPriceMxn > 0 && (
+                              <>
+                                <span>•</span>
+                                <span className="font-mono-num text-[#E0B441] font-bold">
+                                  ${((item.estimatedPriceMxn || 0) * (item.quantity || 1)).toFixed(2)} MXN
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
     </div>
   );
