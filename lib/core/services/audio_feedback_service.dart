@@ -1,5 +1,6 @@
 import 'audio_feedback_stub.dart'
-    if (dart.library.html) 'audio_feedback_web.dart';
+    if (dart.library.html) 'audio_feedback_web.dart'
+    if (dart.library.io) 'audio_feedback_mobile.dart';
 
 /// Servicio de Retroalimentación Sonora y Sensorial de Lujo
 /// Proporciona micro-sonidos mecánicos y chimes armónicos instantáneos (Web Audio API)

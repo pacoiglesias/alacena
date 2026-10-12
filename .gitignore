@@ -67,5 +67,7 @@ ui-debug.log
 *.jks
 google-services.json
 GoogleService-Info.plist
+firebase_options.dart
+lib/firebase_options.dart
 .env*
 .env.example

@@ -86,8 +86,8 @@ export default function Header({
                     className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#1C1916] border border-[#3D3630] hover:border-[#E0B441]/50 text-[10px] font-mono font-bold text-[#E0B441] transition-all"
                     title="Ver Ficha Técnica y Changelog Luxe"
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#E0B441] animate-pulse" />
-                    <span>v3.1.0 · Luxe</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>v3.3.0 · Perfection</span>
                   </button>
                 </div>
                 {!isScrolled && (

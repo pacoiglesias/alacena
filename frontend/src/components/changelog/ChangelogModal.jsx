@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.1.0-Titanium-Aurora-Luxe';
+export const SYSTEM_VERSION = 'v3.3.0-Titanium-Aurora-Perfection';
 export const RELEASE_DATE = '11 Octubre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
@@ -160,14 +160,52 @@ export default function ChangelogModal({ isOpen, onClose }) {
         {activeTab === 'changelog' && (
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             
+            {/* Release v3.3.0-Perfection */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-emerald-500/50 hover:border-emerald-500/70 transition-all shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
+                    v3.3.0-Perfection
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">11 Octubre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2 font-display">
+                Operación Proactiva, Lista Imprimible A4/PDF, Maridaje Cava & Respaldo Integral
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Hoja de Compras Imprimible & PDF:</strong> Vista previa editorial A4/Carta en blanco y negro puro, casillas para pluma [ ], código QR de sincronización y firmas de entrega y recepción.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Alertas Proactivas de Despensa:</strong> Detección automática en tiempo real de insumos bajo stock mínimo de seguridad con generación de lista en 1 clic.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>CavaPro & Sommelier Maridaje Rápido:</strong> Filtros por ocasión (Cortes & Asados, Pescados, Brindis, Gran Reserva) y ventana óptima de consumo.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Recepción Rápida de Compras:</strong> Transferencia atómica de insumos comprados a su zona física de alacena con actualización patrimonial en $ MXN.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Master Prompt Canónico v3.3.0:</strong> Documento de gobernanza unificado y respaldado en repositorio con auditoría completa.</span>
+                </li>
+              </ul>
+            </div>
+
             {/* Release v3.1.0-Luxe */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-[#E0B441]/40 hover:border-[#E0B441]/70 transition-all shadow-lg">
+            <div className="p-5 rounded-2xl bg-[#1C1916] border border-[#3D3630] transition-all">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-[#E0B441] bg-[#E0B441]/20 border border-[#E0B441]/40 rounded-lg">
                     v3.1.0-Luxe
                   </span>
-                  <span className="text-xs font-semibold text-emerald-400">VERSIÓN VIGENTE</span>
+                  <span className="text-xs font-semibold text-gray-400">ANTERIOR</span>
                 </div>
                 <span className="text-xs text-gray-400">11 Octubre 2026</span>
               </div>

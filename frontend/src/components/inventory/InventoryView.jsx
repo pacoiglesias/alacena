@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   Search, Plus, Filter, AlertTriangle, CheckCircle, 
   Trash2, Pencil, ArrowUpDown, DollarSign, Layers, Warehouse,
-  LayoutGrid, Table as TableIcon, Wine, Sparkles, MapPin, Star
+  LayoutGrid, Table as TableIcon, Wine, Sparkles, MapPin, Star, ShoppingCart
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import ZonesBar from '../zones/ZonesBar';
@@ -27,6 +27,7 @@ export default function InventoryView({
   onEditZone,
   onAddZone,
   onOpenWineTasting,
+  onOpenShoppingTab,
 }) {
   const [search, setSearch] = useState('');
   const [selectedZone, setSelectedZone] = useState(null);
@@ -161,6 +162,54 @@ export default function InventoryView({
 
       </div>
 
+      {/* ═════════════════════════════════════════════════════════════════
+          BANNER PROACTIVO DE REPOSICIÓN INTELIGENTE (Auto-Restock Engine)
+         ═════════════════════════════════════════════════════════════════ */}
+      {metrics.lowStockCount > 0 && (
+        <div className="rounded-2xl p-4 sm:p-5 bg-gradient-to-r from-[#6B1F2E]/30 via-[#C8542A]/20 to-[#1C1916] border border-[#C8542A]/40 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-[#C8542A]/25 border border-[#C8542A]/50 flex items-center justify-center text-[#E5724A] shrink-0 shadow-sm">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-bold text-white font-display">
+                  Alerta Proactiva de Abastecimiento
+                </h4>
+                <span className="px-2 py-0.5 rounded-full bg-[#C8542A] text-white text-[10px] font-mono-num font-extrabold tracking-wide">
+                  {metrics.lowStockCount} insumos críticos
+                </span>
+              </div>
+              <p className="text-xs text-[#B8AFA3] mt-0.5">
+                Existen artículos por debajo del inventario mínimo de seguridad. Genera la orden con un solo toque para el personal.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 self-stretch sm:self-auto shrink-0">
+            <button
+              onClick={() => {
+                audio.click();
+                setStatusFilter('LOW');
+              }}
+              className="px-3 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-all"
+            >
+              🔍 Ver Faltantes
+            </button>
+            <button
+              onClick={() => {
+                audio.click();
+                if (onOpenShoppingTab) onOpenShoppingTab();
+              }}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-[#C8542A] hover:bg-[#E5724A] text-white transition-all shadow-md shadow-[#C8542A]/30 flex items-center gap-2 active:scale-95"
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />
+              <span>🛒 Generar Lista del Súper</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Content Area */}
       <div className="card-luxe p-6 border border-[#2A2521] bg-[#1C1916] space-y-5">
         
@@ -230,6 +279,38 @@ export default function InventoryView({
           onEditZone={onEditZone}
           onAddZone={onAddZone}
         />
+
+        {/* 🍷 Chips de Maridaje Rápido Sommelier (Visibles en Cava / Vinos) */}
+        {isCavaFilter && (
+          <div className="p-3 rounded-2xl bg-[#12100E] border border-[#2A2521] flex flex-wrap items-center gap-2 text-xs animate-fade-in">
+            <span className="text-[#E0B441] font-bold flex items-center gap-1.5 mr-1">
+              <Sparkles className="w-3.5 h-3.5" />
+              Maridaje Sugerido:
+            </span>
+            {[
+              { id: 'ALL_WINE', label: '🍷 Todas las Botellas', q: '' },
+              { id: 'CARNES', label: '🥩 Cortes & Asados (Tintos)', q: 'tinto' },
+              { id: 'PESCADOS', label: '🐟 Pescados & Aves (Blancos)', q: 'blanco' },
+              { id: 'BRINDIS', label: '🥂 Espumosos & Cava', q: 'espumoso' },
+              { id: 'RESERVA', label: '⭐ Gran Reserva (90+ Pts)', q: 'reserva' },
+            ].map((pair) => (
+              <button
+                key={pair.id}
+                onClick={() => {
+                  audio.click();
+                  setSearch(pair.q);
+                }}
+                className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
+                  search === pair.q
+                    ? 'bg-[#6B1F2E] text-white border border-[#A83A50] shadow-sm'
+                    : 'bg-[#1C1916] text-[#B8AFA3] hover:text-white border border-[#2A2521]'
+                }`}
+              >
+                {pair.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Categorías y Filtros de Estado */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar text-xs">

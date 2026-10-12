@@ -1,5 +1,5 @@
 // ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
+import 'dart:js' as js;
 import 'audio_feedback_stub.dart';
 
 class AudioFeedbackPlatformWeb implements AudioFeedbackPlatform {
@@ -12,7 +12,7 @@ class AudioFeedbackPlatformWeb implements AudioFeedbackPlatform {
   void toggleMute() {
     _muted = !_muted;
     try {
-      html.window.callMethod('setLuxurySoundMuted', [_muted]);
+      js.context.callMethod('setLuxurySoundMuted', [_muted]);
     } catch (_) {}
   }
 
@@ -20,7 +20,7 @@ class AudioFeedbackPlatformWeb implements AudioFeedbackPlatform {
   void playSound(String type) {
     if (_muted) return;
     try {
-      html.window.callMethod('playLuxurySound', [type]);
+      js.context.callMethod('playLuxurySound', [type]);
     } catch (_) {}
   }
 }

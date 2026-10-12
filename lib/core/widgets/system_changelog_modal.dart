@@ -239,7 +239,7 @@ class _SystemChangelogModalState extends State<SystemChangelogModal> {
                     '✨ Botón prominente "+ Capturar Producto" sin necesidad de escaneo de barras.',
                     '✏️ Gestión de Zonas Físicas Inline: Edición y renombrado con 1 toque en chips de Cava, Cuarto Frío, etc.',
                     '🔊 Motor de Audio Sensorial (Web Audio API): Retroalimentación acústica instantánea para clics, guardado y alertas.',
-                    '🏷️ Moneda Estricta MXN ($): Eliminación total de divisas extranjeras en compras, recetas e inventario.',
+                    '🏷️ Moneda Estricta MXN (\$): Eliminación total de divisas extranjeras en compras, recetas e inventario.',
                     '📌 Badge de Versión Visible y Log interactivo de mejoras del sistema en tiempo real.',
                   ],
                 ),

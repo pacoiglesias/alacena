@@ -598,6 +598,7 @@ export default function App() {
               setEditingZone(null);
               setIsZoneModalOpen(true);
             }}
+            onOpenShoppingTab={() => setActiveTab('shopping')}
           />
         )}
 
