@@ -15,6 +15,7 @@ import QuickStaffShoppingModal from './QuickStaffShoppingModal';
 import PrintableShoppingListModal from './PrintableShoppingListModal';
 import SmartListImportModal from './SmartListImportModal';
 import { getCatalogs } from '../../services/catalogsService';
+import { areItemsEquivalent, deduplicateShoppingItems } from '../../utils/deduplication';
 
 // Departamentos estándar de supermercado físico
 export const SUPERMARKET_DEPARTMENTS = [
@@ -47,6 +48,7 @@ export default function ShoppingListView({
   onToggleItem,
   onRemoveItem,
   onAddItem,
+  onUpdateItemQuantity,
   onAutoGenerateFromPantry,
   onCompletePurchaseToPantry,
   onOpenScanner,
@@ -67,10 +69,11 @@ export default function ShoppingListView({
   const [isWalkingMode, setIsWalkingMode] = useState(false);
   const [isSmartImportOpen, setIsSmartImportOpen] = useState(false);
 
-  // Batch import callback
+  // Batch import callback con desduplicación previa
   const handleBatchImportItems = (importedItems) => {
     if (!importedItems || importedItems.length === 0) return;
-    importedItems.forEach((item) => {
+    const cleanBatch = deduplicateShoppingItems(importedItems);
+    cleanBatch.forEach((item) => {
       onAddItem({
         name: item.name,
         quantity: item.quantity || 1,
@@ -92,11 +95,11 @@ export default function ShoppingListView({
   const [estimatedPriceMxn, setEstimatedPriceMxn] = useState(0);
   const [targetZone, setTargetZone] = useState(zones[0]?.name || 'Alacena Principal');
 
-  // Detección proactiva de productos que necesitan compra en casa
+  // Detección proactiva inteligente con equivalencia (evita duplicar salmón / salmon)
   const proactiveLowStockItems = useMemo(() => {
     return products.filter((p) => {
       const isLow = (p.quantity || 0) <= (p.minStock || 0);
-      const alreadyInList = shoppingList.some((i) => i.name.toLowerCase() === p.name.toLowerCase());
+      const alreadyInList = shoppingList.some((i) => areItemsEquivalent(i.name, p.name));
       return isLow && !alreadyInList;
     });
   }, [products, shoppingList]);
@@ -685,10 +688,39 @@ export default function ShoppingListView({
                           }`}>
                             {item.name}
                           </span>
-                          <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
-                            <span className="font-mono text-emerald-300 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
-                              {item.quantity} {item.unit}
-                            </span>
+                          <div className="flex items-center gap-2 text-xs text-gray-400 mt-1 flex-wrap">
+                            <div 
+                              className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg px-1.5 py-0.5" 
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  audio.click();
+                                  if (onUpdateItemQuantity) {
+                                    const next = Math.max(0.5, parseFloat(((parseFloat(item.quantity) || 1) - 1).toFixed(2)));
+                                    onUpdateItemQuantity(item.id, next);
+                                  }
+                                }}
+                                className="text-xs text-gray-400 hover:text-white px-1.5 font-bold cursor-pointer"
+                                title="Restar 1"
+                              >-</button>
+                              <span className="font-mono text-emerald-300 font-bold text-xs px-1">
+                                {item.quantity} {item.unit}
+                              </span>
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  audio.click();
+                                  if (onUpdateItemQuantity) {
+                                    const next = parseFloat(((parseFloat(item.quantity) || 1) + 1).toFixed(2));
+                                    onUpdateItemQuantity(item.id, next);
+                                  }
+                                }}
+                                className="text-xs text-gray-400 hover:text-white px-1.5 font-bold cursor-pointer"
+                                title="Sumar 1"
+                              >+</button>
+                            </div>
                             <span>•</span>
                             <span className="truncate">{item.store || 'Supermercado'}</span>
                             {item.targetZone && (

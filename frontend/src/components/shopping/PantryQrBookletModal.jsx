@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { generateQrPdf } from '../../services/qrPdfService';
+import QRCode from 'qrcode';
 
 export default function PantryQrBookletModal({
   isOpen,
@@ -97,9 +98,214 @@ export default function PantryQrBookletModal({
     });
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     audio.click();
-    window.print();
+    setIsGeneratingPdf(true);
+    try {
+      // 1. Pre-renderizar imágenes PNG en memoria para cada código QR usando la librería oficial
+      const qrDataMap = {};
+      for (const item of printableList) {
+        const barcode = item.barcode || `ALC-${(item.id || '').replace('prod-', '').toUpperCase()}`;
+        if (!qrDataMap[barcode]) {
+          try {
+            qrDataMap[barcode] = await QRCode.toDataURL(barcode, {
+              width: 256,
+              margin: 1,
+              color: { dark: '#000000', light: '#FFFFFF' },
+              errorCorrectionLevel: 'M',
+            });
+          } catch (e) {
+            console.warn('Error generando QR para impresión:', e);
+          }
+        }
+      }
+
+      // 2. Construir documento HTML autónomo 100% puro en papel blanco (sin interferencias de la app)
+      const dateStr = new Date().toLocaleDateString('es-MX');
+      const houseName = activeHouse?.name || 'Residencia Principal';
+      const zoneName = selectedZoneFilter === 'ALL' ? 'Todas las Zonas' : selectedZoneFilter;
+
+      let formatTitle = 'PLANILLA DE ETIQUETAS ADHESIVAS PARA BOTES, FRASCOS Y SOBRES';
+      if (printFormat === 'TABLERO_PEDIDOS') formatTitle = 'TABLERO MAESTRO DE COCINA (ESCANEOS RÁPIDOS DE PEDIDOS Y SALIDAS)';
+      if (printFormat === 'WINE_TAGS') formatTitle = 'COLLARINES CON TROQUEL PARA CUELLO DE BOTELLAS DE CAVA';
+      if (printFormat === 'CATALOG') formatTitle = 'CATÁLOGO FÍSICO DE ALMACÉN Y ALACENA DE COCINA';
+
+      let cardsHtml = '';
+      if (printFormat === 'STICKERS') {
+        cardsHtml = `<div class="grid-stickers">` + printableList.map((p) => {
+          const barcode = p.barcode || `ALC-${(p.id || '').replace('prod-', '').toUpperCase()}`;
+          const qrImg = qrDataMap[barcode] || '';
+          return `
+            <div class="card sticker-card">
+              <div class="cut-guide">✂ recortar</div>
+              <div class="card-header">
+                <div class="tag">ALACENA • ${(p.zone || 'DESPENSA').toUpperCase()}</div>
+                <div class="prod-title">${p.name}</div>
+                <div class="prod-meta">${p.quantity} ${p.unit} • ${p.category || 'Insumo'}</div>
+              </div>
+              <div class="qr-container">
+                <img src="${qrImg}" class="qr-img" width="105" height="105" alt="QR" />
+              </div>
+              <div class="barcode-badge">${barcode}</div>
+              <div class="date-lines">
+                <div class="date-row"><span>Envasado:</span> <span class="dots">___/___/202_</span></div>
+                <div class="date-row"><span>Caducidad:</span> <span class="dots">___/___/202_</span></div>
+              </div>
+            </div>
+          `;
+        }).join('') + `</div>`;
+      } else if (printFormat === 'TABLERO_PEDIDOS') {
+        cardsHtml = `<div class="grid-board">` + printableList.map((p) => {
+          const barcode = p.barcode || `ALC-${(p.id || '').replace('prod-', '').toUpperCase()}`;
+          const qrImg = qrDataMap[barcode] || '';
+          return `
+            <div class="card board-card">
+              <div class="board-left">
+                <img src="${qrImg}" class="qr-img" width="80" height="80" alt="QR" />
+              </div>
+              <div class="board-right">
+                <div class="barcode-badge-sm">${barcode} • ${p.zone || 'Alacena'}</div>
+                <div class="board-name">${p.name}</div>
+                <div class="board-meta">Min: <strong>${p.minStock || 1}</strong> • Max: <strong>${p.maxStock || 4} ${p.unit}</strong></div>
+                <div class="board-actions">
+                  <span class="action-buy">🛒 Pedir Súper</span>
+                  <span class="action-sub">➖ Salida Cocina</span>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('') + `</div>`;
+      } else if (printFormat === 'WINE_TAGS') {
+        cardsHtml = `<div class="grid-wine">` + printableList.map((p) => {
+          const barcode = p.barcode || `ALC-${(p.id || '').replace('prod-', '').toUpperCase()}`;
+          const qrImg = qrDataMap[barcode] || '';
+          return `
+            <div class="card wine-card">
+              <div class="wine-neck-circle">
+                <div class="cut-circle">✂ CORTAR CÍRCULO<br><small>Colgar en cuello</small></div>
+              </div>
+              <div class="wine-body">
+                <div class="wine-tag">CAVAPRO • SELECCIÓN PARTICULAR</div>
+                <div class="wine-name">${p.name}</div>
+                <div class="wine-meta">${p.category || 'Vino Tinto'} • ${p.zone || 'Cava'}</div>
+                <div class="qr-container">
+                  <img src="${qrImg}" class="qr-img" width="100" height="100" alt="QR" />
+                </div>
+                <div class="barcode-badge">${barcode}</div>
+                <div class="wine-sub">Escanear al descorchar para registrar salida</div>
+              </div>
+            </div>
+          `;
+        }).join('') + `</div>`;
+      } else {
+        cardsHtml = `<div class="grid-catalog">` + printableList.map((p) => {
+          const barcode = p.barcode || `ALC-${(p.id || '').replace('prod-', '').toUpperCase()}`;
+          const qrImg = qrDataMap[barcode] || '';
+          return `
+            <div class="card catalog-card">
+              <div class="cat-left">
+                <img src="${qrImg}" class="qr-img" width="70" height="70" alt="QR" />
+              </div>
+              <div class="cat-right">
+                <div class="barcode-badge-sm">${barcode} • ${p.zone || 'Alacena'}</div>
+                <div class="board-name">${p.name}</div>
+                <div class="board-meta">Stock: <strong>${p.quantity} ${p.unit}</strong> • Tienda: ${p.store || 'Super'}</div>
+              </div>
+            </div>
+          `;
+        }).join('') + `</div>`;
+      }
+
+      const fullPrintHtml = `<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+  <meta charset="UTF-8">
+  <title>ALACENA • Impresión QR</title>
+  <style>
+    @page { size: letter portrait; margin: 8mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background: #ffffff !important; color: #000000 !important; }
+    .print-header { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; }
+    .print-brand { font-size: 8px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; color: #333; }
+    .print-title { font-size: 15px; font-weight: 900; text-transform: uppercase; margin: 2px 0; color: #000; }
+    .print-meta { font-size: 9px; color: #555; }
+    .board-instruct { margin-top: 6px; padding: 6px; background: #f3f3f3; border: 1px solid #ccc; border-radius: 4px; font-size: 8.5px; }
+    .card { background: #ffffff !important; color: #000000 !important; page-break-inside: avoid !important; break-inside: avoid !important; position: relative; }
+    .grid-stickers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+    .sticker-card { border: 1.5px dashed #555; border-radius: 8px; padding: 8px; text-align: center; }
+    .cut-guide { position: absolute; top: -7px; right: 8px; background: #fff; border: 1px solid #777; border-radius: 3px; font-size: 7px; font-family: monospace; padding: 1px 4px; }
+    .tag { font-size: 7.5px; font-weight: 900; letter-spacing: 1px; color: #885500; text-transform: uppercase; }
+    .prod-title { font-size: 11px; font-weight: 800; line-height: 1.2; margin-top: 2px; }
+    .prod-meta { font-size: 8.5px; color: #555; font-weight: 600; margin-top: 1px; }
+    .qr-container { margin: 6px 0; display: flex; justify-content: center; }
+    .qr-img { display: block; margin: 0 auto; }
+    .barcode-badge { display: inline-block; font-family: monospace; font-size: 10px; font-weight: 900; background: #f0f0f0; border: 1px solid #ccc; padding: 2px 6px; border-radius: 4px; }
+    .barcode-badge-sm { font-family: monospace; font-size: 8.5px; font-weight: 900; color: #884400; }
+    .date-lines { margin-top: 6px; border: 1px dashed #aaa; border-radius: 4px; padding: 3px 5px; font-size: 7.5px; font-family: monospace; }
+    .date-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+    .dots { color: #888; }
+    .grid-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; }
+    .board-card { border: 1px solid #bbb; border-radius: 6px; padding: 6px; display: flex; gap: 6px; align-items: center; }
+    .board-right { flex: 1; min-width: 0; }
+    .board-name { font-size: 10px; font-weight: 800; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .board-meta { font-size: 7.5px; color: #666; margin-top: 2px; }
+    .board-actions { margin-top: 4px; padding-top: 3px; border-top: 1px solid #eee; display: flex; justify-content: space-between; font-size: 7px; font-weight: bold; }
+    .action-buy { color: #007733; }
+    .action-sub { color: #aa4400; }
+    .grid-wine { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+    .wine-card { border: 1.5px solid #666; border-radius: 10px; padding: 10px 8px; text-align: center; }
+    .wine-neck-circle { padding-bottom: 8px; border-bottom: 1.5px dashed #888; margin-bottom: 6px; }
+    .cut-circle { width: 50px; height: 50px; border: 1.5px dashed #cc2244; background: #fff4f6; border-radius: 50%; margin: 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 6.5px; font-weight: bold; color: #990022; text-align: center; line-height: 1.1; }
+    .wine-tag { font-size: 7px; font-weight: 900; letter-spacing: 1px; color: #881133; text-transform: uppercase; }
+    .wine-name { font-size: 11px; font-weight: 800; line-height: 1.2; margin: 2px 0; }
+    .wine-meta { font-size: 8.5px; color: #666; }
+    .wine-sub { font-size: 7px; color: #666; margin-top: 4px; }
+    .grid-catalog { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3mm; }
+    .catalog-card { border: 1px solid #bbb; border-radius: 6px; padding: 6px; display: flex; gap: 8px; align-items: center; }
+    .cat-right { flex: 1; min-width: 0; }
+  </style>
+</head>
+<body>
+  <div class="print-header">
+    <div class="print-brand">ALACENA ENTERPRISE • SISTEMA RESIDENCIAL DE ALMACÉN & CAVA</div>
+    <div class="print-title">\${formatTitle}</div>
+    <div class="print-meta">Residencia: <strong>\${houseName}</strong> • Ubicación: <strong>\${zoneName}</strong> • Impreso: \${dateStr} • Total: \${printableList.length} ítems</div>
+    \${printFormat === 'TABLERO_PEDIDOS' ? '<div class="board-instruct">📌 <strong>Instrucciones:</strong> Plastifica esta hoja y pégala en la puerta de la alacena para escanear salidas y pedidos rápidamente con el celular.</div>' : ''}
+  </div>
+  \${cardsHtml}
+</body>
+</html>`;
+
+      // 3. Montar iframe invisible e imprimir
+      let iframe = document.getElementById('alacena-qr-print-frame');
+      if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'alacena-qr-print-frame';
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+      }
+
+      const frameDoc = iframe.contentDocument || iframe.contentWindow.document;
+      frameDoc.open();
+      frameDoc.write(fullPrintHtml);
+      frameDoc.close();
+
+      setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setIsGeneratingPdf(false);
+      }, 350);
+
+    } catch (err) {
+      console.error('Error preparando impresión:', err);
+      setIsGeneratingPdf(false);
+      window.print();
+    }
   };
 
   const handleDownloadPdf = async () => {

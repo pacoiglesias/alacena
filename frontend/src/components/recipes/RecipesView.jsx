@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
+import { areItemsEquivalent, deduplicateRecipeIngredients } from '../../utils/deduplication';
 
 const SAMPLE_RECIPE_PHOTOS = [
   'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop&q=80', // Ribeye
@@ -74,10 +75,9 @@ export default function RecipesView({
     const evaluatedIngredients = (recipe.ingredients || []).map((ing) => {
       const requiredAmount = parseFloat((ing.amount * scaleFactor).toFixed(2));
       
-      // Buscar en el inventario de casa
+      // Buscar en el inventario de casa usando equivalencia inteligente
       const foundProduct = products.find(
-        (p) => p.name.toLowerCase().includes(ing.productName.toLowerCase()) || 
-               ing.productName.toLowerCase().includes(p.name.toLowerCase())
+        (p) => areItemsEquivalent(p.name, ing.productName)
       );
 
       const availableQty = foundProduct ? (foundProduct.quantity || 0) : 0;
@@ -185,7 +185,9 @@ export default function RecipesView({
     if (!newRecipeName.trim()) return;
 
     audio.success();
-    const cleanIngredients = newIngredients.filter((i) => i.productName.trim());
+    const cleanIngredients = deduplicateRecipeIngredients(
+      newIngredients.filter((i) => i.productName.trim())
+    );
 
     const createdRecipe = {
       id: `rec-${Date.now()}`,

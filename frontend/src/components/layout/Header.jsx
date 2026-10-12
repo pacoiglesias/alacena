@@ -143,7 +143,7 @@ export default function Header({
                     title="Ver Ficha Técnica y Changelog Luxe"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>v3.5.0 · Enterprise Luxe</span>
+                    <span>v3.5.2 · Enterprise Luxe</span>
                   </button>
                 </div>
                 {!isScrolled && (

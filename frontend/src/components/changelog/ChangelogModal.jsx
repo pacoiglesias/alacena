@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.5.1-Enterprise-Luxe';
+export const SYSTEM_VERSION = 'v3.5.2-Enterprise-Luxe';
 export const RELEASE_DATE = '12 Octubre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
@@ -160,14 +160,43 @@ export default function ChangelogModal({ isOpen, onClose }) {
         {activeTab === 'changelog' && (
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             
-            {/* Release v3.5.1-Enterprise-Luxe */}
+            {/* Release v3.5.2-Enterprise-Luxe */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-[#E0B441] shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-[#E0B441] bg-[#E0B441]/20 border border-[#E0B441]/40 rounded-lg font-mono">
-                    v3.5.1-Enterprise-Luxe
+                    v3.5.2-Enterprise-Luxe
                   </span>
                   <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">12 Octubre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2 font-display">
+                Motor Anti-Duplicados Unificado, Ajuste Directo de Cantidades e Impresión QR en Iframe Aislado
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Motor de Deduplicación Fonética y Ortográfica (`deduplication.js`):</strong> Normalización de acentos, plurales (`tomates` vs `tomate`) y raíces compuestas. Se evitan duplicados en despensa, lista de compras y recetas.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Steppers Táctiles Directos en Lista de Compra:</strong> Botones rápidos `+` y `-` integrados en cada tarjeta para alterar cantidades en un solo toque sin abrir formularios modales.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span><strong>Impresión Física QR sin Páginas en Blanco:</strong> Generación a través de iframe aislado invisible que renderiza HTML puro blanco con códigos QR en base64 de alto contraste para impresión física infalible.</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Release v3.5.1-Enterprise-Luxe */}
+            <div className="p-5 rounded-2xl bg-[#171412] border border-[#2A2521] shadow-md">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-gray-300 bg-white/5 border border-white/10 rounded-lg font-mono">
+                    v3.5.1-Enterprise-Luxe
+                  </span>
                 </div>
                 <span className="text-xs text-gray-400">12 Octubre 2026</span>
               </div>

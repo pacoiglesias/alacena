@@ -23,6 +23,11 @@ import {
   INITIAL_STAFF, 
   INITIAL_AUDIT_LOGS 
 } from './services/demoData';
+import { 
+  areItemsEquivalent, 
+  deduplicateShoppingItems, 
+  deduplicateInventoryProducts 
+} from './utils/deduplication';
 
 // Initial shopping list generated from low stock items
 const INITIAL_SHOPPING_LIST = [
@@ -59,15 +64,15 @@ const INITIAL_SHOPPING_LIST = [
 ];
 
 export default function App() {
-  // Local storage persisted state
+  // Local storage persisted state con saneamiento de duplicados
   const [products, setProducts] = useState(() => {
     const saved = localStorage.getItem('alacena_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+    return saved ? deduplicateInventoryProducts(JSON.parse(saved)) : INITIAL_PRODUCTS;
   });
 
   const [shoppingList, setShoppingList] = useState(() => {
     const saved = localStorage.getItem('alacena_shopping_list');
-    return saved ? JSON.parse(saved) : INITIAL_SHOPPING_LIST;
+    return saved ? deduplicateShoppingItems(JSON.parse(saved)) : INITIAL_SHOPPING_LIST;
   });
 
   const [zones, setZones] = useState(() => {
@@ -268,6 +273,33 @@ export default function App() {
         );
         return prev.map((p) => (p.id === productData.id ? productData : p));
       } else {
+        // Verificar si ya existe un insumo equivalente para evitar registros duplicados
+        const duplicateIdx = prev.findIndex((p) => 
+          areItemsEquivalent(p.name, productData.name) || 
+          (p.barcode && productData.barcode && p.barcode === productData.barcode)
+        );
+
+        if (duplicateIdx >= 0) {
+          const existing = prev[duplicateIdx];
+          const newQty = parseFloat(((existing.quantity || 0) + (productData.quantity || 0)).toFixed(2));
+          addAuditEntry(
+            productData.lastLoggedBy,
+            'CONSOLIDACION_ARTICULO',
+            `Consolidó +${productData.quantity} ${productData.unit} en insumo existente "${existing.name}" (Total: ${newQty} ${existing.unit})`,
+            `Evitó registro duplicado en inventario`
+          );
+          const updated = [...prev];
+          updated[duplicateIdx] = {
+            ...existing,
+            quantity: newQty,
+            minStock: Math.max(existing.minStock || 1, productData.minStock || 1),
+            idealStock: Math.max(existing.idealStock || 5, productData.idealStock || 5),
+            unitPriceMxn: productData.unitPriceMxn > 0 ? productData.unitPriceMxn : existing.unitPriceMxn,
+            updatedAt: new Date().toISOString(),
+          };
+          return updated;
+        }
+
         addAuditEntry(
           productData.lastLoggedBy,
           'ALTA_MANUAL',
@@ -323,19 +355,26 @@ export default function App() {
     setShoppingList((prev) => prev.filter((item) => item.id !== itemId));
   };
 
+  const handleUpdateShoppingItemQuantity = (itemId, newQuantity) => {
+    setShoppingList((prev) =>
+      prev.map((item) =>
+        item.id === itemId ? { ...item, quantity: parseFloat(newQuantity.toFixed(2)) } : item
+      )
+    );
+  };
+
   // Shopping list actions con DEDUPLICACIÓN Y CONSOLIDACIÓN ESTRICTA
   const handleAddShoppingItem = (item) => {
     setShoppingList((prev) => {
-      const normName = (item.name || '').trim().toLowerCase();
       const existingIdx = prev.findIndex(
-        (i) => (i.name || '').trim().toLowerCase() === normName || (i.barcode && item.barcode && i.barcode === item.barcode)
+        (i) => areItemsEquivalent(i.name, item.name) || (i.barcode && item.barcode && i.barcode === item.barcode)
       );
 
       if (existingIdx >= 0) {
         // Consolidar insumo existente sumando su cantidad
         const updated = [...prev];
         const existing = updated[existingIdx];
-        const newQty = (parseFloat(existing.quantity) || 0) + (parseFloat(item.quantity) || 1);
+        const newQty = parseFloat(((parseFloat(existing.quantity) || 0) + (parseFloat(item.quantity) || 1)).toFixed(2));
         updated[existingIdx] = {
           ...existing,
           quantity: newQty,
@@ -344,34 +383,18 @@ export default function App() {
           targetZone: item.targetZone || existing.targetZone,
           checked: false, // desmarcar para comprar de nuevo
         };
-        return updated;
+        return deduplicateShoppingItems(updated);
       }
 
-      return [item, ...prev];
+      return deduplicateShoppingItems([item, ...prev]);
     });
   };
 
   const handleDeduplicateShoppingList = () => {
     setShoppingList((prev) => {
-      const map = new Map();
-      let mergedCount = 0;
+      const deduplicated = deduplicateShoppingItems(prev);
+      const mergedCount = prev.length - deduplicated.length;
 
-      prev.forEach((item) => {
-        const key = (item.name || '').trim().toLowerCase();
-        if (!key) return;
-
-        if (map.has(key)) {
-          const existing = map.get(key);
-          existing.quantity = (parseFloat(existing.quantity) || 0) + (parseFloat(item.quantity) || 1);
-          if (item.store && !existing.store) existing.store = item.store;
-          if (item.estimatedPriceMxn > 0 && !existing.estimatedPriceMxn) existing.estimatedPriceMxn = item.estimatedPriceMxn;
-          mergedCount++;
-        } else {
-          map.set(key, { ...item });
-        }
-      });
-
-      const deduplicated = Array.from(map.values());
       if (mergedCount > 0) {
         alert(`🧹 ¡Lista de compras desduplicada con éxito! Se consolidaron ${mergedCount} registros repetidos en ${deduplicated.length} insumos únicos.`);
       } else {
@@ -444,9 +467,20 @@ export default function App() {
     setShoppingList((prev) => {
       const updated = [...prev];
       lowStockItems.forEach((p) => {
-        const alreadyInList = updated.find((i) => i.name.toLowerCase() === p.name.toLowerCase());
-        if (!alreadyInList) {
-          const deficit = Math.max(1, (p.idealStock || 5) - (p.quantity || 0));
+        const existingIdx = updated.findIndex((i) => 
+          areItemsEquivalent(i.name, p.name) || 
+          (i.barcode && p.barcode && i.barcode === p.barcode)
+        );
+        const deficit = Math.max(1, (p.idealStock || 5) - (p.quantity || 0));
+
+        if (existingIdx >= 0) {
+          // Si ya existe, reactivar y asegurar cantidad mínima necesaria
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            quantity: Math.max(updated[existingIdx].quantity, deficit),
+            checked: false,
+          };
+        } else {
           updated.push({
             id: `shop-${Date.now()}-${Math.random()}`,
             name: p.name,
@@ -460,7 +494,7 @@ export default function App() {
           addedCount++;
         }
       });
-      return updated;
+      return deduplicateShoppingItems(updated);
     });
 
     if (addedCount > 0) {
@@ -479,7 +513,7 @@ export default function App() {
 
       checkedItems.forEach((purchased) => {
         const existingIdx = currentList.findIndex(
-          (p) => p.name.toLowerCase() === purchased.name.toLowerCase()
+          (p) => areItemsEquivalent(p.name, purchased.name) || (p.barcode && purchased.barcode && p.barcode === purchased.barcode)
         );
 
         const cost = (purchased.quantity || 1) * (purchased.estimatedPriceMxn || 0);
@@ -489,7 +523,7 @@ export default function App() {
           const existing = currentList[existingIdx];
           currentList[existingIdx] = {
             ...existing,
-            quantity: (existing.quantity || 0) + (purchased.quantity || 1),
+            quantity: parseFloat(((existing.quantity || 0) + (purchased.quantity || 1)).toFixed(2)),
             unitPriceMxn: purchased.estimatedPriceMxn > 0 ? purchased.estimatedPriceMxn : existing.unitPriceMxn,
             updatedAt: new Date().toISOString(),
           };
@@ -511,7 +545,7 @@ export default function App() {
         }
       });
 
-      return currentList;
+      return deduplicateInventoryProducts(currentList);
     });
 
     // Limpiar comprados de la lista de compras
@@ -790,6 +824,7 @@ export default function App() {
             onToggleItem={handleToggleShoppingItem}
             onRemoveItem={handleRemoveShoppingItem}
             onAddItem={handleAddShoppingItem}
+            onUpdateItemQuantity={handleUpdateShoppingItemQuantity}
             onAutoGenerateFromPantry={handleAutoGenerateShoppingList}
             onCompletePurchaseToPantry={handleCompletePurchaseToPantry}
             onOpenScanner={() => setIsScannerOpen(true)}
