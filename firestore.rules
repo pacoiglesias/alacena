@@ -206,7 +206,14 @@ service cloud.firestore {
             request.resource.data.workspaceId == workspaceId &&
             request.resource.data.householdId == householdId &&
             request.resource.data.userId == request.auth.uid &&
-            request.resource.data.timestamp == request.time;
+            request.resource.data.timestamp == request.time &&
+            request.resource.data.keys().hasOnly([
+              'id', 'workspaceId', 'householdId', 'itemId', 'itemName',
+              'userId', 'userEmail', 'userRole', 'action', 'previousQuantity',
+              'newQuantity', 'quantityDelta', 'unitPriceAtMoment', 'economicValueDelta',
+              'currency', 'scanMethod', 'timestamp', 'entityType', 'entityId',
+              'delta', 'metadata', 'hashPrevio', 'hashActual'
+            ]);
           // CRÍTICO: PROHIBIDO EDITAR O BORRAR LOGS HISTÓRICOS
           allow update, delete: if false;
         }
