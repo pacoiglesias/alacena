@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 
@@ -13,21 +13,14 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+
+// Inicializar Firestore con caché persistente y soporte multi-pestaña moderno (sin deprecation warnings)
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+});
 export const auth = getAuth(app);
 export const storage = getStorage(app);
-
-// Habilitar persistencia offline en el navegador para velocidad instantánea
-try {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('Persistencia de Firestore en múltiples pestañas');
-    } else if (err.code === 'unimplemented') {
-      console.warn('El navegador no soporta persistencia IndexedDB');
-    }
-  });
-} catch (e) {
-  // Ignorar si ya está inicializado
-}
 
 export default app;

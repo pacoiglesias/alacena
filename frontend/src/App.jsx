@@ -684,37 +684,50 @@ export default function App() {
           (p) => areItemsEquivalent(p.name, purchased.name) || (p.barcode && purchased.barcode && p.barcode === purchased.barcode)
         );
 
-        const cost = (purchased.quantity || 1) * (purchased.estimatedPriceMxn || 0);
+        const cost = (purchased.quantity || 1) * (purchased.realPrice || purchased.estimatedPriceMxn || 0);
         totalEstimatedPurchasedMxn += cost;
 
         if (existingIdx >= 0) {
           const existing = currentList[existingIdx];
-          currentList[existingIdx] = {
+          const newQty = parseFloat(((existing.quantity || 0) + (purchased.quantity || 1)).toFixed(2));
+          const unitPrice = (purchased.realPrice || purchased.estimatedPriceMxn || 0) > 0 ? (purchased.realPrice || purchased.estimatedPriceMxn) : existing.unitPriceMxn;
+          const merged = {
             ...existing,
-            quantity: parseFloat(((existing.quantity || 0) + (purchased.quantity || 1)).toFixed(2)),
-            unitPriceMxn: purchased.estimatedPriceMxn > 0 ? purchased.estimatedPriceMxn : existing.unitPriceMxn,
+            quantity: newQty,
+            unitPriceMxn: unitPrice,
             lastLoggedBy: buyer,
             updatedAt: new Date().toISOString(),
           };
+          currentList[existingIdx] = merged;
+          saveProductToCloud(merged);
+          learnProduct(merged);
         } else {
-          currentList.unshift({
-            id: `prod-${Date.now()}-${Math.random()}`,
+          const newProd = sanitizeCavaProduct({
+            id: `prod-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
             name: purchased.name,
-            zone: purchased.targetZone || zones[0]?.name || 'Alacena Principal',
-            category: 'Abarrotes',
+            zone: purchased.targetZone || purchased.zone || zones[0]?.name || 'Alacena Principal',
+            category: purchased.category || purchased.department || 'Abarrotes',
             quantity: purchased.quantity || 1,
             unit: purchased.unit || 'kg',
             minStock: 2,
             idealStock: 5,
-            unitPriceMxn: purchased.estimatedPriceMxn || 0,
+            unitPriceMxn: purchased.realPrice || purchased.estimatedPriceMxn || 0,
             store: purchased.store || 'Supermercado',
+            barcode: purchased.barcode || `ALC-${Date.now().toString(36).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`,
+            householdId: activeHouse?.id || 'house-1',
+            householdName: activeHouse?.name || 'Casa México',
             lastLoggedBy: `${buyer} (Recepción Compra)`,
             updatedAt: new Date().toISOString(),
-          });
+          }, zones);
+          currentList.unshift(newProd);
+          saveProductToCloud(newProd);
+          learnProduct(newProd);
         }
       });
 
-      return sanitizeAllInventory(deduplicateInventoryProducts(currentList), zones);
+      const sanitizedList = sanitizeAllInventory(deduplicateInventoryProducts(currentList), zones);
+      syncPantryToIndexedDb(sanitizedList);
+      return sanitizedList;
     });
 
     // Limpiar comprados de la lista de compras
@@ -733,7 +746,7 @@ export default function App() {
         quantity: i.quantity || 1,
         unit: i.unit || 'piezas',
         store: i.store || 'Supermercado',
-        estimatedPriceMxn: i.estimatedPriceMxn || 0,
+        estimatedPriceMxn: i.realPrice || i.estimatedPriceMxn || 0,
         zone: i.targetZone || 'Alacena Principal',
         reversed: false,
       })),
@@ -758,21 +771,113 @@ export default function App() {
     setActiveTab('inventory');
   };
 
+  // Ingreso masivo al inventario desde Tickets (Foto, PDF, o importación OCR)
+  const handleBatchAddToInventory = (itemsToAdd, storeName = 'Supermercado', buyer = 'Administrador General') => {
+    if (!itemsToAdd || itemsToAdd.length === 0) return;
+
+    let totalRecordedMxn = 0;
+    let addedCount = 0;
+    let updatedCount = 0;
+
+    setProducts((prev) => {
+      let currentList = [...prev];
+
+      itemsToAdd.forEach((item) => {
+        const itemQty = parseFloat(item.quantity) || 1;
+        const itemPrice = parseFloat(item.realPrice || item.estimatedPriceMxn || item.unitPriceMxn || item.price) || 0;
+        totalRecordedMxn += itemQty * itemPrice;
+
+        const existingIdx = currentList.findIndex(
+          (p) => areItemsEquivalent(p.name, item.name) ||
+          (p.barcode && item.barcode && p.barcode === item.barcode)
+        );
+
+        if (existingIdx >= 0) {
+          const existing = currentList[existingIdx];
+          const newQty = parseFloat(((existing.quantity || 0) + itemQty).toFixed(2));
+          const merged = {
+            ...existing,
+            quantity: newQty,
+            unitPriceMxn: itemPrice > 0 ? itemPrice : existing.unitPriceMxn,
+            lastLoggedBy: buyer,
+            updatedAt: new Date().toISOString(),
+          };
+          currentList[existingIdx] = merged;
+          saveProductToCloud(merged);
+          learnProduct(merged);
+          updatedCount++;
+        } else {
+          const newProd = sanitizeCavaProduct({
+            id: `prod-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+            name: item.name,
+            category: item.category || item.department || 'Abarrotes',
+            unit: item.unit || 'piezas',
+            quantity: itemQty,
+            minStock: 2,
+            idealStock: 5,
+            unitPriceMxn: itemPrice,
+            zone: item.targetZone || item.zone || zones[0]?.name || 'Alacena Principal',
+            store: item.store || storeName || 'Supermercado',
+            barcode: item.barcode || `ALC-${Date.now().toString(36).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`,
+            photo: item.photo || null,
+            isWine: Boolean(item.isWine),
+            householdId: activeHouse?.id || 'house-1',
+            householdName: activeHouse?.name || 'Casa México',
+            lastLoggedBy: buyer,
+            updatedAt: new Date().toISOString(),
+          }, zones);
+          currentList.unshift(newProd);
+          saveProductToCloud(newProd);
+          learnProduct(newProd);
+          addedCount++;
+        }
+      });
+
+      const sanitizedList = sanitizeAllInventory(deduplicateInventoryProducts(currentList), zones);
+      syncPantryToIndexedDb(sanitizedList);
+      return sanitizedList;
+    });
+
+    recordPricePoints(itemsToAdd, storeName);
+
+    addAuditEntry(
+      buyer,
+      'INGRESO_TICKET_DESPENSA',
+      `Ingresó ${itemsToAdd.length} artículos a la Despensa (${addedCount} nuevos, ${updatedCount} actualizados) desde ticket (${storeName})`,
+      `Total registrado en ticket: $${totalRecordedMxn.toFixed(2)} MXN`
+    );
+
+    setActiveTab('inventory');
+  };
+
   // Direct scanner add & subtract
   const handleAddStockDirect = (productOrId, amount = 1, targetZone = null) => {
     const isObj = typeof productOrId === 'object' && productOrId !== null;
-    if (isObj && (productOrId.realPrice || productOrId.estimatedPriceMxn || productOrId.price)) {
+    if (isObj && (productOrId.realPrice || productOrId.estimatedPriceMxn || productOrId.price || productOrId.unitPriceMxn)) {
       recordPricePoints([productOrId], productOrId.store || 'Supermercado');
     }
     const searchId = isObj ? (productOrId.id || productOrId.barcode) : productOrId;
-    const prod = products.find((p) => p.id === searchId || (p.barcode && p.barcode === searchId));
+    const prod = products.find((p) => 
+      (searchId && (p.id === searchId || (p.barcode && p.barcode === searchId))) ||
+      (isObj && p.name && productOrId.name && areItemsEquivalent(p.name, productOrId.name))
+    );
 
     if (prod) {
       const newQty = (prod.quantity || 0) + amount;
+      const effectivePrice = isObj && (productOrId.realPrice || productOrId.estimatedPriceMxn || productOrId.price || productOrId.unitPriceMxn)
+        ? (productOrId.realPrice || productOrId.estimatedPriceMxn || productOrId.price || productOrId.unitPriceMxn)
+        : prod.unitPriceMxn;
+
       if (targetZone && targetZone !== prod.zone) {
-        setProducts((prev) =>
-          prev.map((p) => (p.id === prod.id ? sanitizeCavaProduct({ ...p, quantity: newQty, zone: targetZone, updatedAt: new Date().toISOString() }, zones) : p))
-        );
+        const updated = sanitizeCavaProduct({ 
+          ...prod, 
+          quantity: newQty, 
+          unitPriceMxn: effectivePrice,
+          zone: targetZone, 
+          updatedAt: new Date().toISOString() 
+        }, zones);
+        setProducts((prev) => prev.map((p) => (p.id === prod.id ? updated : p)));
+        saveProductToCloud(updated);
       } else {
         handleUpdateQuantity(prod.id, newQty);
       }
@@ -783,28 +888,38 @@ export default function App() {
         `Stock total: ${newQty} ${prod.unit}`
       );
     } else if (isObj || productOrId) {
-      // Es un artículo nuevo descubierto por escáner de código de barras
+      // Es un artículo nuevo descubierto por escáner o ticket
       const newProductObj = sanitizeCavaProduct({
-        id: `prod-${Date.now()}`,
+        id: `prod-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         name: isObj ? productOrId.name : `Artículo ${searchId}`,
-        category: (isObj && productOrId.category) ? productOrId.category : 'Abarrotes',
+        category: (isObj && (productOrId.category || productOrId.department)) ? (productOrId.category || productOrId.department) : 'Abarrotes',
         unit: (isObj && productOrId.unit) ? productOrId.unit : 'piezas',
         quantity: amount,
         minStock: 2,
         idealStock: 5,
-        unitPriceMxn: (isObj && productOrId.price) ? productOrId.price : 0,
-        zone: targetZone || (isObj && productOrId.zone) || zones[0]?.name || 'Alacena Principal',
+        unitPriceMxn: (isObj && (productOrId.realPrice || productOrId.estimatedPriceMxn || productOrId.price || productOrId.unitPriceMxn)) ? (productOrId.realPrice || productOrId.estimatedPriceMxn || productOrId.price || productOrId.unitPriceMxn) : 0,
+        zone: targetZone || (isObj && (productOrId.zone || productOrId.targetZone)) || zones[0]?.name || 'Alacena Principal',
         store: (isObj && productOrId.store) || 'Supermercado',
-        barcode: (isObj && productOrId.barcode) ? productOrId.barcode : String(searchId),
+        barcode: (isObj && productOrId.barcode) ? productOrId.barcode : (typeof searchId === 'string' && searchId.startsWith('ALC') ? searchId : `ALC-${Date.now().toString(36).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`),
         photo: isObj ? productOrId.photo : null,
-        isWine: isObj ? productOrId.isWine : false,
+        isWine: isObj ? Boolean(productOrId.isWine) : false,
+        householdId: activeHouse?.id || 'house-1',
+        householdName: activeHouse?.name || 'Casa México',
         updatedAt: new Date().toISOString(),
       }, zones);
-      setProducts((prev) => [newProductObj, ...prev]);
+
+      setProducts((prev) => {
+        const next = [newProductObj, ...prev];
+        syncPantryToIndexedDb(next);
+        return next;
+      });
+      saveProductToCloud(newProductObj);
+      learnProduct(newProductObj);
+
       addAuditEntry(
         'Administrador / Escáner',
         'ALTA_PRODUCTO_ESCANEO',
-        `Registró nuevo insumo "${newProductObj.name}" vía código de barras ${newProductObj.barcode} (+${amount})`,
+        `Registró nuevo insumo "${newProductObj.name}" vía escáner/código (+${amount})`,
         `Ubicado en ${newProductObj.zone}`
       );
     }
@@ -1138,6 +1253,7 @@ export default function App() {
         products={products}
         zones={zones}
         onAddStockDirect={handleAddStockDirect}
+        onBatchAddToInventory={handleBatchAddToInventory}
         onSubtractStockDirect={handleSubtractStockDirect}
         onAddToShoppingList={handleAddToShoppingListFromScan}
         onOpenManualCaptureWithBarcode={handleOpenManualCaptureWithBarcode}

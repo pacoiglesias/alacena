@@ -11,7 +11,7 @@ import { audio } from '../../services/audioService';
 import { lookupBarcode } from '../../services/barcodeLookupService';
 import { findProductByScanCode, extractCodeFromScan } from '../../utils/scanHelper';
 import { isCavaZone, isAlcoholicOrBeverage, sanitizeCavaProduct } from '../../utils/cavaGuard';
-import { extractShoppingListFromImage, preprocessImageForOcr } from '../../services/ocrService';
+import { extractShoppingListFromImage, preprocessImageForOcr, extractTextFromFile } from '../../services/ocrService';
 import { parseRawShoppingText } from '../../services/smartListParser';
 import { analyzeTicketPriceIntelligence, recordPricePoints } from '../../services/priceIntelligenceService';
 
@@ -21,6 +21,7 @@ export default function CameraScannerModal({
   products = [], 
   zones = [], 
   onAddStockDirect, 
+  onBatchAddToInventory,
   onSubtractStockDirect,
   onAddToShoppingList, 
   onOpenManualCaptureWithBarcode,
@@ -539,16 +540,60 @@ export default function CameraScannerModal({
     }
   };
 
-  // Carga de foto de ticket desde archivo o cámara nativa
+  // Carga de archivo de ticket (Foto o PDF) desde archivo o cámara nativa
   const handleReceiptFileSelected = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     audio.click();
     setReceiptImage(file);
-    const url = URL.createObjectURL(file);
-    setReceiptPreviewUrl(url);
-    await processReceiptImage(file);
+    const isPdf = file.name?.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+
+    if (isPdf) {
+      setReceiptPreviewUrl(null);
+      await processReceiptPdf(file);
+    } else {
+      const url = URL.createObjectURL(file);
+      setReceiptPreviewUrl(url);
+      await processReceiptImage(file);
+    }
+  };
+
+  // Procesar archivo PDF de ticket con motor pdfjs y OCR
+  const processReceiptPdf = async (pdfFile) => {
+    setIsOcrProcessing(true);
+    setReceiptNotice(null);
+    setExtractedReceiptItems([]);
+
+    try {
+      const result = await extractTextFromFile(pdfFile, products, (p) => setOcrProgress(p));
+      if (!result.items || result.items.length === 0) {
+        setReceiptNotice({
+          type: 'warning',
+          text: result.note || 'No se pudieron extraer líneas claras del PDF del ticket. Verifica que el archivo no esté protegido.',
+        });
+        audio.warning();
+      } else {
+        setExtractedReceiptItems(result.items);
+        setSelectedReceiptItemIds(new Set(result.items.map(i => i.id)));
+        setReceiptStoreName(result.items[0]?.store || 'Supermercado');
+        setReceiptNotice({
+          type: 'success',
+          text: `🧾 ¡PDF de ticket procesado! Se detectaron ${result.items.length} artículos con sus importes reales.`,
+        });
+        audio.success();
+      }
+    } catch (err) {
+      console.error('Error procesando PDF de ticket:', err);
+      setReceiptNotice({
+        type: 'error',
+        text: 'Ocurrió un inconveniente al procesar el PDF del ticket: ' + (err.message || 'Error de lectura'),
+      });
+      audio.warning();
+    } finally {
+      setIsOcrProcessing(false);
+      setOcrProgress(null);
+    }
   };
 
   // Procesar imagen del ticket con OCR y heurística de compras
@@ -714,14 +759,17 @@ TOTAL MXN                    $2,303.00`;
       return;
     }
 
-    recordPricePoints(selectedItems, receiptStoreName || 'Supermercado');
-
-    selectedItems.forEach(item => {
-      const sanitized = sanitizeCavaProduct(item, zones);
-      if (onAddStockDirect) {
-        onAddStockDirect(sanitized, item.quantity || 1, item.targetZone);
-      }
-    });
+    if (onBatchAddToInventory) {
+      onBatchAddToInventory(selectedItems, receiptStoreName || 'Supermercado');
+    } else {
+      recordPricePoints(selectedItems, receiptStoreName || 'Supermercado');
+      selectedItems.forEach(item => {
+        const sanitized = sanitizeCavaProduct(item, zones);
+        if (onAddStockDirect) {
+          onAddStockDirect(sanitized, item.quantity || 1, item.targetZone);
+        }
+      });
+    }
 
     audio.success();
     alert(`✅ ¡${selectedItems.length} artículos ingresados directamente a la Despensa con los precios de tu ticket!`);
@@ -1057,7 +1105,7 @@ TOTAL MXN                    $2,303.00`;
               <input
                 type="file"
                 ref={fileReceiptRef}
-                accept="image/*"
+                accept="image/*,application/pdf,.pdf"
                 capture="environment"
                 onChange={handleReceiptFileSelected}
                 className="hidden"
@@ -1065,23 +1113,32 @@ TOTAL MXN                    $2,303.00`;
 
               {/* Botones de Captura del Ticket */}
               <div className="p-4 rounded-2xl bg-[#1A1613] border border-[#2A2521] space-y-3">
-                <div className="flex flex-col sm:flex-row items-center gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <button
                     type="button"
                     onClick={handleCaptureLiveCameraForReceipt}
-                    className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#C8542A] to-[#E5724A] text-white font-bold text-xs sm:text-sm hover:brightness-110 shadow-lg shadow-[#C8542A]/30 transition-all"
+                    className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-gradient-to-r from-[#C8542A] to-[#E5724A] text-white font-bold text-xs sm:text-sm hover:brightness-110 shadow-lg shadow-[#C8542A]/30 transition-all"
                   >
                     <Camera className="w-4 h-4" />
-                    <span>📸 Tomar Foto al Ticket Ahora</span>
+                    <span>📸 Tomar Foto al Ticket</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => fileReceiptRef.current?.click()}
-                    className="w-full sm:flex-initial flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold text-xs sm:text-sm border border-white/10 transition-all"
+                    className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold text-xs sm:text-sm border border-white/10 transition-all"
                   >
                     <ImageIcon className="w-4 h-4" />
-                    <span>Cargar de Galería</span>
+                    <span>🖼️ Foto de Galería</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => fileReceiptRef.current?.click()}
+                    className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 font-semibold text-xs sm:text-sm border border-emerald-500/40 transition-all"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>📄 Cargar Ticket PDF</span>
                   </button>
                 </div>
 

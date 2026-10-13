@@ -252,78 +252,134 @@ export function cleanOcrArtifacts(text) {
 /**
  * Lee archivos de texto (.txt, .csv) o extrae contenido de un archivo
  */
-export async function extractTextFromFile(file, existingProducts = []) {
-  return new Promise((resolve, reject) => {
+export async function extractTextFromFile(file, existingProducts = [], onProgress = null) {
+  return new Promise(async (resolve, reject) => {
     if (!file) return reject(new Error('Archivo no provisto'));
 
     const isPdf = file.name?.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
 
     if (isPdf) {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+
+        // 1. Intentar renderizar y extraer con pdfjs-dist (soporta PDFs digitales y escaneados de cualquier formato)
         try {
-          const buffer = e.target.result;
-          const textDecoder = new TextDecoder('latin1');
-          const rawPdfString = textDecoder.decode(buffer);
-          
-          const streamMatches = rawPdfString.match(/BT[\s\S]*?ET/g) || [];
-          let extractedText = '';
-          
-          if (streamMatches.length > 0) {
-            extractedText = streamMatches
-              .map(block => {
-                const parts = block.match(/\((.*?)\)[\s]*Tj/g) || [];
-                return parts.map(p => p.replace(/^\(|\)[\s]*Tj$/g, '')).join(' ');
-              })
-              .join('\n');
+          const pdfjsLib = await import('pdfjs-dist/build/pdf.mjs');
+          if (pdfjsLib.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+              'pdfjs-dist/build/pdf.worker.min.mjs',
+              import.meta.url
+            ).toString();
           }
 
-          if (extractedText.trim().length > 10) {
+          const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
+          const doc = await loadingTask.promise;
+          const page = await doc.getPage(1);
+
+          // Revisar si el PDF ya contiene texto vectorial seleccionable
+          const textContent = await page.getTextContent();
+          const textItems = textContent.items.map((i) => i.str).filter(Boolean);
+
+          if (textItems.length > 8) {
+            const extractedText = textItems.join('\n');
             const items = parseRawShoppingText(extractedText, existingProducts);
-            resolve({ rawText: extractedText, items });
-            return;
-          }
-
-          // Si el PDF no tiene texto vectorial pero contiene imágenes escaneadas embebidas (JPEG)
-          const uint8 = new Uint8Array(buffer);
-          let startIdx = -1;
-          for (let i = 0; i < uint8.length - 2; i++) {
-            if (uint8[i] === 0xFF && uint8[i + 1] === 0xD8 && uint8[i + 2] === 0xFF) {
-              startIdx = i;
-              break;
-            }
-          }
-          if (startIdx !== -1) {
-            let endIdx = -1;
-            for (let i = uint8.length - 2; i >= startIdx; i--) {
-              if (uint8[i] === 0xFF && uint8[i + 1] === 0xD9) {
-                endIdx = i + 2;
-                break;
-              }
-            }
-            if (endIdx > startIdx) {
-              const imageBlob = new Blob([uint8.subarray(startIdx, endIdx)], { type: 'image/jpeg' });
-              const ocrRes = await extractShoppingListFromImage(imageBlob, () => {}, existingProducts);
+            if (items.length > 0) {
               resolve({
-                rawText: ocrRes.rawText,
-                items: ocrRes.items,
-                note: ocrRes.items.length > 0 ? `Se extrajo y procesó la imagen escaneada del PDF con éxito (${ocrRes.items.length} artículos detectados).` : null,
+                rawText: extractedText,
+                items,
+                note: `📄 Se extrajeron ${items.length} artículos del texto digital del PDF.`
               });
               return;
             }
           }
 
+          // Si el PDF es un escaneo (sin texto digital), renderizar a Canvas de alta resolución y ejecutar OCR
+          const viewport = page.getViewport({ scale: 2.0 });
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          const renderedDataUrl = canvas.toDataURL('image/png');
+
+          const ocrRes = await extractShoppingListFromImage(
+            renderedDataUrl,
+            onProgress || (() => {}),
+            existingProducts
+          );
+
           resolve({
-            rawText: '',
-            items: [],
-            note: 'El archivo PDF contiene imágenes escaneadas. Para mejores resultados, sube la foto (JPG/PNG) directamente a la pestaña de "Foto de Libreta / Ticket (OCR)".',
+            rawText: ocrRes.rawText,
+            items: ocrRes.items,
+            confidence: ocrRes.confidence,
+            note: ocrRes.items.length > 0
+              ? `📄 Se escaneó la página del PDF mediante OCR (${ocrRes.items.length} artículos detectados).`
+              : null,
           });
-        } catch (err) {
-          reject(new Error('Error al leer el archivo PDF: ' + err.message));
+          return;
+        } catch (pdfjsErr) {
+          console.warn('Fallo en motor pdfjs, aplicando fallback directo:', pdfjsErr);
         }
-      };
-      reader.onerror = () => reject(new Error('Error al leer el PDF'));
-      reader.readAsArrayBuffer(file);
+
+        // 2. Fallback de extracción de streams de texto y JPEG en bruto
+        const textDecoder = new TextDecoder('latin1');
+        const rawPdfString = textDecoder.decode(arrayBuffer);
+        const streamMatches = rawPdfString.match(/BT[\s\S]*?ET/g) || [];
+        let extractedText = '';
+
+        if (streamMatches.length > 0) {
+          extractedText = streamMatches
+            .map((block) => {
+              const parts = block.match(/\((.*?)\)[\s]*Tj/g) || [];
+              return parts.map((p) => p.replace(/^\(|\)[\s]*Tj$/g, '')).join(' ');
+            })
+            .join('\n');
+        }
+
+        if (extractedText.trim().length > 10) {
+          const items = parseRawShoppingText(extractedText, existingProducts);
+          resolve({ rawText: extractedText, items });
+          return;
+        }
+
+        // Si el PDF contiene un JPEG embebido
+        const uint8 = new Uint8Array(arrayBuffer);
+        let startIdx = -1;
+        for (let i = 0; i < uint8.length - 2; i++) {
+          if (uint8[i] === 0xff && uint8[i + 1] === 0xd8 && uint8[i + 2] === 0xff) {
+            startIdx = i;
+            break;
+          }
+        }
+        if (startIdx !== -1) {
+          let endIdx = -1;
+          for (let i = uint8.length - 2; i >= startIdx; i--) {
+            if (uint8[i] === 0xff && uint8[i + 1] === 0xd9) {
+              endIdx = i + 2;
+              break;
+            }
+          }
+          if (endIdx > startIdx) {
+            const imageBlob = new Blob([uint8.subarray(startIdx, endIdx)], { type: 'image/jpeg' });
+            const ocrRes = await extractShoppingListFromImage(imageBlob, onProgress || (() => {}), existingProducts);
+            resolve({
+              rawText: ocrRes.rawText,
+              items: ocrRes.items,
+              note: ocrRes.items.length > 0 ? `Se extrajo y procesó la imagen del PDF (${ocrRes.items.length} artículos).` : null,
+            });
+            return;
+          }
+        }
+
+        resolve({
+          rawText: '',
+          items: [],
+          note: 'El archivo PDF no contiene texto legible ni imágenes claras. Intenta con una foto directa.',
+        });
+      } catch (err) {
+        reject(new Error('Error al leer el archivo PDF: ' + err.message));
+      }
     } else {
       const reader = new FileReader();
       reader.onload = (e) => {
