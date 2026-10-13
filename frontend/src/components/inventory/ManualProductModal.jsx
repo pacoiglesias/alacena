@@ -7,6 +7,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import { audio } from '../../services/audioService';
 import { getCatalogs, addCustomStore, addCustomStaff } from '../../services/catalogsService';
+import { isCavaZone } from '../../utils/cavaGuard';
 
 export default function ManualProductModal({ 
   isOpen, 
@@ -111,13 +112,17 @@ export default function ManualProductModal({
 
     audio.success();
 
+    const isCava = isCavaZone(zone, zones);
+    const finalUnit = isCava ? 'botellas' : unit;
+    const finalCategory = isCava ? 'Vinos & Licores' : (category || 'Abarrotes');
+
     const productPayload = {
       id: initialProduct?.id || `prod-${Date.now()}`,
       name: name.trim(),
       zone: zone || zones[0]?.name || 'Alacena Principal',
-      category: category || 'Abarrotes',
+      category: finalCategory,
       quantity: parseFloat(quantity) || 0,
-      unit,
+      unit: finalUnit,
       minStock: parseFloat(minStock) || 0,
       maxStock: parseFloat(maxStock) || 6,
       idealStock: parseFloat(maxStock) || 6,
@@ -126,6 +131,7 @@ export default function ManualProductModal({
       lastLoggedBy: staff || effectiveStaffList[0]?.name || 'Administrador General',
       barcode: activeBarcode,
       expiryDate: expiryDate || null,
+      isWine: isCava ? true : Boolean(initialProduct?.isWine),
       updatedAt: new Date().toISOString(),
     };
 
@@ -214,7 +220,14 @@ export default function ManualProductModal({
               </label>
               <select
                 value={zone}
-                onChange={(e) => setZone(e.target.value)}
+                onChange={(e) => {
+                  const newZ = e.target.value;
+                  setZone(newZ);
+                  if (isCavaZone(newZ, zones)) {
+                    setUnit('botellas');
+                    setCategory('Vinos & Licores');
+                  }
+                }}
                 className="w-full px-4 py-2.5 rounded-xl bg-[#12100E] border border-[#2A2521] text-white text-sm focus:outline-none focus:border-[#E0B441]"
               >
                 {zones.map((z) => (
@@ -245,7 +258,12 @@ export default function ManualProductModal({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-[#12100E] border border-[#2A2521] text-white text-sm focus:outline-none focus:border-[#E0B441]"
+                disabled={isCavaZone(zone, zones)}
+                className={`w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none ${
+                  isCavaZone(zone, zones)
+                    ? 'bg-[#1C1814] border-[#6B1F2E] text-amber-200 cursor-not-allowed'
+                    : 'bg-[#12100E] border-[#2A2521] text-white focus:border-[#E0B441]'
+                }`}
               >
                 {effectiveCategories.map((c) => (
                   <option key={c} value={c}>
@@ -277,17 +295,29 @@ export default function ManualProductModal({
               <label className="block text-xs font-bold text-[#B8AFA3] uppercase tracking-wider mb-1.5">
                 Unidad de Medida
               </label>
-              <select
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-[#12100E] border border-[#2A2521] text-white text-sm focus:outline-none focus:border-[#E0B441]"
-              >
-                {effectiveUnits.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.label}
-                  </option>
-                ))}
-              </select>
+              {isCavaZone(zone, zones) ? (
+                <div>
+                  <div className="w-full px-4 py-2.5 rounded-xl bg-[#1C1814] border border-[#E0B441]/50 text-[#E0B441] font-bold text-sm flex items-center justify-between">
+                    <span>🍷 Botellas (Exclusivo Cava)</span>
+                    <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-[#E0B441]/20">Regla Cava</span>
+                  </div>
+                  <span className="text-[11px] text-[#E0B441] mt-1 block">
+                    ✓ En la Cava sólo se admiten botellas de vinos o licores.
+                  </span>
+                </div>
+              ) : (
+                <select
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#12100E] border border-[#2A2521] text-white text-sm focus:outline-none focus:border-[#E0B441]"
+                >
+                  {effectiveUnits.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.label}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 

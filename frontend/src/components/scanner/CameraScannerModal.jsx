@@ -9,6 +9,77 @@ import {
 import { audio } from '../../services/audioService';
 import { lookupBarcode } from '../../services/barcodeLookupService';
 import { findProductByScanCode, extractCodeFromScan } from '../../utils/scanHelper';
+import { isCavaZone, isAlcoholicOrBeverage } from '../../utils/cavaGuard';
+
+// Prepara y reescala fotos gigantes de cámara móvil (12MP a 48MP) a resolución óptima (1600px) para decodificación instantánea en canvas
+async function prepareImageForBarcodeScan(imageFile, maxDimension = 1600) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        let { width, height } = img;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => resolve(blob || imageFile), 'image/jpeg', 0.95);
+      } catch (_) {
+        resolve(imageFile);
+      }
+    };
+    img.onerror = () => resolve(imageFile);
+    img.src = URL.createObjectURL(imageFile);
+  });
+}
+
+// Recorta la zona central (75% central) y aplica contraste para rescatar códigos pequeños en fotos de celular
+async function cropCenterForBarcodeScan(imageFile) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const cropW = Math.round(img.width * 0.80);
+        const cropH = Math.round(img.height * 0.60);
+        const startX = Math.round((img.width - cropW) / 2);
+        const startY = Math.round((img.height - cropH) / 2);
+        
+        canvas.width = cropW;
+        canvas.height = cropH;
+        ctx.drawImage(img, startX, startY, cropW, cropH, 0, 0, cropW, cropH);
+
+        // Aumento de contraste para líneas de código de barras
+        const imgData = ctx.getImageData(0, 0, cropW, cropH);
+        const d = imgData.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+          const v = gray > 130 ? Math.min(255, gray * 1.25) : Math.max(0, gray * 0.75);
+          d[i] = v; d[i+1] = v; d[i+2] = v;
+        }
+        ctx.putImageData(imgData, 0, 0);
+
+        canvas.toBlob((blob) => resolve(blob || imageFile), 'image/jpeg', 0.95);
+      } catch (_) {
+        resolve(imageFile);
+      }
+    };
+    img.onerror = () => resolve(imageFile);
+    img.src = URL.createObjectURL(imageFile);
+  });
+}
 
 export default function CameraScannerModal({ 
   isOpen, 
@@ -36,6 +107,7 @@ export default function CameraScannerModal({
   const [lastBatchMessage, setLastBatchMessage] = useState(null);
   const [selectedTargetZone, setSelectedTargetZone] = useState('');
   const [torchOn, setTorchOn] = useState(false);
+  const [scanReticleMode, setScanReticleMode] = useState('BARCODE'); // 'BARCODE' (Panorámico) | 'QR' (Cuadrado)
   
   // Soporte NFC (Web NFC NDEF)
   const [nfcSupported, setNfcSupported] = useState(false);
@@ -221,29 +293,51 @@ export default function CameraScannerModal({
         },
       });
 
-      // 4. Seleccionar la mejor cámara (trasera preferente para códigos de barras y QR)
-      let cameraConfig = forcedCameraId || { facingMode: 'environment' };
-      if (!forcedCameraId && availableCameras && availableCameras.length > 0) {
+      // 4. Seleccionar la mejor cámara y configurar resolución HD para capturar líneas finas de códigos de barras
+      let cameraConfig;
+      if (forcedCameraId) {
+        cameraConfig = {
+          deviceId: { exact: forcedCameraId },
+          width: { min: 1280, ideal: 1920 },
+          height: { min: 720, ideal: 1080 },
+        };
+      } else if (availableCameras && availableCameras.length > 0) {
         const backCam = availableCameras.find(c => {
           const label = (c.label || '').toLowerCase();
           return label.includes('back') || label.includes('trasera') || label.includes('rear') || label.includes('environment');
         });
         if (backCam) {
           setSelectedCameraId(backCam.id);
-          cameraConfig = backCam.id;
+          cameraConfig = {
+            deviceId: { exact: backCam.id },
+            width: { min: 1280, ideal: 1920 },
+            height: { min: 720, ideal: 1080 },
+          };
+        } else {
+          cameraConfig = {
+            facingMode: 'environment',
+            width: { min: 1280, ideal: 1920 },
+            height: { min: 720, ideal: 1080 },
+          };
         }
+      } else {
+        cameraConfig = {
+          facingMode: 'environment',
+          width: { min: 1280, ideal: 1920 },
+          height: { min: 720, ideal: 1080 },
+        };
       }
 
-      // 5. Iniciar transmisión con escaneo cuadrado amplio que no recorte ni códigos largos ni QR
+      // 5. Iniciar transmisión con escaneo panorámico óptimo para códigos de barra horizontales y QR
       await html5QrCodeRef.current.start(
         cameraConfig,
         {
           fps: 25,
           qrbox: (viewfinderWidth, viewfinderHeight) => {
-            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-            // Bounding box amplio de 85% para capturar barras de extremo a extremo sin recorte
-            const edge = Math.max(Math.floor(minEdge * 0.85), 250);
-            return { width: edge, height: edge };
+            // Para códigos de barra (EAN-13, UPC): área ancha horizontal para capturar todo el código sin recortar extremos
+            const w = Math.min(Math.floor(viewfinderWidth * 0.92), 480);
+            const h = Math.min(Math.floor(viewfinderHeight * 0.65), 320);
+            return { width: Math.max(w, 260), height: Math.max(h, 170) };
           },
           aspectRatio: 1.333333,
         },
@@ -251,12 +345,19 @@ export default function CameraScannerModal({
         () => {} // Ignorar cuadros intermedios sin detección
       );
 
+      // 6. Intentar activar autofoco continuo de hardware en el sensor del móvil
+      try {
+        await html5QrCodeRef.current.applyVideoConstraints({
+          advanced: [{ focusMode: 'continuous' }]
+        });
+      } catch (_) {}
+
       setScannerActive(true);
       setCameraError(null);
     } catch (err) {
-      console.warn('Error al iniciar cámara principal:', err);
+      console.warn('Error al iniciar cámara principal HD:', err);
       
-      // Fallback: intentar con facingMode genérico 'user' o sin restricciones
+      // Fallback: intentar con resolución estándar si el sensor móvil no soporta 1080p
       try {
         await stopScanner();
         const el = document.getElementById(scannerContainerId);
@@ -267,8 +368,11 @@ export default function CameraScannerModal({
           experimentalFeatures: { useBarCodeDetectorIfSupported: true }
         });
         await html5QrCodeRef.current.start(
-          { facingMode: 'user' },
-          { fps: 15, qrbox: { width: 260, height: 260 } },
+          { facingMode: 'environment' },
+          { 
+            fps: 20, 
+            qrbox: (w, h) => ({ width: Math.max(Math.floor(w * 0.90), 250), height: Math.max(Math.floor(h * 0.60), 160) }) 
+          },
           onScanSuccess,
           () => {}
         );
@@ -305,7 +409,7 @@ export default function CameraScannerModal({
     }
   };
 
-  // Escaneo instantáneo por archivo o foto de cámara nativa
+  // Escaneo instantáneo por archivo o foto de cámara nativa con preescalado inteligente y doble pasada
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -313,12 +417,50 @@ export default function CameraScannerModal({
     try {
       audio.click();
       setIsSearching(true);
-      const scanner = html5QrCodeRef.current || new Html5Qrcode(scannerContainerId);
-      const decoded = await scanner.scanFile(file, true);
-      audio.success();
-      await processBarcode(decoded);
+      const scanner = html5QrCodeRef.current || new Html5Qrcode(scannerContainerId, {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.DATA_MATRIX,
+          Html5QrcodeSupportedFormats.ITF,
+        ],
+        verbose: false,
+      });
+
+      let decoded = null;
+
+      // 1. Pasada 1: Escalar imagen gigante de móvil a resolución óptima (1600px) para evitar saturar memoria de canvas
+      try {
+        const optimizedBlob = await prepareImageForBarcodeScan(file, 1600);
+        decoded = await scanner.scanFile(optimizedBlob, false);
+      } catch (err1) {
+        // 2. Pasada 2: Si la foto completa falló, probar con el recorte central (75%) y realce de contraste
+        try {
+          const croppedBlob = await cropCenterForBarcodeScan(file);
+          decoded = await scanner.scanFile(croppedBlob, false);
+        } catch (err2) {
+          // 3. Pasada 3: Intento directo sobre archivo crudo
+          try {
+            decoded = await scanner.scanFile(file, false);
+          } catch (err3) {
+            decoded = null;
+          }
+        }
+      }
+
+      if (decoded && decoded.trim()) {
+        audio.success();
+        await processBarcode(decoded.trim());
+      } else {
+        throw new Error('Código no decodificado');
+      }
     } catch (err) {
-      alert('No se detectó un código de barras legible en la foto. Intenta con mejor iluminación o escribe el código manualmente.');
+      alert('No se detectó un código de barras legible en la foto. Intenta tomar la foto a unos 15 cm de distancia, centrando las barras en horizontal y con buena luz, o escribe los dígitos abajo.');
       setIsSearching(false);
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -385,7 +527,7 @@ export default function CameraScannerModal({
     if (existingInPantry) {
       audio.success();
       const assignedZone = selectedTargetZone || existingInPantry.zone || pantryZone.name;
-      const targetProd = { ...existingInPantry, zone: assignedZone };
+      const targetProd = sanitizeCavaProduct({ ...existingInPantry, zone: assignedZone }, zones);
 
       if (scanDirectionMode !== 'INTERACTIVE') {
         executeDirectAction(targetProd, scanDirectionMode);
@@ -415,16 +557,32 @@ export default function CameraScannerModal({
                txt.includes('bodega') || txt.includes('añada') || txt.includes('tinto');
       };
 
-      const looksWine = isLikelyWine(lookup.name) || isLikelyWine(lookup.category) || Boolean(lookup.isWine);
-      const suggestedZone = looksWine ? (cavaZone?.name || 'Cava Principal') : (selectedTargetZone || pantryZone?.name || 'Alacena Principal');
+      const looksWine = isLikelyWine(lookup.name) || isLikelyWine(lookup.category) || Boolean(lookup.isWine) || isAlcoholicOrBeverage(lookup.name, lookup.category);
+      
+      // Regla estricta: en la Cava sólo pueden estar botellas de vino o licores
+      let suggestedZone;
+      let finalUnit = lookup.unit || 'piezas';
+      let finalCategory = lookup.category || 'Abarrotes';
 
-      if (looksWine && cavaZone) {
-        setSelectedTargetZone(cavaZone.name);
+      if (looksWine) {
+        suggestedZone = cavaZone?.name || 'Cava Principal';
+        finalUnit = 'botellas';
+        finalCategory = 'Vinos & Licores';
+        setSelectedTargetZone(suggestedZone);
+      } else {
+        // Si no es vino, NUNCA entra a Cava aunque Cava esté seleccionada
+        if (isCavaZone(selectedTargetZone, zones)) {
+          suggestedZone = pantryZone?.name || 'Alacena Principal';
+        } else {
+          suggestedZone = selectedTargetZone || pantryZone?.name || 'Alacena Principal';
+        }
       }
 
       const newProd = {
         ...lookup,
         zone: suggestedZone,
+        category: finalCategory,
+        unit: finalUnit,
         isWine: looksWine,
         quantity: 1,
       };
@@ -448,15 +606,18 @@ export default function CameraScannerModal({
       });
     } catch (err) {
       console.warn('Error en búsqueda externa:', err);
+      const isWineCode = isAlcoholicOrBeverage(cleanCode, '');
+      const fallbackZone = isWineCode ? (cavaZone?.name || 'Cava Principal') : (pantryZone?.name || 'Alacena Principal');
       setScannedResult({
         barcode: cleanCode,
         product: {
           name: `Código ${cleanCode}`,
           barcode: cleanCode,
-          category: 'Abarrotes',
-          unit: 'piezas',
+          category: isWineCode ? 'Vinos & Licores' : 'Abarrotes',
+          unit: isWineCode ? 'botellas' : 'piezas',
           quantity: 1,
-          zone: selectedTargetZone || pantryZone?.name || 'Alacena Principal',
+          zone: fallbackZone,
+          isWine: isWineCode,
         },
         isExisting: false,
       });
@@ -658,7 +819,11 @@ export default function CameraScannerModal({
             {/* Target Reticle Overlay - Guía dual para QR y Códigos de Barras */}
             {scannerActive && (
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <div className="w-[82%] max-w-[340px] aspect-square border-2 border-[#E0B441]/60 rounded-3xl relative shadow-[0_0_25px_rgba(224,180,65,0.25)] flex items-center justify-center">
+                <div className={`border-2 border-[#E0B441]/80 relative shadow-[0_0_30px_rgba(224,180,65,0.30)] flex items-center justify-center transition-all duration-300 ${
+                  scanReticleMode === 'BARCODE'
+                    ? 'w-[90%] max-w-[440px] h-[165px] sm:h-[185px] rounded-2xl'
+                    : 'w-[78%] max-w-[300px] aspect-square rounded-3xl'
+                }`}>
                   {/* Esquinas guía doradas */}
                   <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-[#E0B441] -mt-1 -ml-1 rounded-tl-xl" />
                   <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-[#E0B441] -mt-1 -mr-1 rounded-tr-xl" />
@@ -666,39 +831,67 @@ export default function CameraScannerModal({
                   <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-[#E0B441] -mb-1 -mr-1 rounded-br-xl" />
                   
                   {/* Línea láser de lectura */}
-                  <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-[#E0B441] to-transparent shadow-[0_0_12px_#E0B441] animate-pulse absolute top-1/2 -translate-y-1/2" />
+                  <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-[#E0B441] to-transparent shadow-[0_0_14px_#E0B441] animate-pulse absolute top-1/2 -translate-y-1/2" />
                   
-                  {/* Indicador texto centrado tenue */}
-                  <span className="text-[10px] uppercase tracking-widest text-[#E0B441]/70 font-mono font-bold bg-black/60 px-3 py-1 rounded-full border border-[#E0B441]/30 backdrop-blur-sm pointer-events-none absolute bottom-4">
-                    Apunta a QR o Código de Barras
+                  {/* Indicador texto centrado */}
+                  <span className="text-[10px] uppercase tracking-wider text-[#E0B441] font-mono font-bold bg-black/75 px-3 py-1 rounded-full border border-[#E0B441]/40 backdrop-blur-sm pointer-events-none absolute bottom-3">
+                    {scanReticleMode === 'BARCODE' ? '📏 Centra las barras en horizontal' : '🔲 Centra el código QR'}
                   </span>
                 </div>
               </div>
             )}
 
-            {/* Floating Camera Controls */}
+            {/* Floating Camera Controls Top */}
             {scannerActive && (
-              <div className="absolute top-3 right-3 flex items-center gap-2 z-20">
-                <button
-                  type="button"
-                  onClick={handleToggleTorch}
-                  className={`p-2 rounded-xl backdrop-blur-md transition-all ${
-                    torchOn 
-                      ? 'bg-[#E0B441] text-black shadow-lg shadow-[#E0B441]/40' 
-                      : 'bg-black/60 text-white hover:bg-black/80 border border-white/20'
-                  }`}
-                  title="Encender Linterna"
-                >
-                  <Flashlight className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={stopScanner}
-                  className="px-2.5 py-1.5 rounded-xl bg-black/60 hover:bg-black/80 text-white text-[11px] font-bold border border-white/20 backdrop-blur-md"
-                >
-                  Pausar
-                </button>
-              </div>
+              <>
+                {/* Selector de Forma: Barras vs QR */}
+                <div className="absolute top-3 left-3 flex items-center gap-1.5 z-20 pointer-events-auto">
+                  <button
+                    type="button"
+                    onClick={() => { audio.click(); setScanReticleMode('BARCODE'); }}
+                    className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold backdrop-blur-md transition-all ${
+                      scanReticleMode === 'BARCODE'
+                        ? 'bg-[#E0B441] text-[#12100E] shadow-md font-extrabold'
+                        : 'bg-black/60 text-[#B8AFA3] hover:text-white border border-white/20'
+                    }`}
+                  >
+                    📏 Barras
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { audio.click(); setScanReticleMode('QR'); }}
+                    className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold backdrop-blur-md transition-all ${
+                      scanReticleMode === 'QR'
+                        ? 'bg-[#E0B441] text-[#12100E] shadow-md font-extrabold'
+                        : 'bg-black/60 text-[#B8AFA3] hover:text-white border border-white/20'
+                    }`}
+                  >
+                    🔲 QR
+                  </button>
+                </div>
+
+                <div className="absolute top-3 right-3 flex items-center gap-2 z-20">
+                  <button
+                    type="button"
+                    onClick={handleToggleTorch}
+                    className={`p-2 rounded-xl backdrop-blur-md transition-all ${
+                      torchOn 
+                        ? 'bg-[#E0B441] text-black shadow-lg shadow-[#E0B441]/40' 
+                        : 'bg-black/60 text-white hover:bg-black/80 border border-white/20'
+                    }`}
+                    title="Encender Linterna"
+                  >
+                    <Flashlight className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={stopScanner}
+                    className="px-2.5 py-1.5 rounded-xl bg-black/60 hover:bg-black/80 text-white text-[11px] font-bold border border-white/20 backdrop-blur-md"
+                  >
+                    Pausar
+                  </button>
+                </div>
+              </>
             )}
 
             {/* Camera error / Fallback trigger */}

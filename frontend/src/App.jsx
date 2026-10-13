@@ -43,6 +43,7 @@ import {
   deduplicateShoppingItems, 
   deduplicateInventoryProducts 
 } from './utils/deduplication';
+import { sanitizeAllInventory, sanitizeCavaProduct } from './utils/cavaGuard';
 
 // Initial shopping list generated from low stock items
 const INITIAL_SHOPPING_LIST = [
@@ -82,7 +83,9 @@ export default function App() {
   // Local storage persisted state con saneamiento de duplicados
   const [products, setProducts] = useState(() => {
     const saved = localStorage.getItem('alacena_products');
-    return saved ? deduplicateInventoryProducts(JSON.parse(saved)) : INITIAL_PRODUCTS;
+    return saved 
+      ? sanitizeAllInventory(deduplicateInventoryProducts(JSON.parse(saved)), INITIAL_ZONES) 
+      : sanitizeAllInventory(INITIAL_PRODUCTS, INITIAL_ZONES);
   });
 
   const [shoppingList, setShoppingList] = useState(() => {
@@ -359,11 +362,11 @@ export default function App() {
 
   // Product actions
   const handleSaveProduct = (productData) => {
-    const itemWithHouse = {
+    const itemWithHouse = sanitizeCavaProduct({
       ...productData,
       householdId: productData.householdId || activeHouse?.id || 'house-1',
       householdName: productData.householdName || activeHouse?.name || 'Casa México',
-    };
+    }, zones);
 
     setProducts((prev) => {
       const exists = prev.find((p) => p.id === itemWithHouse.id);
@@ -708,7 +711,7 @@ export default function App() {
         }
       });
 
-      return deduplicateInventoryProducts(currentList);
+      return sanitizeAllInventory(deduplicateInventoryProducts(currentList), zones);
     });
 
     // Limpiar comprados de la lista de compras
@@ -759,7 +762,7 @@ export default function App() {
       const newQty = (prod.quantity || 0) + amount;
       if (targetZone && targetZone !== prod.zone) {
         setProducts((prev) =>
-          prev.map((p) => (p.id === prod.id ? { ...p, quantity: newQty, zone: targetZone, updatedAt: new Date().toISOString() } : p))
+          prev.map((p) => (p.id === prod.id ? sanitizeCavaProduct({ ...p, quantity: newQty, zone: targetZone, updatedAt: new Date().toISOString() }, zones) : p))
         );
       } else {
         handleUpdateQuantity(prod.id, newQty);
@@ -772,7 +775,7 @@ export default function App() {
       );
     } else if (isObj || productOrId) {
       // Es un artículo nuevo descubierto por escáner de código de barras
-      const newProductObj = {
+      const newProductObj = sanitizeCavaProduct({
         id: `prod-${Date.now()}`,
         name: isObj ? productOrId.name : `Artículo ${searchId}`,
         category: (isObj && productOrId.category) ? productOrId.category : 'Abarrotes',
@@ -787,7 +790,7 @@ export default function App() {
         photo: isObj ? productOrId.photo : null,
         isWine: isObj ? productOrId.isWine : false,
         updatedAt: new Date().toISOString(),
-      };
+      }, zones);
       setProducts((prev) => [newProductObj, ...prev]);
       addAuditEntry(
         'Administrador / Escáner',
@@ -1011,6 +1014,7 @@ export default function App() {
             recipes={recipes}
             auditLogs={auditLogs}
             activeHouse={activeHouse}
+            onOpenScanner={() => setIsScannerOpen(true)}
           />
         )}
 

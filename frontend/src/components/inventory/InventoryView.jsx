@@ -3,9 +3,10 @@ import {
   Search, Plus, Filter, AlertTriangle, CheckCircle, 
   Trash2, Pencil, ArrowUpDown, DollarSign, Layers, Warehouse,
   LayoutGrid, Table as TableIcon, Wine, Sparkles, MapPin, Star, ShoppingCart,
-  Clock, FileSpreadsheet, Utensils, Check, QrCode, Radio
+  Clock, FileSpreadsheet, Utensils, Check, QrCode, Radio, Camera
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
+import { isCavaZone } from '../../utils/cavaGuard';
 import ZonesBar from '../zones/ZonesBar';
 import ProactiveHomeAdvisor from '../assistant/ProactiveHomeAdvisor';
 import ItemQrModal from '../shopping/ItemQrModal';
@@ -49,6 +50,7 @@ export default function InventoryView({
   onAddToShoppingList,
   recipes = [],
   activeHouse,
+  onOpenScanner,
 }) {
   const [search, setSearch] = useState('');
   const [selectedZone, setSelectedZone] = useState(null);
@@ -59,6 +61,13 @@ export default function InventoryView({
   const [selectedQrProduct, setSelectedQrProduct] = useState(null);
   const [isQrBookletOpen, setIsQrBookletOpen] = useState(false);
   const searchInputRef = useRef(null);
+
+  // Botellas exclusivas en la Cava
+  const cavaBottlesCount = useMemo(() => {
+    return products
+      .filter((p) => isCavaZone(p.zone, zones))
+      .reduce((sum, p) => sum + (Number(p.quantity) || 0), 0);
+  }, [products, zones]);
 
   // Atajo global de teclado: presionar '/' o 'Ctrl+K' para enfocar búsqueda
   useEffect(() => {
@@ -442,6 +451,21 @@ export default function InventoryView({
               </button>
             </div>
 
+            {/* Botón Escanear Cámara / Barcode */}
+            {onOpenScanner && (
+              <button
+                onClick={() => {
+                  audio.click();
+                  onOpenScanner();
+                }}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-[#12100E] bg-gradient-to-r from-[#E0B441] to-[#E5724A] hover:brightness-110 transition-all shadow-md shadow-[#E0B441]/25 active:scale-95"
+                title="Escanear códigos de barras, etiquetas QR o NFC desde la cámara del móvil"
+              >
+                <Camera className="w-4 h-4" />
+                <span>📸 Escanear</span>
+              </button>
+            )}
+
             {/* "+ Capturar Producto" Button */}
             <button
               onClick={() => {
@@ -467,13 +491,28 @@ export default function InventoryView({
           onAddZone={onAddZone}
         />
 
-        {/* 🍷 Chips de Maridaje Rápido Sommelier (Visibles en Cava / Vinos) */}
+        {/* 🍷 Banner de Regla Estricta y Maridaje Cava (Solo Botellas) */}
         {isCavaFilter && (
-          <div className="p-3 rounded-2xl bg-[#12100E] border border-[#2A2521] flex flex-wrap items-center gap-2 text-xs animate-fade-in">
-            <span className="text-[#E0B441] font-bold flex items-center gap-1.5 mr-1">
-              <Sparkles className="w-3.5 h-3.5" />
-              Maridaje Sugerido:
-            </span>
+          <div className="p-3.5 rounded-2xl bg-[#12100E] border border-[#6B1F2E]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-fade-in shadow-lg">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-xl bg-[#6B1F2E] text-[#E0B441] border border-[#E0B441]/30">
+                <Wine className="w-4 h-4" />
+              </span>
+              <div>
+                <span className="text-white font-bold block">
+                  Cava Principal: <strong className="text-[#E0B441] font-mono-num">{cavaBottlesCount}</strong> Botellas
+                </span>
+                <span className="text-[11px] text-[#A89F91]">
+                  Regla del Sistema: En la Cava sólo se resguardan botellas de vinos, licores y destilados.
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[#E0B441] font-bold flex items-center gap-1 mr-1">
+                <Sparkles className="w-3.5 h-3.5" />
+                Maridaje:
+              </span>
             {[
               { id: 'ALL_WINE', label: '🍷 Todas las Botellas', q: '' },
               { id: 'CARNES', label: '🥩 Cortes & Asados (Tintos)', q: 'tinto' },
@@ -496,6 +535,7 @@ export default function InventoryView({
                 {pair.label}
               </button>
             ))}
+            </div>
           </div>
         )}
 

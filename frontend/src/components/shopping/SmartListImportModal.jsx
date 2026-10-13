@@ -3,11 +3,12 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { 
   X, Camera, FileText, Upload, Sparkles, Check, 
   Trash2, Plus, AlertCircle, ShoppingCart, Loader2,
-  SlidersHorizontal, CheckCircle2, RefreshCw, QrCode
+  SlidersHorizontal, CheckCircle2, RefreshCw, QrCode, Eye, ChevronDown, ChevronUp, Receipt
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { parseRawShoppingText } from '../../services/smartListParser';
 import { extractShoppingListFromImage, extractTextFromFile } from '../../services/ocrService';
+import { isCavaZone, sanitizeCavaProduct } from '../../utils/cavaGuard';
 
 export default function SmartListImportModal({ 
   isOpen, 
@@ -28,6 +29,9 @@ export default function SmartListImportModal({
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   const [ocrProgress, setOcrProgress] = useState(null); // { status, progress }
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
+  const [lastOcrRawText, setLastOcrRawText] = useState('');
+  const [showRawOcrText, setShowRawOcrText] = useState(false);
+  const [detectedStore, setDetectedStore] = useState(null);
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
   
@@ -41,6 +45,70 @@ export default function SmartListImportModal({
   const [importNotice, setImportNotice] = useState(null);
 
   if (!isOpen) return null;
+
+  // Cargar tickets de ejemplo reales (España / México)
+  const handleLoadSampleTicket = (type) => {
+    audio.click();
+    let sampleTicket = '';
+    let storeName = 'Mercadona';
+
+    if (type === 'mercadona') {
+      storeName = 'Mercadona (España)';
+      sampleTicket = 
+`MERCADONA, S.A.
+C.I.F. A-46103834
+C/ VELAZQUEZ 45, MADRID
+FECHA: 12/10/2026 14:32 OP: 4421
+
+DESCRIPCION             CANT   IMPORTE
+--------------------------------------
+MERLUZA FRESCA CANTABRICO 1   9,80 €
+LECHE ENTERA HACENDADO    6   5,40 €
+ACEITE OLIVA VIRGEN EX 1L 1   8,95 €
+QUESO MANCHEGO CURADO     1   4,65 €
+PAN BARRA ARTESANAL       2   1,50 €
+HUEVOS CAMPEROS CLASE L   1   2,85 €
+VINO TINTO RIOJA CRIANZA  2  13,50 €
+
+TOTAL (€)                    46,65 €
+TARJETA BANCARIA             46,65 €
+GRACIAS POR SU VISITA`;
+    } else if (type === 'costco') {
+      storeName = 'Costco Wholesale (México)';
+      sampleTicket = 
+`COSTCO WHOLESALE MEXICO
+AV. EJERCITO NACIONAL 843, CDMX
+RFC: CWM-911204-QG8
+12/10/2026 18:22 REG: 04 TR: 8821
+
+ARTICULO                CANT   PRECIO
+-------------------------------------
+RIBEYE PRIME SONORENSE    1  $485.00
+AGUACATE HASS 1.5 KG      1  $129.00
+PECHUGA POLLO ORGANICA 2KG 1  $310.00
+PAPEL HIGIENICO REGIO 32P  1  $289.00
+ACEITE OLIVA EXTRA 2L     1  $345.00
+VINO TINTO RESERVA        2  $580.00
+LECHE LALA ENTERA 6PK     1  $165.00
+
+SUBTOTAL                     $2,303.00
+IVA                          $0.00
+TOTAL MXN                    $2,303.00
+VISA DEBITO                  $2,303.00`;
+    }
+
+    setRawText(sampleTicket);
+    setLastOcrRawText(sampleTicket);
+    setDetectedStore(storeName);
+    const items = parseRawShoppingText(sampleTicket, existingProducts);
+    setExtractedItems(items);
+    setSelectedItemIds(new Set(items.map((i) => i.id)));
+    setImportNotice({
+      type: 'success',
+      text: `🧾 ¡Ticket demo de ${storeName} procesado! Se detectaron ${items.length} artículos con sus importes reales.`
+    });
+    audio.success();
+  };
 
   // Cargar ejemplo de WhatsApp
   const handleLoadSampleText = (type) => {
@@ -57,20 +125,11 @@ export default function SmartListImportModal({
 - 1.5 l de leche entera`
       );
     } else if (type === 'costco') {
-      setRawText(
-`[Costco] 1 paquete servilletas kleenex
-[Costco] 2 kg de pechuga de pollo organica
-[Costco] 1 bolsa de nuez de la india
-[Costco] 1 charola de huevos blancos`
-      );
+      handleLoadSampleTicket('costco');
+      return;
     } else if (type === 'mercadona') {
-      setRawText(
-`[Mercadona] 1.5 kg Merluza fresca del cantabrico
-[Mercadona] 6 botellas leche entera hacendado
-[Mercadona] 1 botella aceite de oliva virgen extra 1l
-[Mercadona] 1 cuña queso manchego curado
-[Mercadona] 2 barras pan artesanal`
-      );
+      handleLoadSampleTicket('mercadona');
+      return;
     }
   };
 
@@ -102,6 +161,8 @@ export default function SmartListImportModal({
     setImagePreviewUrl(url);
     setOcrProgress(null);
     setImportNotice(null);
+    setLastOcrRawText('');
+    setDetectedStore(null);
     audio.click();
   };
 
@@ -112,33 +173,37 @@ export default function SmartListImportModal({
     setIsOcrProcessing(true);
     audio.click();
     try {
-      // 1. Intentar decodificar primero si la imagen contiene un Código QR (ultra-rápido en ~150ms)
+      // 1. Intento preventivo seguro de QR (si la imagen fuera un código QR)
       try {
-        const qrDetector = new Html5Qrcode('qr-detection-buffer');
-        const decodedQr = await qrDetector.scanFile(selectedImage, false);
-        try { qrDetector.clear(); } catch (_) {}
-        if (decodedQr && decodedQr.trim()) {
-          let textToParse = decodedQr.trim();
-          if (textToParse.startsWith('{') || textToParse.startsWith('[')) {
-            try {
-              const parsedJson = JSON.parse(textToParse);
-              const itemsArray = Array.isArray(parsedJson) ? parsedJson : (parsedJson.items || []);
-              if (itemsArray.length > 0) {
-                textToParse = itemsArray.map(i => `${i.quantity || 1} ${i.unit || 'pza'} de ${i.name}`).join('\n');
-              }
-            } catch (_) {}
-          }
-          const qrItems = parseRawShoppingText(textToParse, existingProducts);
-          if (qrItems.length > 0) {
-            setExtractedItems(qrItems);
-            setSelectedItemIds(new Set(qrItems.map((i) => i.id)));
-            setImportNotice({
-              type: 'success',
-              text: `🎯 ¡Código QR detectado y decodificado al instante! Se extrajeron ${qrItems.length} ingredientes.`
-            });
-            audio.success();
-            setIsOcrProcessing(false);
-            return;
+        const bufferEl = document.getElementById('qr-detection-buffer');
+        if (bufferEl) {
+          const qrDetector = new Html5Qrcode('qr-detection-buffer');
+          const decodedQr = await qrDetector.scanFile(selectedImage, false);
+          try { qrDetector.clear(); } catch (_) {}
+          if (decodedQr && decodedQr.trim()) {
+            let textToParse = decodedQr.trim();
+            if (textToParse.startsWith('{') || textToParse.startsWith('[')) {
+              try {
+                const parsedJson = JSON.parse(textToParse);
+                const itemsArray = Array.isArray(parsedJson) ? parsedJson : (parsedJson.items || []);
+                if (itemsArray.length > 0) {
+                  textToParse = itemsArray.map(i => `${i.quantity || 1} ${i.unit || 'pza'} de ${i.name}`).join('\n');
+                }
+              } catch (_) {}
+            }
+            const qrItems = parseRawShoppingText(textToParse, existingProducts);
+            if (qrItems.length > 0) {
+              setExtractedItems(qrItems);
+              setSelectedItemIds(new Set(qrItems.map((i) => i.id)));
+              setLastOcrRawText(textToParse);
+              setImportNotice({
+                type: 'success',
+                text: `🎯 ¡Código QR detectado y decodificado al instante! Se extrajeron ${qrItems.length} ingredientes.`
+              });
+              audio.success();
+              setIsOcrProcessing(false);
+              return;
+            }
           }
         }
       } catch (qrErr) {
@@ -152,25 +217,30 @@ export default function SmartListImportModal({
         existingProducts
       );
 
+      setLastOcrRawText(result.rawText || '');
+
       if (result.items.length === 0) {
         setImportNotice({ 
           type: 'warning', 
-          text: 'Se leyó la imagen pero no se detectaron nombres claros de productos. Puedes revisar el texto extraído o editar manualmente.' 
+          text: 'Se procesó la imagen del ticket/nota. No se detectaron productos estructurados directamente, pero puedes desplegar el texto abajo y revisarlo.' 
         });
+        setShowRawOcrText(true);
         setRawText(result.rawText);
-        setActiveSubTab('text');
       } else {
         setExtractedItems(result.items);
         setSelectedItemIds(new Set(result.items.map((i) => i.id)));
         setImportNotice({ 
           type: 'success', 
-          text: `¡OCR Exitoso! Se extrajeron ${result.items.length} artículos con ${Math.round(result.confidence || 85)}% de confianza.` 
+          text: `🧾 ¡OCR Exitoso! Se extrajeron ${result.items.length} artículos del ticket con ${Math.round(result.confidence || 85)}% de fiabilidad.` 
         });
         audio.success();
       }
     } catch (err) {
       console.error('Error OCR:', err);
-      setImportNotice({ type: 'error', text: 'Ocurrió un inconveniente al procesar el OCR. Intenta con otra foto con mejor iluminación.' });
+      setImportNotice({ 
+        type: 'error', 
+        text: 'Ocurrió un inconveniente al procesar la foto del ticket: ' + (err.message || 'Error de lectura') + '. Verifica que esté bien iluminada y enfocada.' 
+      });
       audio.alert();
     } finally {
       setIsOcrProcessing(false);
@@ -261,7 +331,9 @@ export default function SmartListImportModal({
 
   // Confirmar e importar a la lista de compras del Súper
   const handleConfirmImport = () => {
-    const itemsToImport = extractedItems.filter((i) => selectedItemIds.has(i.id));
+    const itemsToImport = extractedItems
+      .filter((i) => selectedItemIds.has(i.id))
+      .map((item) => sanitizeCavaProduct(item, zones));
     if (itemsToImport.length === 0) {
       alert('Por favor selecciona al menos un artículo para importar.');
       return;
@@ -481,6 +553,30 @@ export default function SmartListImportModal({
                 </div>
               </div>
 
+              {/* Barra de Pruebas de Tickets 1-Clic */}
+              <div className="p-3 rounded-2xl bg-[#1C1814] border border-[#3D3630] flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold text-[#E0B441] flex items-center gap-1.5">
+                  <Receipt className="w-3.5 h-3.5" />
+                  Probar Tickets Reales (1-Clic):
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleLoadSampleTicket('mercadona')}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-xs text-emerald-300 border border-emerald-500/30 transition-all font-semibold"
+                  >
+                    🇪🇸 Ticket Mercadona (€)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleLoadSampleTicket('costco')}
+                    className="px-2.5 py-1 rounded-lg bg-[#E5724A]/15 hover:bg-[#E5724A]/25 text-xs text-[#E5724A] border border-[#E5724A]/30 transition-all font-semibold"
+                  >
+                    🇲🇽 Ticket Costco / Súper ($)
+                  </button>
+                </div>
+              </div>
+
               {/* Vista previa y botón de procesamiento */}
               {imagePreviewUrl && (
                 <div className="p-4 rounded-2xl bg-[#1C1814] border border-[#3D3630] flex flex-col md:flex-row items-center gap-5 animate-fade-in">
@@ -526,6 +622,45 @@ export default function SmartListImportModal({
                       </button>
                     )}
                   </div>
+                </div>
+              )}
+
+              {/* Inspector Desplegable del Texto Reconocido por OCR */}
+              {lastOcrRawText && (
+                <div className="p-3.5 rounded-2xl bg-[#1C1814] border border-[#3D3630] space-y-2 animate-fade-in">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#E0B441] flex items-center gap-1.5">
+                      <Receipt className="w-3.5 h-3.5" />
+                      Texto Reconocido por OCR ({lastOcrRawText.length} caracteres)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowRawOcrText(!showRawOcrText)}
+                      className="text-xs text-[#B8AFA3] hover:text-white flex items-center gap-1 px-2 py-1 rounded bg-white/5 border border-white/10"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>{showRawOcrText ? 'Ocultar' : 'Ver / Editar Texto'}</span>
+                      {showRawOcrText ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+
+                  {showRawOcrText && (
+                    <div className="space-y-2 pt-1 animate-fade-in">
+                      <textarea
+                        value={rawText}
+                        onChange={(e) => setRawText(e.target.value)}
+                        rows={6}
+                        className="w-full p-3 rounded-xl bg-[#12100E] border border-[#2A2521] text-xs font-mono text-[#F2EDE4] outline-none resize-y"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleProcessText}
+                        className="px-3.5 py-1.5 rounded-lg bg-[#E0B441] hover:brightness-110 text-[#12100E] font-bold text-xs shadow transition-all"
+                      >
+                        Re-analizar Texto con Inteligencia
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -663,18 +798,49 @@ export default function SmartListImportModal({
                         </select>
                       </div>
 
+                      {/* Precio Real de Ticket si fue detectado */}
+                      {item.realPrice !== null && item.realPrice !== undefined && (
+                        <div className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-mono font-bold shrink-0 flex items-center gap-1">
+                          <span>{item.store?.toLowerCase().includes('mercadona') || activeHouse?.currency === 'EUR' ? `${item.realPrice} €` : `$${item.realPrice}`}</span>
+                        </div>
+                      )}
+
                       {/* Tienda */}
                       <select
                         value={item.store}
                         onChange={(e) => handleUpdateItem(item.id, 'store', e.target.value)}
                         className="p-1.5 rounded-lg bg-[#14110F] border border-[#3D3630] text-xs text-[#E5724A] font-medium outline-none shrink-0"
                       >
-                        <option value="Costco">Costco</option>
-                        <option value="City Market">City Market</option>
-                        <option value="Chedraui Selecto">Chedraui Selecto</option>
-                        <option value="Walmart Express">Walmart Express</option>
+                        <option value="Mercadona">🇪🇸 Mercadona</option>
+                        <option value="El Corte Inglés">🇪🇸 El Corte Inglés</option>
+                        <option value="Carrefour">🇪🇸 Carrefour</option>
+                        <option value="Dia">🇪🇸 Dia</option>
+                        <option value="Aldi">🇪🇸 Aldi</option>
+                        <option value="Costco">🇲🇽 Costco</option>
+                        <option value="City Market">🇲🇽 City Market</option>
+                        <option value="Chedraui Selecto">🇲🇽 Chedraui Selecto</option>
+                        <option value="Walmart Express">🇲🇽 Walmart Express</option>
                         <option value="Supermercado">Supermercado</option>
                         <option value="Mercado Local">Mercado Local</option>
+                      </select>
+
+                      {/* Ubicación Destino con protección Cava */}
+                      <select
+                        value={item.targetZone || zones[0]?.name || 'Alacena Principal'}
+                        onChange={(e) => {
+                          const newZ = e.target.value;
+                          handleUpdateItem(item.id, 'targetZone', newZ);
+                          if (isCavaZone(newZ, zones)) {
+                            handleUpdateItem(item.id, 'unit', 'botellas');
+                          }
+                        }}
+                        className="p-1.5 rounded-lg bg-[#14110F] border border-[#3D3630] text-xs text-[#E0B441] font-medium outline-none shrink-0"
+                      >
+                        {zones.map((z) => (
+                          <option key={z.id} value={z.name}>
+                            {z.name}
+                          </option>
+                        ))}
                       </select>
 
                       {/* Botón Eliminar Fila */}
@@ -720,12 +886,14 @@ export default function SmartListImportModal({
               Cancelar
             </button>
 
-            {/* Opción A: Guardar directo en Alacena/Inventario */}
+            {/* Opción A: Guardar directo en Alacena/Inventario con Sanitización Cava */}
             {onImportDirectToPantry && (
               <button
                 type="button"
                 onClick={() => {
-                  const itemsToImport = extractedItems.filter((i) => selectedItemIds.has(i.id));
+                  const itemsToImport = extractedItems
+                    .filter((i) => selectedItemIds.has(i.id))
+                    .map((item) => sanitizeCavaProduct(item, zones));
                   if (itemsToImport.length === 0) {
                     alert('Selecciona al menos un artículo.');
                     return;
