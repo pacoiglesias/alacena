@@ -5,7 +5,7 @@ import {
   ArrowRight, Warehouse, DollarSign, RefreshCw, 
   AlertCircle, QrCode, Printer, CheckCircle2, ListChecks,
   Beef, Milk, Apple, Package, Wine, Coffee, Layers, ChevronDown, BookOpen, ShoppingBag,
-  MoreHorizontal, Receipt
+  MoreHorizontal, Receipt, Award
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
@@ -17,6 +17,7 @@ import PrintableShoppingListModal from './PrintableShoppingListModal';
 import SmartListImportModal from './SmartListImportModal';
 import ReceiptReconciliationModal from './ReceiptReconciliationModal';
 import WeeklyStaplesModal from './WeeklyStaplesModal';
+import PriceComparisonModal from './PriceComparisonModal';
 import { getCatalogs } from '../../services/catalogsService';
 import { areItemsEquivalent, deduplicateShoppingItems } from '../../utils/deduplication';
 
@@ -73,6 +74,7 @@ export default function ShoppingListView({
   const [isSmartImportOpen, setIsSmartImportOpen] = useState(false);
   const [isReconciliationOpen, setIsReconciliationOpen] = useState(false);
   const [isWeeklyStaplesOpen, setIsWeeklyStaplesOpen] = useState(false);
+  const [isPriceComparisonOpen, setIsPriceComparisonOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [hideChecked, setHideChecked] = useState(false);
 
@@ -360,7 +362,22 @@ export default function ShoppingListView({
             <span>+ Agregar</span>
           </button>
 
-          {/* 4. Menú Desplegable: Más Herramientas */}
+          {/* 4. Comparador de Precios & Dónde Comprar Más Barato */}
+          <button
+            type="button"
+            onClick={() => {
+              audio.click();
+              setIsPriceComparisonOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3 sm:px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-[#E0B441] bg-[#E0B441]/15 hover:bg-[#E0B441]/25 border border-[#E0B441]/35 transition-all shadow-md cursor-pointer"
+            title="Comparador multitienda y asesor de dónde comprar más barato"
+          >
+            <Award className="w-4 h-4 text-[#E0B441]" />
+            <span className="hidden sm:inline">⚖️ Precios</span>
+            <span className="sm:hidden">⚖️</span>
+          </button>
+
+          {/* 5. Menú Desplegable: Más Herramientas */}
           <div className="relative">
             <button
               type="button"
@@ -386,6 +403,16 @@ export default function ShoppingListView({
                 <div className="px-2.5 py-1 text-[10px] font-mono font-bold text-[#E0B441] uppercase tracking-wider border-b border-white/5 mb-1">
                   Herramientas del Súper
                 </div>
+
+                {/* Comparador Multitienda */}
+                <button
+                  type="button"
+                  onClick={() => setIsPriceComparisonOpen(true)}
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                >
+                  <Award className="w-4 h-4 text-[#E0B441]" />
+                  <span>⚖️ Comparador Multitienda & Ahorro</span>
+                </button>
 
                 {/* WhatsApp */}
                 <button
@@ -1088,6 +1115,14 @@ export default function ShoppingListView({
         onAddStaples={(items) => {
           items.forEach((it) => onAddItem(it));
         }}
+      />
+
+      {/* Modal: Comparador de Precios Multitienda & Ahorro */}
+      <PriceComparisonModal
+        isOpen={isPriceComparisonOpen}
+        onClose={() => setIsPriceComparisonOpen(false)}
+        shoppingList={enrichedList}
+        onAddShoppingItem={onAddItem}
       />
 
 

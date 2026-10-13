@@ -12,6 +12,10 @@ db.version(1).stores({
   households: 'id, name'
 });
 
+db.version(2).stores({
+  priceRecords: 'id, canonicalName, fullName, store, unitPrice, date'
+});
+
 // Helper sync utilities
 export async function syncPantryToIndexedDb(products, shoppingList, recipes, auditLogs) {
   try {

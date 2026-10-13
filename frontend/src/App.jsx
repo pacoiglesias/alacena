@@ -20,6 +20,7 @@ import { audio } from './services/audioService';
 import { syncPantryToIndexedDb } from './services/db';
 import { findProductByScanCode, extractCodeFromScan } from './utils/scanHelper';
 import { lookupBarcode } from './services/barcodeLookupService';
+import { recordPricePoints } from './services/priceIntelligenceService';
 import { 
   subscribeToProducts, 
   saveProductToCloud, 
@@ -743,6 +744,9 @@ export default function App() {
     };
     setPurchaseHistory((prev) => [newReceipt, ...prev.slice(0, 30)]);
 
+    // Registrar precios en el motor de inteligencia multitienda
+    recordPricePoints(checkedItems, checkedItems[0]?.store || 'Supermercado', newReceipt.date, notes);
+
     // Registrar en auditoría
     addAuditEntry(
       buyer,
@@ -757,6 +761,9 @@ export default function App() {
   // Direct scanner add & subtract
   const handleAddStockDirect = (productOrId, amount = 1, targetZone = null) => {
     const isObj = typeof productOrId === 'object' && productOrId !== null;
+    if (isObj && (productOrId.realPrice || productOrId.estimatedPriceMxn || productOrId.price)) {
+      recordPricePoints([productOrId], productOrId.store || 'Supermercado');
+    }
     const searchId = isObj ? (productOrId.id || productOrId.barcode) : productOrId;
     const prod = products.find((p) => p.id === searchId || (p.barcode && p.barcode === searchId));
 

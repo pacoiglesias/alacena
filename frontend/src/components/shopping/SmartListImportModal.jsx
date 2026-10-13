@@ -1,14 +1,16 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { 
   X, Camera, FileText, Upload, Sparkles, Check, 
   Trash2, Plus, AlertCircle, ShoppingCart, Loader2,
-  SlidersHorizontal, CheckCircle2, RefreshCw, QrCode, Eye, ChevronDown, ChevronUp, Receipt
+  SlidersHorizontal, CheckCircle2, RefreshCw, QrCode, Eye, ChevronDown, ChevronUp, Receipt,
+  TrendingDown, TrendingUp, Award, DollarSign
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { parseRawShoppingText } from '../../services/smartListParser';
 import { extractShoppingListFromImage, extractTextFromFile } from '../../services/ocrService';
 import { isCavaZone, sanitizeCavaProduct } from '../../utils/cavaGuard';
+import { analyzeTicketPriceIntelligence, recordPricePoints } from '../../services/priceIntelligenceService';
 
 export default function SmartListImportModal({ 
   isOpen, 
@@ -366,6 +368,11 @@ TOTAL $ 2345.68`;
     setSelectedItemIds((prev) => new Set([...prev, newItem.id]));
   };
 
+  // Análisis de inteligencia de precios para los artículos extraídos
+  const priceIntelligence = useMemo(() => {
+    return analyzeTicketPriceIntelligence(extractedItems, detectedStore || 'Supermercado');
+  }, [extractedItems, detectedStore]);
+
   // Confirmar e importar a la lista de compras del Súper
   const handleConfirmImport = () => {
     const itemsToImport = extractedItems
@@ -375,6 +382,9 @@ TOTAL $ 2345.68`;
       alert('Por favor selecciona al menos un artículo para importar.');
       return;
     }
+
+    // Registrar puntos de precio para el histórico multitienda
+    recordPricePoints(itemsToImport, detectedStore || 'Supermercado');
 
     audio.success();
     onImportItems(itemsToImport);
@@ -781,10 +791,50 @@ TOTAL $ 2345.68`;
                 </button>
               </div>
 
+              {/* Banner de Inteligencia de Precios & Asesor Multitienda */}
+              {priceIntelligence && (priceIntelligence.priceDropsCount > 0 || priceIntelligence.priceHikesCount > 0 || priceIntelligence.totalCrossStoreSavingsPotential > 0) && (
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-[#1C1814] via-[#261E18] to-[#1C1814] border border-[#E0B441]/35 text-xs space-y-1.5 animate-fade-in">
+                  <div className="flex items-center justify-between font-bold text-[#E0B441]">
+                    <span className="flex items-center gap-1.5">
+                      <Award className="w-4 h-4 text-[#E0B441]" />
+                      Auditoría de Precios del Ticket & Asesor Multitienda:
+                    </span>
+                    {priceIntelligence.totalCrossStoreSavingsPotential > 0 && (
+                      <span className="text-emerald-300 font-mono text-xs">
+                        Ahorro potencial: ${priceIntelligence.totalCrossStoreSavingsPotential.toFixed(2)} MXN
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                    {priceIntelligence.priceDropsCount > 0 && (
+                      <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1">
+                        <TrendingDown className="w-3.5 h-3.5" />
+                        <span>{priceIntelligence.priceDropsCount} bajaron de precio (-${priceIntelligence.totalSavedVsPrevious.toFixed(2)})</span>
+                      </span>
+                    )}
+                    {priceIntelligence.priceHikesCount > 0 && (
+                      <span className="px-2 py-0.5 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/30 font-bold flex items-center gap-1">
+                        <TrendingUp className="w-3.5 h-3.5" />
+                        <span>{priceIntelligence.priceHikesCount} subieron (+${priceIntelligence.totalInflationCost.toFixed(2)})</span>
+                      </span>
+                    )}
+                    {priceIntelligence.recommendations.length > 0 && (
+                      <span className="px-2 py-0.5 rounded-lg bg-[#E0B441]/10 text-[#E0B441] border border-[#E0B441]/25 font-semibold">
+                        💡 En {priceIntelligence.recommendations[0]?.cheapestStore}: "{priceIntelligence.recommendations[0]?.productName}" cuesta ${priceIntelligence.recommendations[0]?.cheapestPrice.toFixed(2)} (-${priceIntelligence.recommendations[0]?.lineSavings.toFixed(2)})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Items List */}
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
                 {extractedItems.map((item) => {
                   const isChecked = selectedItemIds.has(item.id);
+                  const itemIntel = priceIntelligence?.itemsAnalysis?.find((ia) => ia.id === item.id);
+                  const trend = itemIntel?.trend;
+                  const crossStore = itemIntel?.crossStore;
+
                   return (
                     <div
                       key={item.id}
@@ -815,11 +865,35 @@ TOTAL $ 2345.68`;
                           onChange={(e) => handleUpdateItem(item.id, 'name', e.target.value)}
                           className="w-full bg-transparent text-sm font-semibold text-[#F2EDE4] focus:bg-[#14110F] px-2 py-1 rounded-lg border border-transparent focus:border-[#E0B441] outline-none transition-all"
                         />
-                        {item.matchedInPantry && (
-                          <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono pl-2">
-                            <span>✓ En tu Alacena ({item.targetZone})</span>
-                          </div>
-                        )}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5 pl-2">
+                          {item.matchedInPantry && (
+                            <span className="text-[10px] text-emerald-400 font-mono">
+                              ✓ En tu Alacena ({item.targetZone})
+                            </span>
+                          )}
+                          {trend?.status === 'down' && (
+                            <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold flex items-center gap-0.5 text-[9px]">
+                              <TrendingDown className="w-2.5 h-2.5" />
+                              <span>{trend.text}</span>
+                            </span>
+                          )}
+                          {trend?.status === 'up' && (
+                            <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-bold flex items-center gap-0.5 text-[9px]">
+                              <TrendingUp className="w-2.5 h-2.5" />
+                              <span>{trend.text}</span>
+                            </span>
+                          )}
+                          {crossStore && !crossStore.isBestPrice && crossStore.savings > 0 && (
+                            <span className="px-1.5 py-0.2 rounded bg-[#E0B441]/15 text-[#E0B441] border border-[#E0B441]/25 text-[9px]">
+                              💡 Más barato en {crossStore.cheapestStore} (${crossStore.cheapestPrice.toFixed(2)})
+                            </span>
+                          )}
+                          {crossStore?.isBestPrice && trend?.status !== 'first' && (
+                            <span className="px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 text-[9px] font-bold">
+                              🏆 Mejor precio
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Cantidad y Unidad */}
@@ -949,6 +1023,7 @@ TOTAL $ 2345.68`;
                     alert('Selecciona al menos un artículo.');
                     return;
                   }
+                  recordPricePoints(itemsToImport, detectedStore || 'Supermercado');
                   audio.success();
                   onImportDirectToPantry(itemsToImport);
                   onClose();

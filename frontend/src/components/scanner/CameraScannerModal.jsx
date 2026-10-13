@@ -4,7 +4,8 @@ import {
   X, Camera, ScanLine, CheckCircle2, Plus, Minus,
   ShoppingCart, Warehouse, AlertCircle, Sparkles, 
   Keyboard, Image as ImageIcon, RefreshCw, Check, Search, Zap,
-  Wine, Edit3, Flashlight, Receipt, FileText, Loader2, ArrowRight
+  Wine, Edit3, Flashlight, Receipt, FileText, Loader2, ArrowRight,
+  TrendingDown, TrendingUp, Award, DollarSign
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { lookupBarcode } from '../../services/barcodeLookupService';
@@ -12,6 +13,7 @@ import { findProductByScanCode, extractCodeFromScan } from '../../utils/scanHelp
 import { isCavaZone, isAlcoholicOrBeverage, sanitizeCavaProduct } from '../../utils/cavaGuard';
 import { extractShoppingListFromImage, preprocessImageForOcr } from '../../services/ocrService';
 import { parseRawShoppingText } from '../../services/smartListParser';
+import { analyzeTicketPriceIntelligence, recordPricePoints } from '../../services/priceIntelligenceService';
 
 export default function CameraScannerModal({ 
   isOpen, 
@@ -670,6 +672,11 @@ TOTAL MXN                    $2,303.00`;
     audio.success();
   };
 
+  // Análisis de inteligencia de precios para los artículos del ticket
+  const priceIntelligence = useMemo(() => {
+    return analyzeTicketPriceIntelligence(extractedReceiptItems, receiptStoreName || 'Supermercado');
+  }, [extractedReceiptItems, receiptStoreName]);
+
   // Importar artículos del ticket a la Lista de Compras
   const handleImportReceiptToShoppingList = () => {
     const selectedItems = extractedReceiptItems.filter(i => selectedReceiptItemIds.has(i.id));
@@ -677,6 +684,8 @@ TOTAL MXN                    $2,303.00`;
       alert('Por favor selecciona al menos un artículo.');
       return;
     }
+
+    recordPricePoints(selectedItems, receiptStoreName || 'Supermercado');
 
     selectedItems.forEach(item => {
       if (onAddToShoppingList) {
@@ -693,7 +702,7 @@ TOTAL MXN                    $2,303.00`;
     });
 
     audio.success();
-    alert(`📥 ¡${selectedItems.length} artículos del ticket agregados a tu Lista del Súper!`);
+    alert(`📥 ¡${selectedItems.length} artículos del ticket agregados a tu Lista del Súper con sus precios registrados!`);
     onClose();
   };
 
@@ -704,6 +713,8 @@ TOTAL MXN                    $2,303.00`;
       alert('Por favor selecciona al menos un artículo.');
       return;
     }
+
+    recordPricePoints(selectedItems, receiptStoreName || 'Supermercado');
 
     selectedItems.forEach(item => {
       const sanitized = sanitizeCavaProduct(item, zones);
@@ -1162,10 +1173,50 @@ TOTAL MXN                    $2,303.00`;
                     </button>
                   </div>
 
+                  {/* Banner de Inteligencia de Precios & Asesor Multitienda */}
+                  {priceIntelligence && (priceIntelligence.priceDropsCount > 0 || priceIntelligence.priceHikesCount > 0 || priceIntelligence.totalCrossStoreSavingsPotential > 0) && (
+                    <div className="p-2.5 rounded-xl bg-gradient-to-r from-[#1C1814] via-[#261E18] to-[#1C1814] border border-[#E0B441]/35 text-[11px] space-y-1.5 animate-fade-in">
+                      <div className="flex items-center justify-between font-bold text-[#E0B441]">
+                        <span className="flex items-center gap-1.5">
+                          <Award className="w-3.5 h-3.5 text-[#E0B441]" />
+                          Auditoría de Precios & Asesor Multitienda:
+                        </span>
+                        {priceIntelligence.totalCrossStoreSavingsPotential > 0 && (
+                          <span className="text-emerald-300 font-mono">
+                            Ahorro potencial: ${priceIntelligence.totalCrossStoreSavingsPotential.toFixed(2)} MXN
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                        {priceIntelligence.priceDropsCount > 0 && (
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1">
+                            <TrendingDown className="w-3 h-3" />
+                            <span>{priceIntelligence.priceDropsCount} bajaron (-${priceIntelligence.totalSavedVsPrevious.toFixed(2)})</span>
+                          </span>
+                        )}
+                        {priceIntelligence.priceHikesCount > 0 && (
+                          <span className="px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30 font-bold flex items-center gap-1">
+                            <TrendingUp className="w-3 h-3" />
+                            <span>{priceIntelligence.priceHikesCount} subieron (+${priceIntelligence.totalInflationCost.toFixed(2)})</span>
+                          </span>
+                        )}
+                        {priceIntelligence.recommendations.length > 0 && (
+                          <span className="px-1.5 py-0.5 rounded bg-[#E0B441]/10 text-[#E0B441] border border-[#E0B441]/25 font-semibold">
+                            💡 En {priceIntelligence.recommendations[0]?.cheapestStore}: "{priceIntelligence.recommendations[0]?.productName}" a ${priceIntelligence.recommendations[0]?.cheapestPrice.toFixed(2)} (-${priceIntelligence.recommendations[0]?.lineSavings.toFixed(2)})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Tabla / Tarjetas de Artículos */}
                   <div className="max-h-56 overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
                     {extractedReceiptItems.map((item) => {
                       const isSelected = selectedReceiptItemIds.has(item.id);
+                      const itemIntel = priceIntelligence?.itemsAnalysis?.find(ia => ia.id === item.id);
+                      const trend = itemIntel?.trend;
+                      const crossStore = itemIntel?.crossStore;
+
                       return (
                         <div
                           key={item.id}
@@ -1187,11 +1238,33 @@ TOTAL MXN                    $2,303.00`;
                               }}
                               className="rounded text-emerald-500 focus:ring-0 w-4 h-4 cursor-pointer"
                             />
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <span className="font-bold text-white block truncate">{item.name}</span>
-                              <span className="text-[10px] text-[#A89F91]">
-                                {item.quantity} {item.unit} • {item.department}
-                              </span>
+                              <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-[#A89F91] mt-0.5">
+                                <span>{item.quantity} {item.unit} • {item.department}</span>
+                                {trend?.status === 'down' && (
+                                  <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold flex items-center gap-0.5 text-[9px]">
+                                    <TrendingDown className="w-2.5 h-2.5" />
+                                    <span>{trend.text}</span>
+                                  </span>
+                                )}
+                                {trend?.status === 'up' && (
+                                  <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-bold flex items-center gap-0.5 text-[9px]">
+                                    <TrendingUp className="w-2.5 h-2.5" />
+                                    <span>{trend.text}</span>
+                                  </span>
+                                )}
+                                {crossStore && !crossStore.isBestPrice && crossStore.savings > 0 && (
+                                  <span className="px-1.5 py-0.2 rounded bg-[#E0B441]/15 text-[#E0B441] border border-[#E0B441]/25 text-[9px]">
+                                    💡 Más barato en {crossStore.cheapestStore} (${crossStore.cheapestPrice.toFixed(2)})
+                                  </span>
+                                )}
+                                {crossStore?.isBestPrice && trend?.status !== 'first' && (
+                                  <span className="px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 text-[9px] font-bold">
+                                    🏆 Mejor precio
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </label>
 
