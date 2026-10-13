@@ -2,7 +2,7 @@
 # 🤖 MASTER PROMPT: ALACENA Enterprise & CavaPro
 # ═══════════════════════════════════════════════════════════════════════════════
 #
-# Versión Canónica:  v3.5.3-Enterprise-Luxe
+# Versión Canónica:  v3.7.0-Enterprise-Luxe
 # Documento:        Prompt Maestro de Gobernanza & Mejora Continua
 # Entorno:          Producción Activa (Firebase: alacena-enterprise-prod)
 # URL:              https://alacena-enterprise-prod.web.app

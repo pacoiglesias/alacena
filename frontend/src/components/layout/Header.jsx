@@ -3,7 +3,7 @@ import {
   Sparkles, Volume2, VolumeX, MapPin, 
   ChevronDown, Utensils, History, Layers, RefreshCw, 
   ShoppingCart, Camera, Wine, User, Shield, Check, Sliders,
-  BookOpen, Palette, Store, Sun, QrCode
+  BookOpen, Palette, Store, Sun, QrCode, Settings
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { SYSTEM_VERSION } from '../changelog/ChangelogModal';
@@ -49,6 +49,7 @@ export default function Header({
     return saved ? JSON.parse(saved) : SYSTEM_ROLES[0];
   });
   const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [isTabConfigModalOpen, setIsTabConfigModalOpen] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
@@ -159,11 +160,12 @@ export default function Header({
                       audio.click();
                       onOpenChangelog();
                     }}
-                    className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#121622] border border-[#1E2638] hover:border-emerald-500/50 text-[10px] font-mono font-bold text-emerald-400 transition-all cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#121622] border border-[#1E2638] hover:border-emerald-500/50 text-[10px] font-mono font-bold text-emerald-400 transition-all cursor-pointer shrink-0"
                     title="Ver Ficha Técnica y Mejoras del Hogar"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>v3.6.0 · Casa & Cava</span>
+                    <span className="hidden sm:inline">v3.7.0 · Enterprise Luxe</span>
+                    <span className="sm:hidden">v3.7.0</span>
                   </button>
                 </div>
                 {!isScrolled && (
@@ -253,88 +255,145 @@ export default function Header({
               )}
             </div>
 
-            {/* Botón: Resumen Diario de Cocina */}
-            <button
-              onClick={() => {
-                audio.click();
-                setIsKitchenDayModalOpen(true);
-              }}
-              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all hover:scale-105 active:scale-95 shadow-sm"
-              title="Ver Resumen Diario de Cocina, Caducidades y Alertas de Hogar"
-            >
-              <Sun className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Día / Cocina</span>
-              {criticalAlertCount > 0 && (
-                <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse absolute -top-0.5 -right-0.5" />
-              )}
-            </button>
-
-            {/* Botón: Instructivo y Manual Completo */}
-            <button
-              onClick={() => {
-                audio.click();
-                setIsManualModalOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-[#E0B441] bg-[#E0B441]/10 hover:bg-[#E0B441]/20 border border-[#E0B441]/30 transition-all hover:scale-105 active:scale-95 shadow-sm"
-              title="Abrir Manual e Instructivo Completo del Sistema"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-[#E0B441]" />
-              <span className="hidden sm:inline">Instructivo</span>
-            </button>
-
-            {/* Centro de Mando CAVAPRO */}
-            <button
-              onClick={() => {
-                audio.click();
-                onOpenCommandCenter();
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-[#E0B441] bg-[#6B1F2E]/30 hover:bg-[#6B1F2E]/50 border border-[#A83A50]/40 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
-              title="Abrir Centro de Mando Sommelier & Cava"
-            >
-              <Wine className="w-3.5 h-3.5 text-[#E0B441]" />
-              <span className="hidden sm:inline">CavaPro</span>
-              <span className="text-[10px] text-[#E0B441]">▾</span>
-            </button>
-
-            {/* Botón Catálogo de QR, Stickers y Tuppers */}
-            <button
-              onClick={() => {
-                audio.click();
-                if (onOpenQrBooklet) onOpenQrBooklet();
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-[#E0B441] bg-[#E0B441]/10 hover:bg-[#E0B441]/20 border border-[#E0B441]/35 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-              title="Abrir Catálogo Imprimible de QR para la Puerta de la Alacena, Frascos y Tuppers"
-            >
-              <QrCode className="w-3.5 h-3.5 text-[#E0B441]" />
-              <span className="hidden sm:inline">Catálogo QR</span>
-              <span className="sm:hidden">QR</span>
-            </button>
-
-            {/* Escáner Universal 1-Tap */}
+            {/* Escáner Universal 1-Tap (Códigos & Tickets) */}
             <button
               onClick={() => {
                 audio.click();
                 onOpenScanner();
               }}
-              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#1F4D3A] to-[#2E6B52] hover:from-[#275e47] hover:to-[#388264] border border-[#3D8B6E]/40 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-              title="Abrir Escáner de Códigos de Barra y QR"
+              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:brightness-110 border border-emerald-400/40 shadow-lg shadow-emerald-950/50 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              title="Abrir Escáner de Códigos de Barra y Lector de Tickets de Compra (OCR)"
             >
-              <Camera className="w-4 h-4" />
-              <span>Escáner</span>
+              <Camera className="w-4 h-4 text-emerald-100" />
+              <span>📷 Escanear</span>
             </button>
 
-            {/* Sound Toggle */}
-            <button
-              onClick={onToggleMute}
-              className={`p-2 rounded-xl border transition-all ${
-                isMuted 
-                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' 
-                  : 'bg-white/5 border-[#2A2521] hover:border-[#E0B441]/40 text-[#E0B441]'
-              }`}
-              title={isMuted ? 'Activar Efectos de Sonido' : 'Silenciar Efectos de Sonido'}
-            >
-              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-            </button>
+            {/* Menú Desplegable: Ajustes, Herramientas & Hogar */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  audio.click();
+                  setIsSettingsMenuOpen(!isSettingsMenuOpen);
+                }}
+                className={`relative flex items-center gap-1.5 p-2 rounded-xl border transition-all cursor-pointer ${
+                  isSettingsMenuOpen
+                    ? 'bg-[#1A2030] border-emerald-500/50 text-white'
+                    : 'bg-[#121622] border-[#1E2638] text-[#94A3B8] hover:text-white hover:bg-white/5'
+                }`}
+                title="Menú de Ajustes, Hogar y Herramientas"
+              >
+                <Settings className="w-4 h-4 text-emerald-400" />
+                {criticalAlertCount > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse absolute -top-0.5 -right-0.5" />
+                )}
+              </button>
+
+              {isSettingsMenuOpen && (
+                <div 
+                  className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#121622] border border-[#2A364E] shadow-2xl p-2 z-50 animate-fade-in space-y-1 text-xs"
+                  onClick={() => setIsSettingsMenuOpen(false)}
+                >
+                  <div className="px-2.5 py-1 text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider border-b border-[#1E2638] mb-1 flex items-center justify-between">
+                    <span>Herramientas del Hogar</span>
+                    <span className="text-[9px] text-[#64748B] font-mono">v3.7.0</span>
+                  </div>
+
+                  {/* Resumen Diario de Cocina */}
+                  <button
+                    type="button"
+                    onClick={() => setIsKitchenDayModalOpen(true)}
+                    className="w-full flex items-center justify-between p-2 rounded-xl text-[#94A3B8] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Sun className="w-4 h-4 text-amber-400" />
+                      <span>Resumen Diario & Caducidades</span>
+                    </div>
+                    {criticalAlertCount > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-rose-500/30 text-rose-300 text-[10px] font-mono font-bold">
+                        {criticalAlertCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Centro de Mando CavaPro */}
+                  <button
+                    type="button"
+                    onClick={onOpenCommandCenter}
+                    className="w-full flex items-center gap-2 p-2 rounded-xl text-[#94A3B8] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  >
+                    <Wine className="w-4 h-4 text-[#E0B441]" />
+                    <span>Centro Sommelier CavaPro</span>
+                  </button>
+
+                  {/* Catálogo de QR y Stickers */}
+                  <button
+                    type="button"
+                    onClick={() => { if (onOpenQrBooklet) onOpenQrBooklet(); }}
+                    className="w-full flex items-center gap-2 p-2 rounded-xl text-[#94A3B8] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  >
+                    <QrCode className="w-4 h-4 text-purple-400" />
+                    <span>Catálogo QR & Stickers Alacena</span>
+                  </button>
+
+                  {/* Instructivo y Manual Completo */}
+                  <button
+                    type="button"
+                    onClick={() => setIsManualModalOpen(true)}
+                    className="w-full flex items-center gap-2 p-2 rounded-xl text-[#94A3B8] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  >
+                    <BookOpen className="w-4 h-4 text-blue-400" />
+                    <span>Manual e Instructivo</span>
+                  </button>
+
+                  {/* Personalizar Menú */}
+                  <button
+                    type="button"
+                    onClick={() => setIsTabConfigModalOpen(true)}
+                    className="w-full flex items-center gap-2 p-2 rounded-xl text-[#94A3B8] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  >
+                    <Sliders className="w-4 h-4 text-teal-400" />
+                    <span>Personalizar Pestañas del Menú</span>
+                  </button>
+
+                  {/* Color y Tema */}
+                  <button
+                    type="button"
+                    onClick={() => setIsThemeModalOpen(true)}
+                    className="w-full flex items-center gap-2 p-2 rounded-xl text-[#94A3B8] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  >
+                    <Palette className="w-4 h-4 text-pink-400" />
+                    <span>Tema Visual y Color</span>
+                  </button>
+
+                  {/* Catálogos y Opciones */}
+                  <button
+                    type="button"
+                    onClick={() => setIsCatalogsModalOpen(true)}
+                    className="w-full flex items-center gap-2 p-2 rounded-xl text-[#94A3B8] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  >
+                    <Store className="w-4 h-4 text-orange-400" />
+                    <span>Catálogos (Tiendas y Personal)</span>
+                  </button>
+
+                  {/* Silenciar / Activar Sonido */}
+                  <div className="pt-1 border-t border-[#1E2638]">
+                    <button
+                      type="button"
+                      onClick={onToggleMute}
+                      className="w-full flex items-center justify-between p-2 rounded-xl text-[#94A3B8] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                    >
+                      <div className="flex items-center gap-2">
+                        {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+                        <span>Efectos de Sonido</span>
+                      </div>
+                      <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${isMuted ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                        {isMuted ? 'Silenciado' : 'Activo'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
           </div>
         </div>
@@ -377,44 +436,7 @@ export default function Header({
             );
           })}
 
-          {/* Botón para Configurar Menú (Renombrar, Ocultar, Agregar) */}
-          <button
-            onClick={() => {
-              audio.click();
-              setIsTabConfigModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-[#8B8378] hover:text-[#E0B441] hover:bg-white/5 border border-transparent hover:border-[#E0B441]/30 transition-all shrink-0 ml-auto"
-            title="Personalizar, renombrar, ocultar o agregar pestañas al menú"
-          >
-            <Sliders className="w-3.5 h-3.5 text-[#E0B441]" />
-            <span className="hidden sm:inline">Configurar Menú</span>
-          </button>
 
-          {/* Botón para Personalizar Tema & Color del Sistema */}
-          <button
-            onClick={() => {
-              audio.click();
-              setIsThemeModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-[#8B8378] hover:text-[#E0B441] hover:bg-white/5 border border-transparent hover:border-[#E0B441]/30 transition-all shrink-0"
-            title="Personalizar color del sistema y temas visuales"
-          >
-            <Palette className="w-3.5 h-3.5 text-[#E0B441]" />
-            <span className="hidden sm:inline">Color & Tema</span>
-          </button>
-
-          {/* Botón para Configurar Catálogos y Opciones Desplegables */}
-          <button
-            onClick={() => {
-              audio.click();
-              setIsCatalogsModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-[#8B8378] hover:text-[#E0B441] hover:bg-white/5 border border-transparent hover:border-[#E0B441]/30 transition-all shrink-0"
-            title="Configurar tiendas de compra habitual, personal que registra, categorías y unidades"
-          >
-            <Store className="w-3.5 h-3.5 text-[#E0B441]" />
-            <span className="hidden sm:inline">Catálogos & Opciones</span>
-          </button>
 
         </nav>
 

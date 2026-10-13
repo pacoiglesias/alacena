@@ -4,7 +4,8 @@ import {
   Sparkles, Store, CheckSquare, Square, Camera, 
   ArrowRight, Warehouse, DollarSign, RefreshCw, 
   AlertCircle, QrCode, Printer, CheckCircle2, ListChecks,
-  Beef, Milk, Apple, Package, Wine, Coffee, Layers, ChevronDown, BookOpen, ShoppingBag
+  Beef, Milk, Apple, Package, Wine, Coffee, Layers, ChevronDown, BookOpen, ShoppingBag,
+  MoreHorizontal, Receipt
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
@@ -72,6 +73,7 @@ export default function ShoppingListView({
   const [isSmartImportOpen, setIsSmartImportOpen] = useState(false);
   const [isReconciliationOpen, setIsReconciliationOpen] = useState(false);
   const [isWeeklyStaplesOpen, setIsWeeklyStaplesOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
   // Batch import callback con desduplicación previa
   const handleBatchImportItems = (importedItems) => {
@@ -306,179 +308,199 @@ export default function ShoppingListView({
           </div>
         </div>
 
-        {/* Botones de Acción Inmediata para el Súper y Personal */}
-        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-          {/* 0. Botón Especial: Modo Caminando por el Súper */}
+        {/* Barra de Acciones Ergonómica para el Comprador */}
+        <div className="flex items-center gap-2 w-full lg:w-auto relative">
+          
+          {/* 1. Modo Súper Táctil */}
           <button
+            type="button"
             onClick={() => {
               audio.superCheck();
               setIsWalkingMode(!isWalkingMode);
             }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#C8542A] to-[#E5724A] hover:brightness-110 transition-all shadow-md shadow-[#C8542A]/35"
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-md cursor-pointer ${
+              isWalkingMode
+                ? 'bg-gradient-to-r from-amber-500 to-[#C8542A] text-white ring-2 ring-amber-400 shadow-amber-950/40 animate-pulse'
+                : 'bg-gradient-to-r from-[#C8542A] to-[#E5724A] text-white hover:brightness-110 shadow-[#C8542A]/30'
+            }`}
             title="Activar vista táctil gigante para caminar en el supermercado"
           >
-            <span className="text-sm">👟</span>
-            <span>Modo Súper</span>
+            <span className="text-base leading-none">👟</span>
+            <span>{isWalkingMode ? 'Saliendo de Tienda' : 'Modo Súper'}</span>
           </button>
 
-          {/* 1. ¿Qué Falta en Casa? (Para personal de servicio) */}
+          {/* 2. Escanear Códigos o Tickets de Compra */}
           <button
-            onClick={() => {
-              audio.click();
-              setIsQuickStaffOpen(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 transition-all shadow-md shadow-amber-950/40"
-            title="Apuntar lo que se terminó en casa (Coca-Cola, Leche, Huevos, etc.)"
-          >
-            <Sparkles className="w-4 h-4 text-amber-200" />
-            <span>📝 ¿Qué Falta en Casa?</span>
-          </button>
-
-          {/* 1.2. Canasta Básica Semanal en 1 Toque */}
-          <button
-            onClick={() => {
-              audio.click();
-              setIsWeeklyStaplesOpen(true);
-            }}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 transition-all shadow-sm hover:scale-105 active:scale-95"
-            title="Agregar insumos esenciales y recurrentes del hogar sin escribir"
-          >
-            <ShoppingBag className="w-4 h-4 text-amber-300" />
-            <span>🧺 Canasta Básica</span>
-          </button>
-
-          {/* 1.5. Importador Inteligente / OCR */}
-          <button
-            onClick={() => {
-              audio.click();
-              setIsSmartImportOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#E0B441] bg-[#E0B441]/15 hover:bg-[#E0B441]/25 border border-[#E0B441]/35 transition-all shadow-sm hover:scale-105 active:scale-95"
-            title="Importar lista de WhatsApp, foto con OCR o archivo PDF/TXT"
-          >
-            <Sparkles className="w-4 h-4 text-[#E0B441]" />
-            <span>📥 Importar / OCR</span>
-          </button>
-
-          {/* 2. Librito QR para Cocina / Personal */}
-          <button
-            onClick={() => {
-              audio.click();
-              setIsQrBookletOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-purple-300 bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 transition-all"
-            title="Ver o imprimir el catálogo de códigos QR para el personal"
-          >
-            <BookOpen className="w-4 h-4" />
-            <span>📖 Librito QR Cocina</span>
-          </button>
-
-          {/* 3. Imprimir / Guardar PDF */}
-          <button
-            onClick={() => {
-              audio.click();
-              setIsPrintModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-blue-300 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 transition-all shadow-sm active:scale-95 hover:scale-105"
-            title="Abrir hoja de compras imprimible o guardar en PDF"
-          >
-            <Printer className="w-4 h-4 text-blue-400" />
-            <span>🖨️ Imprimir / PDF</span>
-          </button>
-
-          {/* 4. Escáner en el Súper */}
-          <button
+            type="button"
             onClick={() => {
               audio.click();
               onOpenScanner();
             }}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-all shadow-md shadow-emerald-950/40"
+            className="flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-all shadow-md shadow-emerald-950/40 cursor-pointer"
+            title="Escanear códigos de barra o leer ticket de compra con OCR"
           >
-            <Camera className="w-4 h-4" />
-            <span>📷 Escanear</span>
+            <Camera className="w-4 h-4 text-emerald-200" />
+            <span>Escanear / Ticket</span>
           </button>
 
-          {/* 5. Compartir por WhatsApp organizado por pasillos */}
+          {/* 3. Agregar Artículo Manual Rápido */}
           <button
-            onClick={handleShareWhatsAppByDept}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-all"
-            title="Enviar lista por WhatsApp a la cocinera o chofer"
-          >
-            <Share2 className="w-4 h-4" />
-            <span>📲 WhatsApp</span>
-          </button>
-
-          {/* 6. Ticket QR de Orden */}
-          <button
-            onClick={() => {
-              audio.click();
-              setIsOrderTicketQrOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-300 bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
-            title="Ver ticket QR"
-          >
-            <QrCode className="w-4 h-4" />
-            <span>Ticket QR</span>
-          </button>
-
-          {/* 7. Agregar artículo manual */}
-          <button
+            type="button"
             onClick={() => {
               audio.click();
               setIsManualAddOpen(true);
             }}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-white bg-white/10 hover:bg-white/20 border border-white/10 transition-all"
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-white/10 hover:bg-white/20 border border-white/15 transition-all cursor-pointer"
+            title="Agregar un insumo nuevo manualmente"
           >
-            <Plus className="w-4 h-4" />
-            <span>+ Manual</span>
+            <Plus className="w-4 h-4 text-emerald-400" />
+            <span>+ Agregar</span>
           </button>
 
-          {/* 8. Botón: Desduplicar y Consolidar Lista */}
-          <button
-            onClick={() => {
-              audio.click();
-              if (onDeduplicateList) onDeduplicateList();
-            }}
-            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-[#E0B441] bg-[#E0B441]/10 hover:bg-[#E0B441]/20 border border-[#E0B441]/30 transition-all shadow-sm"
-            title="Consolidar artículos repetidos y sumar sus cantidades en un solo registro"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>🧹 Desduplicar</span>
-          </button>
-
-          {/* 9. Botón: Historial de Compras & Devoluciones */}
-          {onOpenPurchaseHistory && (
+          {/* 4. Menú Desplegable: Más Herramientas */}
+          <div className="relative">
             <button
+              type="button"
               onClick={() => {
                 audio.click();
-                onOpenPurchaseHistory();
+                setIsMoreMenuOpen(!isMoreMenuOpen);
               }}
-              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-all shadow-sm"
-              title="Ver compras recientes y eliminar o devolver artículos comprados por error"
+              className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
+                isMoreMenuOpen
+                  ? 'bg-[#E0B441]/20 border-[#E0B441] text-[#E0B441]'
+                  : 'bg-white/5 border-white/10 text-[#94A3B8] hover:text-white hover:bg-white/10'
+              }`}
+              title="Más herramientas y opciones"
             >
-              <ShoppingBag className="w-3.5 h-3.5" />
-              <span>🧾 Devoluciones</span>
-              {purchaseHistoryCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/30 text-[10px] font-mono">
-                  {purchaseHistoryCount}
-                </span>
-              )}
+              <MoreHorizontal className="w-5 h-5" />
             </button>
-          )}
 
-          {/* 10. Botón: Vaciar Lista */}
-          {shoppingList.length > 0 && onClearAll && (
-            <button
-              onClick={() => {
-                audio.click();
-                onClearAll();
-              }}
-              className="p-2.5 rounded-xl text-[#8B8378] hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 transition-all"
-              title="Vaciar toda la lista de compras"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
+            {isMoreMenuOpen && (
+              <div 
+                className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#161310] border border-[#2A2521] shadow-2xl p-2 z-50 animate-fade-in space-y-1 text-xs"
+                onClick={() => setIsMoreMenuOpen(false)}
+              >
+                <div className="px-2.5 py-1 text-[10px] font-mono font-bold text-[#E0B441] uppercase tracking-wider border-b border-white/5 mb-1">
+                  Herramientas del Súper
+                </div>
+
+                {/* WhatsApp */}
+                <button
+                  type="button"
+                  onClick={handleShareWhatsAppByDept}
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                >
+                  <Share2 className="w-4 h-4 text-emerald-400" />
+                  <span>Compartir por WhatsApp</span>
+                </button>
+
+                {/* Imprimir / PDF */}
+                <button
+                  type="button"
+                  onClick={() => setIsPrintModalOpen(true)}
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                >
+                  <Printer className="w-4 h-4 text-blue-400" />
+                  <span>Imprimir Lista en PDF</span>
+                </button>
+
+                {/* Canasta Básica Semanal */}
+                <button
+                  type="button"
+                  onClick={() => setIsWeeklyStaplesOpen(true)}
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                >
+                  <ShoppingBag className="w-4 h-4 text-amber-300" />
+                  <span>Canasta Básica Semanal</span>
+                </button>
+
+                {/* ¿Qué Falta en Casa? */}
+                <button
+                  type="button"
+                  onClick={() => setIsQuickStaffOpen(true)}
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                >
+                  <Sparkles className="w-4 h-4 text-orange-400" />
+                  <span>¿Qué Falta en Casa? (Personal)</span>
+                </button>
+
+                {/* Importador WhatsApp / Texto */}
+                <button
+                  type="button"
+                  onClick={() => setIsSmartImportOpen(true)}
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                >
+                  <FileText className="w-4 h-4 text-[#E0B441]" />
+                  <span>Importar Texto / WhatsApp</span>
+                </button>
+
+                {/* Librito QR de Despensa */}
+                <button
+                  type="button"
+                  onClick={() => setIsQrBookletOpen(true)}
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                >
+                  <BookOpen className="w-4 h-4 text-purple-400" />
+                  <span>Librito QR de Cocina</span>
+                </button>
+
+                {/* Ticket QR de Orden */}
+                <button
+                  type="button"
+                  onClick={() => setIsOrderTicketQrOpen(true)}
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                >
+                  <QrCode className="w-4 h-4 text-gray-300" />
+                  <span>Ticket QR Digital</span>
+                </button>
+
+                {/* Desduplicar Lista */}
+                {onDeduplicateList && (
+                  <button
+                    type="button"
+                    onClick={onDeduplicateList}
+                    className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  >
+                    <Sparkles className="w-4 h-4 text-[#E0B441]" />
+                    <span>Desduplicar y Consolidar</span>
+                  </button>
+                )}
+
+                {/* Historial de Compras / Devoluciones */}
+                {onOpenPurchaseHistory && (
+                  <button
+                    type="button"
+                    onClick={onOpenPurchaseHistory}
+                    className="w-full flex items-center justify-between p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Receipt className="w-4 h-4 text-emerald-400" />
+                      <span>Historial / Devoluciones</span>
+                    </div>
+                    {purchaseHistoryCount > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/30 text-emerald-300 text-[10px] font-mono">
+                        {purchaseHistoryCount}
+                      </span>
+                    )}
+                  </button>
+                )}
+
+                {/* Vaciar Toda la Lista */}
+                {shoppingList.length > 0 && onClearAll && (
+                  <div className="pt-1 border-t border-white/5">
+                    <button
+                      type="button"
+                      onClick={onClearAll}
+                      className="w-full flex items-center gap-2.5 p-2 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-all text-left font-medium"
+                    >
+                      <Trash2 className="w-4 h-4 text-rose-400" />
+                      <span>Vaciar toda la lista</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -5,8 +5,8 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.5.4-Enterprise-Luxe';
-export const RELEASE_DATE = '12 Octubre 2026';
+export const SYSTEM_VERSION = 'v3.7.0-Enterprise-Luxe';
+export const RELEASE_DATE = '13 Octubre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState('changelog'); // 'changelog' | 'plan30'
@@ -160,14 +160,48 @@ export default function ChangelogModal({ isOpen, onClose }) {
         {activeTab === 'changelog' && (
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             
-            {/* Release v3.5.4-Enterprise-Luxe */}
+            {/* Release v3.7.0-Enterprise-Luxe */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-emerald-500 shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
-                    v3.5.4-Enterprise-Luxe
+                    v3.7.0-Enterprise-Luxe
                   </span>
                   <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">13 Octubre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2 font-display">
+                Escáner Dual Acelerado por Hardware, Cámara OCR para Tickets y Rediseño Ergonómico Móvil
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Escáner de Códigos de Barra Reparado:</strong> Eliminación de restricciones restrictivas de resolución WebRTC que crasheaban la cámara en móviles; motor dual con detección nativa por BarcodeDetector (GPU/Hardware) y fallback instantáneo a Html5Qrcode para EAN-13, EAN-8, UPC y QR.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Lector de Tickets y Recibos con Cámara OCR:</strong> Nueva interfaz directa en el escáner para fotografiar tickets de compra (Mercadona, Costco, Chedraui, Walmart, Dia), extrayendo importes reales, unidades y nombres de producto con inserción en 1 toque en la Lista del Súper o ingreso directo a la Despensa.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Barra de Navegación Móvil Inferior (Bottom Navigation):</strong> Control ergonómico total con el pulgar para teléfonos móviles (Despensa, Súper, Botón central flotante de Escáner, Cocina y Cava).</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Descongestión y Limpieza Visual Integral:</strong> Sustitución de la barra saturada de 12 botones en la Lista de Compras por 3 acciones primarias táctiles y menú de herramientas desplegable <code>⋯</code>. Header despejado con menú unificado de Ajustes del Hogar.</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Release v3.5.4-Enterprise-Luxe */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-[#2A2521] shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-[#E0B441] bg-[#E0B441]/20 border border-[#E0B441]/40 rounded-lg font-mono">
+                    v3.5.4-Enterprise-Luxe
+                  </span>
+                  <span className="text-xs font-semibold text-gray-400">ANTERIOR</span>
                 </div>
                 <span className="text-xs text-gray-400">12 Octubre 2026</span>
               </div>

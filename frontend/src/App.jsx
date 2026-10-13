@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Header from './components/layout/Header';
+import BottomNavBar from './components/layout/BottomNavBar';
 import InventoryView from './components/inventory/InventoryView';
 import ManualProductModal from './components/inventory/ManualProductModal';
 import ShoppingListView from './components/shopping/ShoppingListView';
@@ -18,6 +19,7 @@ import PantryQrBookletModal from './components/shopping/PantryQrBookletModal';
 import { audio } from './services/audioService';
 import { syncPantryToIndexedDb } from './services/db';
 import { findProductByScanCode, extractCodeFromScan } from './utils/scanHelper';
+import { lookupBarcode } from './services/barcodeLookupService';
 import { 
   subscribeToProducts, 
   saveProductToCloud, 
@@ -982,7 +984,7 @@ export default function App() {
       />
 
       {/* Main Body */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-8">
         
         {/* Tab 1: Inventario & Zonas */}
         {activeTab === 'inventory' && (
@@ -1193,6 +1195,15 @@ export default function App() {
         zones={zones}
         activeHouse={activeHouse}
         onQuickAddToShoppingList={handleAddShoppingItem}
+      />
+
+      {/* Barra de Navegación Ergonómica para Dispositivos Móviles */}
+      <BottomNavBar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        shoppingCount={shoppingList.filter((i) => !i.checked).length}
+        onOpenScanner={() => setIsScannerOpen(true)}
+        onOpenCommandCenter={() => setIsCommandCenterOpen(true)}
       />
 
     </div>

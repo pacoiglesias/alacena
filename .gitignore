@@ -71,3 +71,7 @@ firebase_options.dart
 lib/firebase_options.dart
 .env*
 .env.example
+
+# Backups
+backups/
+*.zip

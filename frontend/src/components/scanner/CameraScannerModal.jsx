@@ -3,83 +3,15 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { 
   X, Camera, ScanLine, CheckCircle2, Plus, Minus,
   ShoppingCart, Warehouse, AlertCircle, Sparkles, 
-  Keyboard, Image, RefreshCw, Check, Globe, ExternalLink, Search, Zap,
-  Wine, Refrigerator, Edit3, Flashlight, Radio, Nfc
+  Keyboard, Image as ImageIcon, RefreshCw, Check, Search, Zap,
+  Wine, Edit3, Flashlight, Receipt, FileText, Loader2, ArrowRight
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { lookupBarcode } from '../../services/barcodeLookupService';
 import { findProductByScanCode, extractCodeFromScan } from '../../utils/scanHelper';
-import { isCavaZone, isAlcoholicOrBeverage } from '../../utils/cavaGuard';
-
-// Prepara y reescala fotos gigantes de cámara móvil (12MP a 48MP) a resolución óptima (1600px) para decodificación instantánea en canvas
-async function prepareImageForBarcodeScan(imageFile, maxDimension = 1600) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        let { width, height } = img;
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
-          } else {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
-          }
-        }
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => resolve(blob || imageFile), 'image/jpeg', 0.95);
-      } catch (_) {
-        resolve(imageFile);
-      }
-    };
-    img.onerror = () => resolve(imageFile);
-    img.src = URL.createObjectURL(imageFile);
-  });
-}
-
-// Recorta la zona central (75% central) y aplica contraste para rescatar códigos pequeños en fotos de celular
-async function cropCenterForBarcodeScan(imageFile) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        const cropW = Math.round(img.width * 0.80);
-        const cropH = Math.round(img.height * 0.60);
-        const startX = Math.round((img.width - cropW) / 2);
-        const startY = Math.round((img.height - cropH) / 2);
-        
-        canvas.width = cropW;
-        canvas.height = cropH;
-        ctx.drawImage(img, startX, startY, cropW, cropH, 0, 0, cropW, cropH);
-
-        // Aumento de contraste para líneas de código de barras
-        const imgData = ctx.getImageData(0, 0, cropW, cropH);
-        const d = imgData.data;
-        for (let i = 0; i < d.length; i += 4) {
-          const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-          const v = gray > 130 ? Math.min(255, gray * 1.25) : Math.max(0, gray * 0.75);
-          d[i] = v; d[i+1] = v; d[i+2] = v;
-        }
-        ctx.putImageData(imgData, 0, 0);
-
-        canvas.toBlob((blob) => resolve(blob || imageFile), 'image/jpeg', 0.95);
-      } catch (_) {
-        resolve(imageFile);
-      }
-    };
-    img.onerror = () => resolve(imageFile);
-    img.src = URL.createObjectURL(imageFile);
-  });
-}
+import { isCavaZone, isAlcoholicOrBeverage, sanitizeCavaProduct } from '../../utils/cavaGuard';
+import { extractShoppingListFromImage, preprocessImageForOcr } from '../../services/ocrService';
+import { parseRawShoppingText } from '../../services/smartListParser';
 
 export default function CameraScannerModal({ 
   isOpen, 
@@ -93,187 +25,189 @@ export default function CameraScannerModal({
   onEditZone,
   onAddZone,
 }) {
+  // Pestañas principales del Escáner: 'BARCODE' | 'RECEIPT' | 'MANUAL'
+  const [activeTab, setActiveTab] = useState('BARCODE');
+
+  // Estado del Escáner de Códigos de Barras
   const [scannerActive, setScannerActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
-  const [manualCode, setManualCode] = useState('');
-  const [scannedResult, setScannedResult] = useState(null);
-  const [isSearching, setIsSearching] = useState(false);
   const [cameras, setCameras] = useState([]);
   const [selectedCameraId, setSelectedCameraId] = useState('');
-  
-  // Modos de Dirección QR / NFC: 'INTERACTIVE' | 'ADD_ENTRY' | 'CONSUME_EXIT' | 'RESTOCK_SUPER'
-  const [scanDirectionMode, setScanDirectionMode] = useState('INTERACTIVE');
-  const [batchHistory, setBatchHistory] = useState([]);
-  const [lastBatchMessage, setLastBatchMessage] = useState(null);
-  const [selectedTargetZone, setSelectedTargetZone] = useState('');
   const [torchOn, setTorchOn] = useState(false);
-  const [scanReticleMode, setScanReticleMode] = useState('BARCODE'); // 'BARCODE' (Panorámico) | 'QR' (Cuadrado)
+  const [isSearching, setIsSearching] = useState(false);
+  const [scannedResult, setScannedResult] = useState(null);
+  const [manualCode, setManualCode] = useState('');
   
-  // Soporte NFC (Web NFC NDEF)
-  const [nfcSupported, setNfcSupported] = useState(false);
-  const [nfcScanning, setNfcScanning] = useState(false);
-  const [nfcStatusMessage, setNfcStatusMessage] = useState('');
+  // Modos de Dirección: 'INTERACTIVE' | 'ADD_ENTRY' | 'CONSUME_EXIT' | 'RESTOCK_SUPER'
+  const [scanDirectionMode, setScanDirectionMode] = useState('INTERACTIVE');
+  const [selectedTargetZone, setSelectedTargetZone] = useState('');
+  const [lastBatchMessage, setLastBatchMessage] = useState(null);
+  const [batchCount, setBatchCount] = useState(0);
 
-  const lastScanTimeRef = useRef(0);
+  // Estado del Escáner de Recibos / Tickets (OCR)
+  const [receiptImage, setReceiptImage] = useState(null);
+  const [receiptPreviewUrl, setReceiptPreviewUrl] = useState(null);
+  const [ocrProgress, setOcrProgress] = useState(null);
+  const [isOcrProcessing, setIsOcrProcessing] = useState(false);
+  const [extractedReceiptItems, setExtractedReceiptItems] = useState([]);
+  const [selectedReceiptItemIds, setSelectedReceiptItemIds] = useState(new Set());
+  const [receiptNotice, setReceiptNotice] = useState(null);
+  const [receiptStoreName, setReceiptStoreName] = useState('');
+
+  // Refs de hardware y control
+  const videoRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const nativeBarcodeDetectorRef = useRef(null);
+  const animationFrameIdRef = useRef(null);
   const html5QrCodeRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const nfcAbortControllerRef = useRef(null);
-  const scannerContainerId = 'qr-reader-container';
+  const lastScanTimeRef = useRef(0);
+  const fileBarcodeRef = useRef(null);
+  const fileReceiptRef = useRef(null);
+  const scannerContainerId = 'alacena-qr-barcode-viewport';
 
-  // Detectar soporte NFC en navegador
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'NDEFReader' in window) {
-      setNfcSupported(true);
-    }
-  }, []);
-
-  // Default target zone to Alacena or first zone
+  // Inicializar zona destino por defecto
   useEffect(() => {
     if (zones.length > 0 && !selectedTargetZone) {
       const defaultPantry = zones.find(z => z.type === 'DRY_PANTRY') || zones[0];
       setSelectedTargetZone(defaultPantry.name);
     }
-  }, [zones]);
+  }, [zones, selectedTargetZone]);
 
+  // Manejar apertura y cierre del modal
   useEffect(() => {
-    let timeoutId;
-
     if (!isOpen) {
-      stopScanner();
-      stopNfcScan();
+      stopAllCameras();
       setScannedResult(null);
       setCameraError(null);
       setManualCode('');
       setTorchOn(false);
+      setReceiptImage(null);
+      setReceiptPreviewUrl(null);
+      setExtractedReceiptItems([]);
       return;
     }
 
-    // Esperar al montaje completo del DOM modal antes de arrancar la cámara
-    timeoutId = setTimeout(() => {
-      startCameraWithPermission();
-    }, 280);
+    if (activeTab === 'BARCODE') {
+      const timer = setTimeout(() => {
+        startBarcodeScanner();
+      }, 250);
+      return () => {
+        clearTimeout(timer);
+        stopAllCameras();
+      };
+    } else {
+      stopAllCameras();
+    }
+  }, [isOpen, activeTab]);
 
-    return () => {
-      clearTimeout(timeoutId);
-      stopScanner();
-      stopNfcScan();
-    };
-  }, [isOpen]);
+  // Detener todas las fuentes de cámara de forma limpia
+  const stopAllCameras = async () => {
+    // 1. Detener bucle nativo
+    if (animationFrameIdRef.current) {
+      cancelAnimationFrame(animationFrameIdRef.current);
+      animationFrameIdRef.current = null;
+    }
 
-  // Limpiar y detener de forma segura el escáner
-  const stopScanner = async () => {
-    try {
-      if (html5QrCodeRef.current) {
+    // 2. Detener WebRTC MediaStream
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => {
+        try { track.stop(); } catch (_) {}
+      });
+      mediaStreamRef.current = null;
+    }
+
+    // 3. Detener Html5Qrcode si estaba activo
+    if (html5QrCodeRef.current) {
+      try {
         if (html5QrCodeRef.current.isScanning) {
           await html5QrCodeRef.current.stop().catch(() => {});
         }
-        try {
-          html5QrCodeRef.current.clear();
-        } catch (e) {}
-        html5QrCodeRef.current = null;
-      }
-    } catch (err) {
-      console.warn('Error al detener cámara:', err);
+        try { html5QrCodeRef.current.clear(); } catch (_) {}
+      } catch (_) {}
+      html5QrCodeRef.current = null;
     }
+
     setScannerActive(false);
   };
 
-  // Web NFC Reader: Iniciar lectura NFC por contacto
-  const startNfcScan = async () => {
-    if (!('NDEFReader' in window)) {
-      alert('Tu navegador o dispositivo no soporta Web NFC. Web NFC funciona en Google Chrome en teléfonos Android con NFC activado.');
-      return;
-    }
-
-    try {
-      audio.click();
-      nfcAbortControllerRef.current = new AbortController();
-      const ndef = new window.NDEFReader();
-      await ndef.scan({ signal: nfcAbortControllerRef.current.signal });
-      setNfcScanning(true);
-      setNfcStatusMessage('📶 Lector NFC listo: Acerca la etiqueta o sticker al reverso de tu celular...');
-
-      ndef.onreading = (event) => {
-        audio.tripleFeedback(950, 40);
-        const decoder = new TextDecoder();
-        let readText = '';
-
-        for (const record of event.message.records) {
-          if (record.recordType === 'url' || record.recordType === 'text') {
-            readText = decoder.decode(record.data);
-            break;
-          }
-        }
-
-        if (readText) {
-          processBarcode(readText);
-        } else if (event.serialNumber) {
-          processBarcode(event.serialNumber);
-        }
-      };
-
-      ndef.onreadingerror = () => {
-        setNfcStatusMessage('⚠️ Error leyendo etiqueta NFC. Intenta acercarla nuevamente.');
-      };
-    } catch (error) {
-      console.warn('Error iniciando NFC:', error);
-      setNfcScanning(false);
-      setNfcStatusMessage(`Error NFC: ${error.message || 'No se pudo iniciar el lector'}`);
-    }
-  };
-
-  const stopNfcScan = () => {
-    if (nfcAbortControllerRef.current) {
-      nfcAbortControllerRef.current.abort();
-      nfcAbortControllerRef.current = null;
-    }
-    setNfcScanning(false);
-    setNfcStatusMessage('');
-  };
-
-  // Solicitar permiso de cámara y arrancar
-  const startCameraWithPermission = async (forcedCameraId = null) => {
+  // Iniciar escáner de códigos de barras (con soporte nativo por hardware + fallback Html5Qrcode)
+  const startBarcodeScanner = async (forcedDeviceId = null) => {
     try {
       setCameraError(null);
+      await stopAllCameras();
 
-      // Limpiar contenedor en el DOM
-      await stopScanner();
+      // 1. Detectar si el navegador cuenta con BarcodeDetector nativo por hardware
+      const hasNativeBarcodeDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
+
+      if (hasNativeBarcodeDetector) {
+        try {
+          const supported = await window.BarcodeDetector.getSupportedFormats();
+          const targetFormats = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'].filter(
+            f => supported.includes(f)
+          );
+
+          if (targetFormats.length > 0) {
+            nativeBarcodeDetectorRef.current = new window.BarcodeDetector({ formats: targetFormats });
+            
+            // Iniciar WebRTC con restricciones móviles seguras (sin min: 1280 que causa crash)
+            const constraints = {
+              video: {
+                facingMode: forcedDeviceId ? undefined : { ideal: 'environment' },
+                deviceId: forcedDeviceId ? { exact: forcedDeviceId } : undefined,
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              },
+              audio: false,
+            };
+
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            mediaStreamRef.current = stream;
+
+            // Listar cámaras
+            try {
+              const devices = await navigator.mediaDevices.enumerateDevices();
+              const videoDevices = devices.filter(d => d.kind === 'videoinput');
+              setCameras(videoDevices);
+            } catch (_) {}
+
+            if (videoRef.current) {
+              videoRef.current.srcObject = stream;
+              await videoRef.current.play();
+
+              // Intentar autofoco continuo
+              try {
+                const track = stream.getVideoTracks()[0];
+                const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+                if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+                  track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+                }
+              } catch (_) {}
+
+              setScannerActive(true);
+              startNativeDetectionLoop();
+              return;
+            }
+          }
+        } catch (nativeErr) {
+          console.warn('BarcodeDetector nativo no disponible, usando fallback:', nativeErr);
+        }
+      }
+
+      // 2. FALLBACK ROBUSTO: Html5Qrcode
       const containerEl = document.getElementById(scannerContainerId);
       if (!containerEl) {
-        setCameraError('El contenedor visual de cámara no está listo. Haz clic en "Reintentar".');
+        setCameraError('Contenedor visual de cámara no listo.');
         return;
       }
       containerEl.innerHTML = '';
 
-      // 1. Solicitar permiso preventivo a WebRTC para enumerar cámaras con nombres legibles
-      if (navigator?.mediaDevices?.getUserMedia) {
-        try {
-          const testStream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: { ideal: 'environment' } } 
-          });
-          testStream.getTracks().forEach(track => track.stop());
-        } catch (permErr) {
-          console.warn('Permiso WebRTC advertencia:', permErr);
-          if (permErr.name === 'NotAllowedError' || permErr.name === 'PermissionDeniedError') {
-            setCameraError('El navegador bloqueó el permiso de la cámara. Concede permiso en el candado de la URL o usa el botón "📸 Tomar Foto con Cámara Nativa".');
-            setScannerActive(false);
-            return;
-          }
-        }
-      }
-
-      // 2. Obtener lista de cámaras disponibles
       let availableCameras = [];
       try {
         availableCameras = await Html5Qrcode.getCameras();
         setCameras(availableCameras || []);
-      } catch (e) {
-        console.warn('No se pudieron listar cámaras explícitas:', e);
-      }
+      } catch (_) {}
 
-      // 3. Crear nueva instancia con formatos explícitos para códigos de barra y QR
-      // Activamos useBarCodeDetectorIfSupported para aceleración nativa por hardware en Chrome/Android/iOS
-      const supportedFormats = [
+      const formats = [
         Html5QrcodeSupportedFormats.QR_CODE,
         Html5QrcodeSupportedFormats.EAN_13,
         Html5QrcodeSupportedFormats.EAN_8,
@@ -281,247 +215,130 @@ export default function CameraScannerModal({
         Html5QrcodeSupportedFormats.UPC_E,
         Html5QrcodeSupportedFormats.CODE_128,
         Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.DATA_MATRIX,
-        Html5QrcodeSupportedFormats.ITF,
       ];
 
       html5QrCodeRef.current = new Html5Qrcode(scannerContainerId, {
-        formatsToSupport: supportedFormats,
+        formatsToSupport: formats,
         verbose: false,
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true,
-        },
       });
 
-      // 4. Seleccionar la mejor cámara y configurar resolución HD para capturar líneas finas de códigos de barras
       let cameraConfig;
-      if (forcedCameraId) {
-        cameraConfig = {
-          deviceId: { exact: forcedCameraId },
-          width: { min: 1280, ideal: 1920 },
-          height: { min: 720, ideal: 1080 },
-        };
-      } else if (availableCameras && availableCameras.length > 0) {
+      if (forcedDeviceId) {
+        cameraConfig = { deviceId: { exact: forcedDeviceId } };
+      } else if (availableCameras.length > 0) {
         const backCam = availableCameras.find(c => {
-          const label = (c.label || '').toLowerCase();
-          return label.includes('back') || label.includes('trasera') || label.includes('rear') || label.includes('environment');
+          const l = (c.label || '').toLowerCase();
+          return l.includes('back') || l.includes('trasera') || l.includes('rear') || l.includes('environment');
         });
         if (backCam) {
           setSelectedCameraId(backCam.id);
-          cameraConfig = {
-            deviceId: { exact: backCam.id },
-            width: { min: 1280, ideal: 1920 },
-            height: { min: 720, ideal: 1080 },
-          };
+          cameraConfig = { deviceId: { exact: backCam.id } };
         } else {
-          cameraConfig = {
-            facingMode: 'environment',
-            width: { min: 1280, ideal: 1920 },
-            height: { min: 720, ideal: 1080 },
-          };
+          cameraConfig = { facingMode: 'environment' };
         }
       } else {
-        cameraConfig = {
-          facingMode: 'environment',
-          width: { min: 1280, ideal: 1920 },
-          height: { min: 720, ideal: 1080 },
-        };
+        cameraConfig = { facingMode: 'environment' };
       }
 
-      // 5. Iniciar transmisión con escaneo panorámico óptimo para códigos de barra horizontales y QR
       await html5QrCodeRef.current.start(
         cameraConfig,
         {
-          fps: 25,
-          qrbox: (viewfinderWidth, viewfinderHeight) => {
-            // Para códigos de barra (EAN-13, UPC): área ancha horizontal para capturar todo el código sin recortar extremos
-            const w = Math.min(Math.floor(viewfinderWidth * 0.92), 480);
-            const h = Math.min(Math.floor(viewfinderHeight * 0.65), 320);
-            return { width: Math.max(w, 260), height: Math.max(h, 170) };
+          fps: 24,
+          qrbox: (w, h) => {
+            const width = Math.min(Math.floor(w * 0.92), 480);
+            const height = Math.min(Math.floor(h * 0.65), 280);
+            return { width: Math.max(width, 240), height: Math.max(height, 150) };
           },
-          aspectRatio: 1.333333,
         },
         onScanSuccess,
-        () => {} // Ignorar cuadros intermedios sin detección
+        () => {}
       );
-
-      // 6. Intentar activar autofoco continuo de hardware en el sensor del móvil
-      try {
-        await html5QrCodeRef.current.applyVideoConstraints({
-          advanced: [{ focusMode: 'continuous' }]
-        });
-      } catch (_) {}
 
       setScannerActive(true);
       setCameraError(null);
     } catch (err) {
-      console.warn('Error al iniciar cámara principal HD:', err);
-      
-      // Fallback: intentar con resolución estándar si el sensor móvil no soporta 1080p
-      try {
-        await stopScanner();
-        const el = document.getElementById(scannerContainerId);
-        if (el) el.innerHTML = '';
-
-        html5QrCodeRef.current = new Html5Qrcode(scannerContainerId, { 
-          verbose: false,
-          experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-        });
-        await html5QrCodeRef.current.start(
-          { facingMode: 'environment' },
-          { 
-            fps: 20, 
-            qrbox: (w, h) => ({ width: Math.max(Math.floor(w * 0.90), 250), height: Math.max(Math.floor(h * 0.60), 160) }) 
-          },
-          onScanSuccess,
-          () => {}
-        );
-        setScannerActive(true);
-        setCameraError(null);
-        return;
-      } catch (fallbackErr) {
-        console.warn('Fallback también falló:', fallbackErr);
-      }
-
-      setCameraError('No se pudo abrir la cámara en vivo. Puedes usar el botón "📸 Tomar Foto con Cámara Nativa" (funciona en cualquier celular) o escribir el código de barras abajo.');
+      console.warn('Error al iniciar cámara de escáner:', err);
+      setCameraError(
+        'No se pudo abrir la cámara en vivo. Asegúrate de conceder permisos de cámara o usa el botón "📸 Subir / Tomar Foto".'
+      );
       setScannerActive(false);
     }
   };
 
+  // Bucle nativo de detección con BarcodeDetector
+  const startNativeDetectionLoop = () => {
+    const detect = async () => {
+      if (!videoRef.current || !nativeBarcodeDetectorRef.current || !mediaStreamRef.current) return;
+
+      if (videoRef.current.readyState >= 2) {
+        try {
+          const barcodes = await nativeBarcodeDetectorRef.current.detect(videoRef.current);
+          if (barcodes && barcodes.length > 0) {
+            const code = barcodes[0].rawValue;
+            if (code) {
+              await onScanSuccess(code);
+            }
+          }
+        } catch (_) {}
+      }
+
+      animationFrameIdRef.current = requestAnimationFrame(detect);
+    };
+
+    animationFrameIdRef.current = requestAnimationFrame(detect);
+  };
+
+  // Callback de éxito al detectar código de barra o QR
   const onScanSuccess = async (decodedText) => {
+    const now = Date.now();
+    if (now - lastScanTimeRef.current < 1200) return;
+    lastScanTimeRef.current = now;
+
     audio.tripleFeedback(880, 35);
     await processBarcode(decodedText);
   };
 
-  // Alternar linterna / flash
+  // Linterna / Flash
   const handleToggleTorch = async () => {
     try {
-      if (html5QrCodeRef.current && scannerActive) {
-        const newTorchState = !torchOn;
-        await html5QrCodeRef.current.applyVideoConstraints({
-          advanced: [{ torch: newTorchState }]
-        });
-        setTorchOn(newTorchState);
+      if (mediaStreamRef.current) {
+        const track = mediaStreamRef.current.getVideoTracks()[0];
+        const newTorch = !torchOn;
+        await track.applyConstraints({ advanced: [{ torch: newTorch }] });
+        setTorchOn(newTorch);
+        audio.click();
+      } else if (html5QrCodeRef.current && scannerActive) {
+        const newTorch = !torchOn;
+        await html5QrCodeRef.current.applyVideoConstraints({ advanced: [{ torch: newTorch }] });
+        setTorchOn(newTorch);
         audio.click();
       }
     } catch (e) {
-      alert('La linterna no está disponible en este dispositivo.');
+      alert('La linterna no está disponible en esta cámara o navegador.');
     }
   };
 
-  // Escaneo instantáneo por archivo o foto de cámara nativa con preescalado inteligente y doble pasada
-  const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      audio.click();
-      setIsSearching(true);
-      const scanner = html5QrCodeRef.current || new Html5Qrcode(scannerContainerId, {
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.QR_CODE,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.DATA_MATRIX,
-          Html5QrcodeSupportedFormats.ITF,
-        ],
-        verbose: false,
-      });
-
-      let decoded = null;
-
-      // 1. Pasada 1: Escalar imagen gigante de móvil a resolución óptima (1600px) para evitar saturar memoria de canvas
-      try {
-        const optimizedBlob = await prepareImageForBarcodeScan(file, 1600);
-        decoded = await scanner.scanFile(optimizedBlob, false);
-      } catch (err1) {
-        // 2. Pasada 2: Si la foto completa falló, probar con el recorte central (75%) y realce de contraste
-        try {
-          const croppedBlob = await cropCenterForBarcodeScan(file);
-          decoded = await scanner.scanFile(croppedBlob, false);
-        } catch (err2) {
-          // 3. Pasada 3: Intento directo sobre archivo crudo
-          try {
-            decoded = await scanner.scanFile(file, false);
-          } catch (err3) {
-            decoded = null;
-          }
-        }
-      }
-
-      if (decoded && decoded.trim()) {
-        audio.success();
-        await processBarcode(decoded.trim());
-      } else {
-        throw new Error('Código no decodificado');
-      }
-    } catch (err) {
-      alert('No se detectó un código de barras legible en la foto. Intenta tomar la foto a unos 15 cm de distancia, centrando las barras en horizontal y con buena luz, o escribe los dígitos abajo.');
-      setIsSearching(false);
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
+  // Alternar entre cámaras disponibles
+  const handleSwitchCamera = async () => {
+    if (cameras.length <= 1) return;
+    audio.click();
+    const currentIndex = cameras.findIndex(c => c.deviceId === selectedCameraId || c.id === selectedCameraId);
+    const nextIndex = (currentIndex + 1) % cameras.length;
+    const nextCam = cameras[nextIndex];
+    const id = nextCam.deviceId || nextCam.id;
+    setSelectedCameraId(id);
+    await startBarcodeScanner(id);
   };
 
-  // Ejecución multidireccional automática según el modo seleccionado
-  const executeDirectAction = (targetProduct, actionType) => {
-    const timeStr = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-    if (actionType === 'ADD_ENTRY') {
-      audio.success();
-      if (onAddStockDirect) {
-        onAddStockDirect(targetProduct, 1, selectedTargetZone || targetProduct.zone);
-      }
-      setBatchHistory((prev) => [{ name: targetProduct.name, action: '+1 Ingreso', time: timeStr }, ...prev.slice(0, 8)]);
-      setLastBatchMessage(`➕ +1 "${targetProduct.name}" ingresado a ${selectedTargetZone || targetProduct.zone || 'Alacena'}`);
-      setTimeout(() => setLastBatchMessage(null), 3000);
-      return true;
-    }
-
-    if (actionType === 'CONSUME_EXIT') {
-      audio.delete();
-      if (onSubtractStockDirect) {
-        onSubtractStockDirect(targetProduct.id || targetProduct.barcode, 1);
-      }
-      setBatchHistory((prev) => [{ name: targetProduct.name, action: '-1 Consumo', time: timeStr }, ...prev.slice(0, 8)]);
-      setLastBatchMessage(`➖ -1 "${targetProduct.name}" consumido / retirado`);
-      setTimeout(() => setLastBatchMessage(null), 3000);
-      return true;
-    }
-
-    if (actionType === 'RESTOCK_SUPER') {
-      audio.cook();
-      if (onAddToShoppingList) {
-        onAddToShoppingList(targetProduct, 1);
-      }
-      setBatchHistory((prev) => [{ name: targetProduct.name, action: '🛒 Al Súper', time: timeStr }, ...prev.slice(0, 8)]);
-      setLastBatchMessage(`🛒 "${targetProduct.name}" enviado a la Lista del Súper`);
-      setTimeout(() => setLastBatchMessage(null), 3000);
-      return true;
-    }
-
-    return false;
-  };
-
+  // Procesar código de barras o QR escaneado
   const processBarcode = async (rawCode) => {
     if (!rawCode) return;
     setIsSearching(true);
 
-    const now = Date.now();
-    if (now - lastScanTimeRef.current < 1200) {
-      setIsSearching(false);
-      return;
-    }
-    lastScanTimeRef.current = now;
-
     const cavaZone = zones.find(z => z.type === 'WINE_CELLAR') || zones[0];
     const pantryZone = zones.find(z => z.type === 'DRY_PANTRY') || zones[0];
 
-    // 1. Coincidencia robusta en la despensa local (soporta URL ?scan=..., ALC-XXXX, ID, Barcode, etc.)
+    // 1. Coincidencia en despensa local
     const { product: existingInPantry, cleanCode } = findProductByScanCode(products, rawCode);
 
     if (existingInPantry) {
@@ -544,46 +361,27 @@ export default function CameraScannerModal({
       return;
     }
 
-    // 2. No encontrado localmente -> Buscar en catálogo comercial / Open Food Facts / GS1
+    // 2. Consulta en catálogo comercial Open Food Facts / GS1
     try {
       const lookup = await lookupBarcode(cleanCode);
       audio.success();
 
-      const isLikelyWine = (nameOrCat) => {
-        const txt = (nameOrCat || '').toLowerCase();
-        return txt.includes('vino') || txt.includes('crianza') || txt.includes('reserva') || 
-               txt.includes('champagne') || txt.includes('cava') || txt.includes('licor') || 
-               txt.includes('tequila') || txt.includes('whisky') || txt.includes('mezcal') || 
-               txt.includes('bodega') || txt.includes('añada') || txt.includes('tinto');
-      };
+      const isWine = Boolean(lookup?.isWine) || isAlcoholicOrBeverage(lookup?.name, lookup?.category);
+      let suggestedZone = selectedTargetZone || pantryZone?.name || 'Alacena Principal';
 
-      const looksWine = isLikelyWine(lookup.name) || isLikelyWine(lookup.category) || Boolean(lookup.isWine) || isAlcoholicOrBeverage(lookup.name, lookup.category);
-      
-      // Regla estricta: en la Cava sólo pueden estar botellas de vino o licores
-      let suggestedZone;
-      let finalUnit = lookup.unit || 'piezas';
-      let finalCategory = lookup.category || 'Abarrotes';
-
-      if (looksWine) {
+      if (isWine) {
         suggestedZone = cavaZone?.name || 'Cava Principal';
-        finalUnit = 'botellas';
-        finalCategory = 'Vinos & Licores';
-        setSelectedTargetZone(suggestedZone);
-      } else {
-        // Si no es vino, NUNCA entra a Cava aunque Cava esté seleccionada
-        if (isCavaZone(selectedTargetZone, zones)) {
-          suggestedZone = pantryZone?.name || 'Alacena Principal';
-        } else {
-          suggestedZone = selectedTargetZone || pantryZone?.name || 'Alacena Principal';
-        }
+      } else if (isCavaZone(selectedTargetZone, zones)) {
+        suggestedZone = pantryZone?.name || 'Alacena Principal';
       }
 
       const newProd = {
         ...lookup,
+        barcode: cleanCode,
         zone: suggestedZone,
-        category: finalCategory,
-        unit: finalUnit,
-        isWine: looksWine,
+        category: lookup?.category || (isWine ? 'Vinos & Licores' : 'Abarrotes'),
+        unit: lookup?.unit || (isWine ? 'botellas' : 'piezas'),
+        isWine,
         quantity: 1,
       };
 
@@ -605,19 +403,19 @@ export default function CameraScannerModal({
         isExisting: false,
       });
     } catch (err) {
-      console.warn('Error en búsqueda externa:', err);
-      const isWineCode = isAlcoholicOrBeverage(cleanCode, '');
-      const fallbackZone = isWineCode ? (cavaZone?.name || 'Cava Principal') : (pantryZone?.name || 'Alacena Principal');
+      console.warn('Error en catálogo comercial:', err);
+      const isWine = isAlcoholicOrBeverage(cleanCode, '');
+      const fallbackZone = isWine ? (cavaZone?.name || 'Cava Principal') : (pantryZone?.name || 'Alacena Principal');
       setScannedResult({
         barcode: cleanCode,
         product: {
           name: `Código ${cleanCode}`,
           barcode: cleanCode,
-          category: isWineCode ? 'Vinos & Licores' : 'Abarrotes',
-          unit: isWineCode ? 'botellas' : 'piezas',
+          category: isWine ? 'Vinos & Licores' : 'Abarrotes',
+          unit: isWine ? 'botellas' : 'piezas',
           quantity: 1,
           zone: fallbackZone,
-          isWine: isWineCode,
+          isWine,
         },
         isExisting: false,
       });
@@ -626,6 +424,52 @@ export default function CameraScannerModal({
     }
   };
 
+  // Ejecución directa según modo multidireccional
+  const executeDirectAction = (targetProduct, actionType) => {
+    if (actionType === 'ADD_ENTRY') {
+      audio.success();
+      if (onAddStockDirect) {
+        onAddStockDirect(targetProduct, 1, selectedTargetZone || targetProduct.zone);
+      }
+      setBatchCount(prev => prev + 1);
+      setLastBatchMessage(`➕ +1 "${targetProduct.name}" agregado a ${selectedTargetZone || targetProduct.zone}`);
+      setTimeout(() => setLastBatchMessage(null), 3000);
+      return;
+    }
+
+    if (actionType === 'CONSUME_EXIT') {
+      audio.click();
+      if (onSubtractStockDirect) {
+        onSubtractStockDirect(targetProduct, 1);
+      }
+      setBatchCount(prev => prev + 1);
+      setLastBatchMessage(`➖ -1 "${targetProduct.name}" descontado por consumo`);
+      setTimeout(() => setLastBatchMessage(null), 3000);
+      return;
+    }
+
+    if (actionType === 'RESTOCK_SUPER') {
+      audio.superCheck();
+      if (onAddToShoppingList) {
+        onAddToShoppingList({
+          name: targetProduct.name,
+          quantity: 1,
+          unit: targetProduct.unit || 'piezas',
+          department: targetProduct.category || 'Abarrotes',
+          store: targetProduct.store || 'Supermercado',
+          estimatedPriceMxn: targetProduct.price || targetProduct.unitPriceMxn || 0,
+          targetZone: selectedTargetZone || targetProduct.zone || 'Alacena Principal',
+          barcode: targetProduct.barcode,
+        });
+      }
+      setBatchCount(prev => prev + 1);
+      setLastBatchMessage(`🛒 "${targetProduct.name}" enviado a la Lista del Súper`);
+      setTimeout(() => setLastBatchMessage(null), 3000);
+      return;
+    }
+  };
+
+  // Manejo de código manual
   const handleManualSubmit = async (e) => {
     e.preventDefault();
     if (!manualCode.trim()) return;
@@ -634,570 +478,757 @@ export default function CameraScannerModal({
     setManualCode('');
   };
 
+  // Escaneo por archivo de imagen de código de barras
+  const handleBarcodeFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      audio.click();
+      setIsSearching(true);
+      const scanner = new Html5Qrcode('barcode-file-scan-buffer');
+      const decoded = await scanner.scanFile(file, false);
+      try { scanner.clear(); } catch (_) {}
+
+      if (decoded && decoded.trim()) {
+        audio.success();
+        await processBarcode(decoded.trim());
+      } else {
+        throw new Error('No se leyó código');
+      }
+    } catch (err) {
+      alert('No se detectó un código de barras claro en la imagen. Intenta con mejor luz o escribe los dígitos abajo.');
+    } finally {
+      setIsSearching(false);
+      if (fileBarcodeRef.current) fileBarcodeRef.current.value = '';
+    }
+  };
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // LÓGICA DEL ESCÁNER DE RECIBOS / TICKETS (OCR DE CÁMARA)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // Capturar fotograma en vivo de la cámara para analizar como ticket
+  const handleCaptureLiveCameraForReceipt = async () => {
+    audio.click();
+    try {
+      let dataUrl = null;
+
+      if (videoRef.current && videoRef.current.readyState >= 2) {
+        const canvas = document.createElement('canvas');
+        canvas.width = videoRef.current.videoWidth || 1280;
+        canvas.height = videoRef.current.videoHeight || 720;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+      }
+
+      if (dataUrl) {
+        setReceiptPreviewUrl(dataUrl);
+        setReceiptImage(dataUrl);
+        await processReceiptImage(dataUrl);
+      } else {
+        // Fallback a input de cámara nativa
+        fileReceiptRef.current?.click();
+      }
+    } catch (err) {
+      console.warn('Error capturando ticket de cámara:', err);
+      fileReceiptRef.current?.click();
+    }
+  };
+
+  // Carga de foto de ticket desde archivo o cámara nativa
+  const handleReceiptFileSelected = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    audio.click();
+    setReceiptImage(file);
+    const url = URL.createObjectURL(file);
+    setReceiptPreviewUrl(url);
+    await processReceiptImage(file);
+  };
+
+  // Procesar imagen del ticket con OCR y heurística de compras
+  const processReceiptImage = async (imageSource) => {
+    setIsOcrProcessing(true);
+    setReceiptNotice(null);
+    setExtractedReceiptItems([]);
+
+    try {
+      const result = await extractShoppingListFromImage(
+        imageSource,
+        (p) => setOcrProgress(p),
+        products
+      );
+
+      if (!result.items || result.items.length === 0) {
+        setReceiptNotice({
+          type: 'warning',
+          text: 'No se pudieron extraer líneas claras del ticket. Asegúrate de que la foto tenga buena luz y no tenga reflejos.',
+        });
+        audio.warning();
+      } else {
+        setExtractedReceiptItems(result.items);
+        setSelectedReceiptItemIds(new Set(result.items.map(i => i.id)));
+        setReceiptStoreName(result.items[0]?.store || 'Supermercado');
+        setReceiptNotice({
+          type: 'success',
+          text: `🧾 ¡Ticket procesado con éxito! Se detectaron ${result.items.length} artículos con sus importes reales.`,
+        });
+        audio.success();
+      }
+    } catch (err) {
+      console.error('Error procesando ticket:', err);
+      setReceiptNotice({
+        type: 'error',
+        text: 'Ocurrió un inconveniente al procesar el ticket. Puedes probar con un ticket de muestra o ingresar los artículos manualmente.',
+      });
+      audio.warning();
+    } finally {
+      setIsOcrProcessing(false);
+      setOcrProgress(null);
+    }
+  };
+
+  // Cargar ticket demo de prueba inmediata
+  const handleLoadSampleTicket = (store) => {
+    audio.click();
+    let sampleText = '';
+
+    if (store === 'mercadona') {
+      sampleText = `MERCADONA, S.A.
+C.I.F. A-46103834
+C/ VELAZQUEZ 45, MADRID
+FECHA: 12/10/2026 14:32
+
+MERLUZA FRESCA CANTABRICO 1   9,80 €
+LECHE ENTERA HACENDADO    6   5,40 €
+ACEITE OLIVA VIRGEN EX 1L 1   8,95 €
+QUESO MANCHEGO CURADO     1   4,65 €
+PAN BARRA ARTESANAL       2   1,50 €
+HUEVOS CAMPEROS CLASE L   1   2,85 €
+VINO TINTO RIOJA CRIANZA  2  13,50 €
+
+TOTAL (€)                    46,65 €`;
+    } else {
+      sampleText = `COSTCO WHOLESALE MEXICO
+AV. EJERCITO NACIONAL 843, CDMX
+12/10/2026 18:22
+
+RIBEYE PRIME SONORENSE    1  $485.00
+AGUACATE HASS 1.5 KG      1  $129.00
+PECHUGA POLLO ORGANICA 2KG 1  $310.00
+PAPEL HIGIENICO REGIO 32P  1  $289.00
+ACEITE OLIVA EXTRA 2L     1  $345.00
+VINO TINTO RESERVA        2  $580.00
+LECHE LALA ENTERA 6PK     1  $165.00
+
+TOTAL MXN                    $2,303.00`;
+    }
+
+    const items = parseRawShoppingText(sampleText, products);
+    setExtractedReceiptItems(items);
+    setSelectedReceiptItemIds(new Set(items.map(i => i.id)));
+    setReceiptStoreName(store === 'mercadona' ? 'Mercadona' : 'Costco');
+    setReceiptNotice({
+      type: 'success',
+      text: `🧾 Demo de ${store.toUpperCase()} cargado. Se detectaron ${items.length} artículos con importes reales.`,
+    });
+    audio.success();
+  };
+
+  // Importar artículos del ticket a la Lista de Compras
+  const handleImportReceiptToShoppingList = () => {
+    const selectedItems = extractedReceiptItems.filter(i => selectedReceiptItemIds.has(i.id));
+    if (selectedItems.length === 0) {
+      alert('Por favor selecciona al menos un artículo.');
+      return;
+    }
+
+    selectedItems.forEach(item => {
+      if (onAddToShoppingList) {
+        onAddToShoppingList({
+          name: item.name,
+          quantity: item.quantity || 1,
+          unit: item.unit || 'piezas',
+          department: item.department || 'Abarrotes',
+          store: item.store || receiptStoreName || 'Supermercado',
+          estimatedPriceMxn: item.realPrice || item.estimatedPriceMxn || 0,
+          targetZone: item.targetZone || zones[0]?.name || 'Alacena Principal',
+        });
+      }
+    });
+
+    audio.success();
+    alert(`📥 ¡${selectedItems.length} artículos del ticket agregados a tu Lista del Súper!`);
+    onClose();
+  };
+
+  // Guardar artículos del ticket DIRECTO en la Despensa (Reconciliación de compra realizada)
+  const handleImportReceiptDirectToPantry = () => {
+    const selectedItems = extractedReceiptItems.filter(i => selectedReceiptItemIds.has(i.id));
+    if (selectedItems.length === 0) {
+      alert('Por favor selecciona al menos un artículo.');
+      return;
+    }
+
+    selectedItems.forEach(item => {
+      const sanitized = sanitizeCavaProduct(item, zones);
+      if (onAddStockDirect) {
+        onAddStockDirect(sanitized, item.quantity || 1, item.targetZone);
+      }
+    });
+
+    audio.success();
+    alert(`✅ ¡${selectedItems.length} artículos ingresados directamente a la Despensa con los precios de tu ticket!`);
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-xl max-h-[94vh] overflow-y-auto rounded-3xl bg-[#14110F] border border-[#E0B441]/30 shadow-2xl flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+      <div className="relative w-full max-w-2xl max-h-[96vh] rounded-3xl bg-[#12100E] border border-[#E0B441]/35 shadow-2xl flex flex-col overflow-hidden">
         
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#2A2521] bg-[#1C1814] sticky top-0 z-10">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-[#E0B441]/20 to-[#C8542A]/20 border border-[#E0B441]/40 text-[#E0B441]">
+        {/* Header Superior Limpio */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-[#2A2521] bg-[#1A1613]">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-[#10B981]/20 to-[#E0B441]/20 border border-[#10B981]/40 text-[#10B981]">
               <Camera className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-white font-display">
-                  Escáner Multidireccional QR · NFC · Código
-                </h3>
-                {nfcSupported && (
-                  <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[9px] font-bold">
-                    NFC Activo
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-[#B8AFA3]">
-                Agrega, descuenta o manda al súper en todas direcciones.
+              <h3 className="text-base font-bold text-white font-display flex items-center gap-2">
+                Escáner Inteligente ALACENA
+              </h3>
+              <p className="text-[11px] text-[#A89F91]">
+                Códigos de barra EAN/UPC · Códigos QR · Tickets de compra OCR
               </p>
             </div>
           </div>
+
           <button
+            type="button"
             onClick={() => {
               audio.click();
               onClose();
             }}
-            className="p-1.5 text-gray-400 hover:text-white rounded-xl hover:bg-white/10"
+            className="p-1.5 text-gray-400 hover:text-white rounded-xl hover:bg-white/10 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Scanner Body */}
-        <div className="p-5 sm:p-6 space-y-4">
+        {/* Pestañas de Modo: Códigos de Barra vs Tickets vs Manual */}
+        <div className="flex items-center gap-1.5 px-4 sm:px-6 py-2.5 bg-[#161310] border-b border-[#2A2521]">
+          <button
+            type="button"
+            onClick={() => {
+              audio.click();
+              setActiveTab('BARCODE');
+            }}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'BARCODE'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/40'
+                : 'bg-[#1C1814] text-[#A89F91] hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <ScanLine className="w-4 h-4" />
+            <span>📦 Código de Barras / QR</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              audio.click();
+              setActiveTab('RECEIPT');
+            }}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'RECEIPT'
+                ? 'bg-[#C8542A] text-white shadow-md shadow-[#C8542A]/40'
+                : 'bg-[#1C1814] text-[#A89F91] hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Receipt className="w-4 h-4" />
+            <span>🧾 Ticket de Compra (OCR)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              audio.click();
+              setActiveTab('MANUAL');
+            }}
+            className={`flex-initial flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'MANUAL'
+                ? 'bg-[#E0B441] text-[#12100E] shadow-md shadow-[#E0B441]/30 font-black'
+                : 'bg-[#1C1814] text-[#A89F91] hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Keyboard className="w-4 h-4" />
+            <span className="hidden sm:inline">⌨️ Manual</span>
+          </button>
+        </div>
+
+        {/* Cuerpo del Modal */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 custom-scrollbar">
 
           {/* ═════════════════════════════════════════════════════════════════
-              SELECTOR MULTIDIRECCIONAL: ¿QUÉ QUIERES QUE HAGA AL ESCANEAR?
+              PESTAÑA 1: CÓDIGO DE BARRAS & QR (CÁMARA FLUIDA)
              ═════════════════════════════════════════════════════════════════ */}
-          <div className="p-3.5 rounded-2xl bg-[#1C1814] border border-[#2A2521] space-y-2">
-            <span className="text-[11px] font-extrabold text-[#E0B441] uppercase tracking-wider block">
-              Dirección de Acción Inmediata (Multidireccional):
-            </span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-              {[
-                { id: 'INTERACTIVE', label: 'Manual / Interactivo', icon: Edit3, color: 'text-amber-300' },
-                { id: 'ADD_ENTRY', label: '➕ Entrada (+1 Compra)', icon: Plus, color: 'text-emerald-400' },
-                { id: 'CONSUME_EXIT', label: '➖ Salida (-1 Consumo)', icon: Minus, color: 'text-rose-400' },
-                { id: 'RESTOCK_SUPER', label: '🛒 Se Acabó -> Súper', icon: ShoppingCart, color: 'text-orange-400' },
-              ].map((item) => {
-                const IconComponent = item.icon;
-                const isSelected = scanDirectionMode === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      audio.click();
-                      setScanDirectionMode(item.id);
-                    }}
-                    className={`flex items-center gap-1.5 p-2 rounded-xl border text-[11px] font-bold transition-all text-left ${
-                      isSelected
-                        ? 'bg-[#E0B441]/20 border-[#E0B441] text-[#E0B441] shadow-sm'
-                        : 'bg-[#12100E] border-[#2A2521] text-[#B8AFA3] hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    <IconComponent className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-[#E0B441]' : item.color}`} />
-                    <span className="truncate">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Selector de Destino Cava vs Alacena */}
-          <div className="p-3.5 rounded-2xl bg-[#1C1814] border border-[#2A2521] space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-extrabold text-[#B8AFA3] uppercase tracking-wider flex items-center gap-1.5">
-                <Warehouse className="w-3.5 h-3.5 text-[#E0B441]" />
-                Ubicación Destino:
-              </span>
+          {activeTab === 'BARCODE' && (
+            <div className="space-y-4">
               
-              <button
-                type="button"
-                onClick={() => {
-                  audio.click();
-                  const targetZoneObj = zones.find(z => z.name === selectedTargetZone) || zones[0];
-                  if (onEditZone && targetZoneObj) {
-                    onEditZone(targetZoneObj);
-                  } else if (onAddZone) {
-                    onAddZone();
-                  }
-                }}
-                className="text-[11px] font-bold text-[#E0B441] hover:underline flex items-center gap-1"
-              >
-                <Edit3 className="w-3 h-3" />
-                <span>✏️ Renombrar Cava o Agregar Espacios</span>
-              </button>
-            </div>
-
-            <div className="flex flex-wrap gap-1.5">
-              {zones.map((z) => {
-                const isSelected = selectedTargetZone === z.name;
-                const isWine = z.type === 'WINE_CELLAR';
-                return (
-                  <button
-                    key={z.id}
-                    type="button"
-                    onClick={() => {
-                      audio.click();
-                      setSelectedTargetZone(z.name);
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
-                      isSelected
-                        ? isWine
-                          ? 'bg-[#6B1F2E] border-[#E0B441] text-white shadow-md shadow-[#6B1F2E]/40 font-bold'
-                          : 'bg-[#C8542A] border-[#E0B441] text-white shadow-md font-bold'
-                        : 'bg-[#12100E] border-[#2A2521] text-[#B8AFA3] hover:text-white hover:border-[#E0B441]/40'
-                    }`}
-                  >
-                    {isWine ? <Wine className="w-3.5 h-3.5 text-[#E0B441]" /> : <Warehouse className="w-3.5 h-3.5" />}
-                    <span>{z.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Barra de NFC / Contacto Inmediato */}
-          {nfcSupported && (
-            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-950/40 via-indigo-950/30 to-[#1C1814] border border-blue-500/30 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className={`p-2 rounded-xl ${nfcScanning ? 'bg-blue-500 text-white animate-pulse' : 'bg-blue-500/20 text-blue-300'}`}>
-                  <Radio className="w-4 h-4" />
+              {/* Selector de Dirección Inmediata */}
+              <div className="p-3 rounded-2xl bg-[#1A1613] border border-[#2A2521] space-y-1.5">
+                <span className="text-[10px] font-extrabold text-[#E0B441] uppercase tracking-wider block">
+                  ¿Qué hacer al detectar el código?
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  {[
+                    { id: 'INTERACTIVE', label: 'Consultar / Preguntar', icon: Search, color: 'text-amber-300' },
+                    { id: 'ADD_ENTRY', label: '➕ +1 Entrada Despensa', icon: Plus, color: 'text-emerald-400' },
+                    { id: 'CONSUME_EXIT', label: '➖ -1 Salida Consumo', icon: Minus, color: 'text-rose-400' },
+                    { id: 'RESTOCK_SUPER', label: '🛒 Mandar al Súper', icon: ShoppingCart, color: 'text-orange-400' },
+                  ].map((mode) => {
+                    const isSelected = scanDirectionMode === mode.id;
+                    const IconComp = mode.icon;
+                    return (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() => {
+                          audio.click();
+                          setScanDirectionMode(mode.id);
+                        }}
+                        className={`flex items-center gap-1.5 p-2 rounded-xl text-[11px] font-bold transition-all text-left ${
+                          isSelected
+                            ? 'bg-emerald-500/20 border border-emerald-400 text-emerald-300 shadow-sm'
+                            : 'bg-[#12100E] border border-[#2A2521] text-[#A89F91] hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        <IconComp className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-emerald-400' : mode.color}`} />
+                        <span className="truncate">{mode.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <div>
-                  <span className="text-xs font-bold text-white block">
-                    {nfcScanning ? '📶 Escuchando NFC por Contacto...' : 'Toque Inmediato con NFC'}
+              </div>
+
+              {/* Mensaje de Confirmación Rápida */}
+              {lastBatchMessage && (
+                <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center justify-between animate-fade-in shadow-md">
+                  <span className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>{lastBatchMessage}</span>
                   </span>
-                  <span className="text-[10px] text-blue-200 block">
-                    {nfcStatusMessage || 'Acerca el celular a los frascos o botellas con sticker NFC'}
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 font-mono">
+                    {batchCount} ítems
                   </span>
                 </div>
-              </div>
+              )}
 
-              <button
-                type="button"
-                onClick={nfcScanning ? stopNfcScan : startNfcScan}
-                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all active:scale-95 ${
-                  nfcScanning
-                    ? 'bg-rose-500 hover:bg-rose-400 text-white'
-                    : 'bg-blue-600 hover:bg-blue-500 text-white shadow-md'
-                }`}
-              >
-                {nfcScanning ? 'Detener NFC' : 'Activar NFC'}
-              </button>
-            </div>
-          )}
+              {/* Visor de Cámara HD */}
+              <div className="relative w-full rounded-2xl overflow-hidden bg-black border border-[#2A2521] min-h-[300px] sm:min-h-[360px] flex items-center justify-center">
+                
+                {/* Elemento de Video WebRTC Nativo */}
+                <video
+                  ref={videoRef}
+                  playsInline
+                  muted
+                  className={`w-full h-full object-cover min-h-[300px] sm:min-h-[360px] ${scannerActive && videoRef.current?.srcObject ? 'block' : 'hidden'}`}
+                />
 
-          {/* Feedback Flotante de Acciones en Ráfaga */}
-          {lastBatchMessage && (
-            <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center justify-between animate-fade-in shadow-md">
-              <span className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-400" />
-                {lastBatchMessage}
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 font-mono">
-                {batchHistory.length} acciones
-              </span>
-            </div>
-          )}
-          
-          {/* Camera Viewport with Visual Overlay */}
-          <div className="relative w-full rounded-2xl overflow-hidden bg-black border border-[#2A2521] min-h-[250px] flex items-center justify-center">
-            <div id={scannerContainerId} className="w-full" />
+                {/* Contenedor Fallback Html5Qrcode */}
+                <div
+                  id={scannerContainerId}
+                  className={`w-full ${scannerActive && !videoRef.current?.srcObject ? 'block' : 'hidden'}`}
+                />
 
-            {/* Target Reticle Overlay - Guía dual para QR y Códigos de Barras */}
-            {scannerActive && (
-              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <div className={`border-2 border-[#E0B441]/80 relative shadow-[0_0_30px_rgba(224,180,65,0.30)] flex items-center justify-center transition-all duration-300 ${
-                  scanReticleMode === 'BARCODE'
-                    ? 'w-[90%] max-w-[440px] h-[165px] sm:h-[185px] rounded-2xl'
-                    : 'w-[78%] max-w-[300px] aspect-square rounded-3xl'
-                }`}>
-                  {/* Esquinas guía doradas */}
-                  <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-[#E0B441] -mt-1 -ml-1 rounded-tl-xl" />
-                  <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-[#E0B441] -mt-1 -mr-1 rounded-tr-xl" />
-                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-[#E0B441] -mb-1 -ml-1 rounded-bl-xl" />
-                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-[#E0B441] -mb-1 -mr-1 rounded-br-xl" />
-                  
-                  {/* Línea láser de lectura */}
-                  <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-[#E0B441] to-transparent shadow-[0_0_14px_#E0B441] animate-pulse absolute top-1/2 -translate-y-1/2" />
-                  
-                  {/* Indicador texto centrado */}
-                  <span className="text-[10px] uppercase tracking-wider text-[#E0B441] font-mono font-bold bg-black/75 px-3 py-1 rounded-full border border-[#E0B441]/40 backdrop-blur-sm pointer-events-none absolute bottom-3">
-                    {scanReticleMode === 'BARCODE' ? '📏 Centra las barras en horizontal' : '🔲 Centra el código QR'}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Floating Camera Controls Top */}
-            {scannerActive && (
-              <>
-                {/* Selector de Forma: Barras vs QR */}
-                <div className="absolute top-3 left-3 flex items-center gap-1.5 z-20 pointer-events-auto">
-                  <button
-                    type="button"
-                    onClick={() => { audio.click(); setScanReticleMode('BARCODE'); }}
-                    className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold backdrop-blur-md transition-all ${
-                      scanReticleMode === 'BARCODE'
-                        ? 'bg-[#E0B441] text-[#12100E] shadow-md font-extrabold'
-                        : 'bg-black/60 text-[#B8AFA3] hover:text-white border border-white/20'
-                    }`}
-                  >
-                    📏 Barras
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { audio.click(); setScanReticleMode('QR'); }}
-                    className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold backdrop-blur-md transition-all ${
-                      scanReticleMode === 'QR'
-                        ? 'bg-[#E0B441] text-[#12100E] shadow-md font-extrabold'
-                        : 'bg-black/60 text-[#B8AFA3] hover:text-white border border-white/20'
-                    }`}
-                  >
-                    🔲 QR
-                  </button>
-                </div>
-
-                <div className="absolute top-3 right-3 flex items-center gap-2 z-20">
-                  <button
-                    type="button"
-                    onClick={handleToggleTorch}
-                    className={`p-2 rounded-xl backdrop-blur-md transition-all ${
-                      torchOn 
-                        ? 'bg-[#E0B441] text-black shadow-lg shadow-[#E0B441]/40' 
-                        : 'bg-black/60 text-white hover:bg-black/80 border border-white/20'
-                    }`}
-                    title="Encender Linterna"
-                  >
-                    <Flashlight className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={stopScanner}
-                    className="px-2.5 py-1.5 rounded-xl bg-black/60 hover:bg-black/80 text-white text-[11px] font-bold border border-white/20 backdrop-blur-md"
-                  >
-                    Pausar
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* Camera error / Fallback trigger */}
-            {!scannerActive && (
-              <div className="p-6 text-center space-y-3 z-10">
-                <AlertCircle className="w-8 h-8 mx-auto text-[#E0B441]" />
-                <p className="text-xs text-[#F2EDE4] max-w-sm mx-auto leading-relaxed">
-                  {cameraError || 'Iniciando cámara en vivo para lectura de códigos...'}
-                </p>
-                <div className="flex flex-wrap justify-center gap-2 pt-2">
-                  <button
-                    onClick={() => startCameraWithPermission()}
-                    className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-[#C8542A] hover:bg-[#E5724A] rounded-xl transition-all shadow-md active:scale-95"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>▶️ Iniciar Cámara en Vivo</span>
-                  </button>
-
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-[#E0B441] to-[#C8542A] hover:brightness-110 rounded-xl transition-all shadow-md active:scale-95"
-                  >
-                    <Camera className="w-3.5 h-3.5" />
-                    <span>📸 Tomar Foto con Cámara Nativa</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Hidden File Input */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-
-          {/* Selector de Cámara y Botón Foto Nativa */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs text-[#E0B441] border border-[#E0B441]/30 font-semibold transition-all"
-            >
-              <Camera className="w-3.5 h-3.5" />
-              <span>📸 Tomar Foto (Cámara Nativa del Celular)</span>
-            </button>
-
-            {cameras.length > 1 && (
-              <div className="flex items-center gap-1.5 text-xs">
-                <span className="text-[#8B8378]">Cámara:</span>
-                <select
-                  value={selectedCameraId}
-                  onChange={(e) => startCameraWithPermission(e.target.value)}
-                  className="px-2.5 py-1.5 rounded-lg bg-[#12100E] border border-[#2A2521] text-white text-xs focus:outline-none focus:border-[#E0B441]"
-                >
-                  {cameras.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.label || `Cámara ${c.id}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-
-          {/* Códigos de Ejemplo de la Casa */}
-          <div className="p-3 rounded-2xl bg-[#1C1814] border border-[#2A2521] space-y-1.5">
-            <div className="flex items-center justify-between text-[11px] font-bold text-[#8B8378] uppercase tracking-wider">
-              <span>Probar Códigos del Hogar (1-Clic):</span>
-              <span className="text-[#E0B441]">Sin Cámara</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { label: '🍷 Vino Cava Reserva', code: '7501000555667' },
-                { label: '🥩 Ribeye Prime Sonorense', code: '7501000777889' },
-                { label: '🌾 Harina Selecta', code: '7501000111223' },
-                { label: '🫒 Aceite de Oliva Oleo', code: '7501055301097' },
-                { label: '🥛 Leche Entera', code: '7501055300076' },
-                { label: '🧀 Parmigiano Reggiano', code: '7501008000011' },
-              ].map((item) => (
-                <button
-                  key={item.code}
-                  type="button"
-                  onClick={() => {
-                    audio.click();
-                    processBarcode(item.code);
-                  }}
-                  className="px-2.5 py-1 text-[11px] font-semibold text-[#B8AFA3] bg-[#12100E] hover:bg-[#2A2521] hover:text-white rounded-lg border border-[#2A2521] transition-all"
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Formulario de Entrada Manual */}
-          <form onSubmit={handleManualSubmit} className="flex gap-2">
-            <div className="relative flex-1">
-              <Keyboard className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
-              <input
-                type="text"
-                placeholder="Escribe o pega código de barras, clave ALC-X o URL..."
-                value={manualCode}
-                onChange={(e) => setManualCode(e.target.value)}
-                className="w-full pl-10 pr-20 py-2.5 text-xs sm:text-sm rounded-xl bg-[#12100E] border border-[#2A2521] text-white placeholder-gray-500 focus:outline-none focus:border-[#E0B441] font-mono"
-              />
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    const text = await navigator.clipboard.readText();
-                    if (text) {
-                      setManualCode(text);
-                      processBarcode(text);
-                    }
-                  } catch (_) {}
-                }}
-                className="absolute right-2 top-2 px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[10px] text-gray-300 transition-all cursor-pointer"
-                title="Pegar del portapapeles y buscar"
-              >
-                📋 Pegar
-              </button>
-            </div>
-            <button
-              type="submit"
-              disabled={isSearching}
-              className="px-4 py-2.5 text-xs font-bold text-white bg-[#C8542A] hover:bg-[#E5724A] rounded-xl transition-all disabled:opacity-50 cursor-pointer"
-            >
-              {isSearching ? 'Buscando...' : 'Buscar'}
-            </button>
-          </form>
-
-          {/* Resultado del Escaneo con Acciones Multidireccionales */}
-          {scannedResult && (
-            <div className="p-4 rounded-2xl bg-[#1C1814] border border-[#E0B441]/40 space-y-3 animate-fade-in shadow-xl">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  {scannedResult.product.photo && (
-                    <img
-                      src={scannedResult.product.photo}
-                      alt={scannedResult.product.name}
-                      className="w-14 h-14 rounded-xl object-contain bg-white/5 border border-white/10 shrink-0 p-1"
-                    />
-                  )}
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#E0B441]/20 text-[#E0B441] border border-[#E0B441]/30">
-                        {scannedResult.barcode}
+                {/* Retícula de Enfoque con Láser Central */}
+                {scannerActive && (
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <div className="w-[88%] max-w-[420px] h-[160px] sm:h-[180px] border-2 border-emerald-400/80 rounded-2xl relative shadow-[0_0_24px_rgba(16,185,129,0.3)] flex items-center justify-center">
+                      <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-emerald-400 -mt-1 -ml-1 rounded-tl-lg" />
+                      <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-emerald-400 -mt-1 -mr-1 rounded-tr-lg" />
+                      <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-emerald-400 -mb-1 -ml-1 rounded-bl-lg" />
+                      <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-emerald-400 -mb-1 -mr-1 rounded-br-lg" />
+                      <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_12px_#10B981] animate-pulse" />
+                      <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-emerald-300 bg-black/80 px-2.5 py-0.5 rounded-full border border-emerald-500/40 absolute bottom-2">
+                        Centra el código de barras
                       </span>
-                      {scannedResult.isExisting ? (
-                        <span className="text-[10px] font-bold text-emerald-400 uppercase flex items-center gap-1">
-                          ✓ Encontrado en tu Despensa
-                        </span>
-                      ) : scannedResult.product.source === 'MEMORIZED_HISTORY' ? (
-                        <span className="text-[10px] font-bold text-purple-400 uppercase flex items-center gap-1">
-                          🧠 Memorizado de tus Compras Anteriores
-                        </span>
-                      ) : scannedResult.product.source === 'INTERNET_OPENFOODFACTS' ? (
-                        <span className="text-[10px] font-bold text-sky-400 uppercase flex items-center gap-1">
-                          🌐 Encontrado en Open Food Facts
-                        </span>
-                      ) : scannedResult.product.source === 'LOCAL_CATALOG' ? (
-                        <span className="text-[10px] font-bold text-emerald-300 uppercase flex items-center gap-1">
-                          ⚡ Catálogo Rápido Supermercado México
-                        </span>
-                      ) : scannedResult.product.source === 'GS1_PREFIX_DETECTED' ? (
-                        <span className="text-[10px] font-bold text-amber-400 uppercase flex items-center gap-1">
-                          🇲🇽 Código Comercial Mexicano (GS1 750)
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-bold text-amber-300 uppercase">
-                          🔍 Código Nuevo para Registrar
-                        </span>
-                      )}
                     </div>
-                    <h4 className="text-base font-bold text-white mt-1">
-                      {scannedResult.product.name}
-                    </h4>
-                    {scannedResult.product.brand && (
-                      <p className="text-xs text-[#E0B441] font-semibold">
-                        Bodega / Marca: {scannedResult.product.brand}
-                      </p>
+                  </div>
+                )}
+
+                {/* Controles Flotantes en Cámara */}
+                {scannerActive && (
+                  <div className="absolute top-3 right-3 flex items-center gap-2 z-20">
+                    {cameras.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={handleSwitchCamera}
+                        className="p-2 rounded-xl bg-black/60 hover:bg-black/80 text-white border border-white/20 backdrop-blur-md transition-all"
+                        title="Cambiar Cámara"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
                     )}
-                    <p className="text-xs text-[#B8AFA3] mt-0.5">
-                      Destino: <strong className="text-[#E0B441]">{selectedTargetZone || scannedResult.product.zone || 'Alacena'}</strong>
-                      {scannedResult.isExisting && (
-                        <span> • Existencia: <strong className="text-white font-mono">{scannedResult.product.quantity} {scannedResult.product.unit}</strong></span>
-                      )}
+                    <button
+                      type="button"
+                      onClick={handleToggleTorch}
+                      className={`p-2 rounded-xl backdrop-blur-md transition-all ${
+                        torchOn ? 'bg-amber-400 text-black shadow-lg shadow-amber-400/40' : 'bg-black/60 text-white hover:bg-black/80 border border-white/20'
+                      }`}
+                      title="Linterna / Flash"
+                    >
+                      <Flashlight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Estado de Error o Cámara Pausada */}
+                {!scannerActive && (
+                  <div className="p-6 text-center space-y-3 z-10">
+                    <AlertCircle className="w-9 h-9 mx-auto text-[#E0B441]" />
+                    <p className="text-xs text-[#A89F91] max-w-sm mx-auto">
+                      {cameraError || 'La cámara no está activa en este momento.'}
                     </p>
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => startBarcodeScanner()}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all"
+                      >
+                        🔄 Reintentar Cámara
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fileBarcodeRef.current?.click()}
+                        className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold border border-white/10 transition-all"
+                      >
+                        📁 Cargar Foto de Código
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Botón Alternativo de Subida por Foto */}
+              <input
+                type="file"
+                ref={fileBarcodeRef}
+                accept="image/*"
+                onChange={handleBarcodeFileUpload}
+                className="hidden"
+              />
+              <div className="flex items-center justify-between text-xs text-[#A89F91] px-1">
+                <span>¿Problemas de enfoque con el sensor?</span>
+                <button
+                  type="button"
+                  onClick={() => fileBarcodeRef.current?.click()}
+                  className="text-[#E0B441] hover:underline font-semibold flex items-center gap-1"
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span>Tomar Foto con Cámara Nativa</span>
+                </button>
+              </div>
+
+              {/* Tarjeta del Producto Detectado (Modo Interactivo) */}
+              {scannedResult && (
+                <div className="p-4 rounded-2xl bg-[#1C1814] border border-[#E0B441]/40 space-y-3 animate-fade-in shadow-xl">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                        scannedResult.isExisting ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                      }`}>
+                        {scannedResult.isExisting ? '✓ En tu Despensa' : '✨ Nuevo Producto'}
+                      </span>
+                      <h4 className="text-base font-bold text-white mt-1">
+                        {scannedResult.product.name}
+                      </h4>
+                      <p className="text-xs text-[#A89F91]">
+                        Código: <span className="font-mono text-white">{scannedResult.barcode}</span> • {scannedResult.product.category}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setScannedResult(null)}
+                      className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Acciones para el Producto */}
+                  <div className="grid grid-cols-3 gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        executeDirectAction(scannedResult.product, 'ADD_ENTRY');
+                        setScannedResult(null);
+                      }}
+                      className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+1 Entrada</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        executeDirectAction(scannedResult.product, 'CONSUME_EXIT');
+                        setScannedResult(null);
+                      }}
+                      className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md transition-all"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                      <span>-1 Salida</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        executeDirectAction(scannedResult.product, 'RESTOCK_SUPER');
+                        setScannedResult(null);
+                      }}
+                      className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold shadow-md transition-all"
+                    >
+                      <ShoppingCart className="w-3.5 h-3.5" />
+                      <span>Al Súper</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
+
+          {/* ═════════════════════════════════════════════════════════════════
+              PESTAÑA 2: LECTOR DE TICKETS Y RECIBOS DE COMPRA (OCR)
+             ═════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'RECEIPT' && (
+            <div className="space-y-4">
+              
+              <input
+                type="file"
+                ref={fileReceiptRef}
+                accept="image/*"
+                capture="environment"
+                onChange={handleReceiptFileSelected}
+                className="hidden"
+              />
+
+              {/* Botones de Captura del Ticket */}
+              <div className="p-4 rounded-2xl bg-[#1A1613] border border-[#2A2521] space-y-3">
+                <div className="flex flex-col sm:flex-row items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleCaptureLiveCameraForReceipt}
+                    className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#C8542A] to-[#E5724A] text-white font-bold text-xs sm:text-sm hover:brightness-110 shadow-lg shadow-[#C8542A]/30 transition-all"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>📸 Tomar Foto al Ticket Ahora</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => fileReceiptRef.current?.click()}
+                    className="w-full sm:flex-initial flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold text-xs sm:text-sm border border-white/10 transition-all"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    <span>Cargar de Galería</span>
+                  </button>
+                </div>
+
+                {/* Pruebas 1-Clic de tickets reales */}
+                <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/5 text-[11px]">
+                  <span className="text-[#A89F91]">Probar tickets muestra:</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleLoadSampleTicket('mercadona')}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 font-semibold border border-emerald-500/30 transition-all"
+                    >
+                      🇪🇸 Mercadona (€)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleLoadSampleTicket('costco')}
+                      className="px-2.5 py-1 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 text-orange-300 font-semibold border border-orange-500/30 transition-all"
+                    >
+                      🇲🇽 Costco ($ MXN)
+                    </button>
                   </div>
                 </div>
               </div>
 
-              {/* Enlaces de Búsqueda Externa si es producto nuevo */}
-              {!scannedResult.isExisting && (
-                <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-[#94A3B8]">
-                  <span className="font-semibold">Buscar en tiendas:</span>
-                  {scannedResult.product.googleSearchUrl && (
-                    <a
-                      href={scannedResult.product.googleSearchUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sky-400 hover:underline flex items-center gap-1 font-semibold"
-                    >
-                      <Globe className="w-3 h-3" />
-                      <span>Google</span>
-                    </a>
-                  )}
-                  {scannedResult.product.chedrauiSearchUrl && (
-                    <a
-                      href={scannedResult.product.chedrauiSearchUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-amber-400 hover:underline flex items-center gap-1 font-semibold"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      <span>Chedraui</span>
-                    </a>
-                  )}
-                  {scannedResult.product.walmartSearchUrl && (
-                    <a
-                      href={scannedResult.product.walmartSearchUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:underline flex items-center gap-1 font-semibold"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      <span>Walmart</span>
-                    </a>
-                  )}
+              {/* Progreso de OCR */}
+              {isOcrProcessing && (
+                <div className="p-4 rounded-2xl bg-[#1C1814] border border-[#E0B441]/40 space-y-2 animate-fade-in">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#E0B441]">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>{ocrProgress?.status || 'Leyendo ticket con visión artificial OCR...'}</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-[#C8542A] to-[#E0B441] transition-all duration-300"
+                      style={{ width: `${ocrProgress?.progress || 35}%` }}
+                    />
+                  </div>
                 </div>
               )}
 
-              {/* Botones Multidireccionales (Entrada +1, Salida -1, Mandar al Súper) */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-[#2A2521]">
-                
-                {/* 1. Sumar +1 Entrada */}
-                <button
-                  onClick={() => {
-                    executeDirectAction(scannedResult.product, 'ADD_ENTRY');
-                    setScannedResult(null);
-                  }}
-                  className={`py-2.5 px-3 text-xs font-bold text-white rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                    scannedResult.product.isWine || (selectedTargetZone && selectedTargetZone.toLowerCase().includes('cava'))
-                      ? 'bg-[#6B1F2E] hover:bg-[#852739] border border-[#E0B441]/40'
-                      : 'bg-emerald-600 hover:bg-emerald-500'
-                  }`}
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>➕ Llegó (+1)</span>
-                </button>
+              {/* Notificación de resultado */}
+              {receiptNotice && (
+                <div className={`p-3.5 rounded-2xl flex items-center justify-between text-xs border animate-fade-in ${
+                  receiptNotice.type === 'success' ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' :
+                  receiptNotice.type === 'warning' ? 'bg-amber-500/15 border-amber-500/40 text-amber-300' :
+                  'bg-rose-500/15 border-rose-500/40 text-rose-300'
+                }`}>
+                  <span className="flex items-center gap-2">
+                    {receiptNotice.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                    <span>{receiptNotice.text}</span>
+                  </span>
+                  <button onClick={() => setReceiptNotice(null)} className="text-white/60 hover:text-white ml-2">✕</button>
+                </div>
+              )}
 
-                {/* 2. Restar -1 Consumo */}
-                {scannedResult.isExisting && (
+              {/* Lista de Partidas Detectadas en el Ticket */}
+              {extractedReceiptItems.length > 0 && (
+                <div className="p-4 rounded-2xl bg-[#161310] border border-[#2A2521] space-y-3">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <div>
+                      <span className="text-xs font-extrabold text-white">
+                        🧾 Artículos Detectados ({selectedReceiptItemIds.size} de {extractedReceiptItems.length})
+                      </span>
+                      <span className="text-[11px] text-[#A89F91] block">
+                        Tienda: <strong className="text-[#E0B441]">{receiptStoreName}</strong>
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedReceiptItemIds.size === extractedReceiptItems.length) {
+                          setSelectedReceiptItemIds(new Set());
+                        } else {
+                          setSelectedReceiptItemIds(new Set(extractedReceiptItems.map(i => i.id)));
+                        }
+                      }}
+                      className="text-xs text-[#E0B441] hover:underline font-semibold"
+                    >
+                      {selectedReceiptItemIds.size === extractedReceiptItems.length ? 'Desmarcar todos' : 'Marcar todos'}
+                    </button>
+                  </div>
+
+                  {/* Tabla / Tarjetas de Artículos */}
+                  <div className="max-h-56 overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
+                    {extractedReceiptItems.map((item) => {
+                      const isSelected = selectedReceiptItemIds.has(item.id);
+                      return (
+                        <div
+                          key={item.id}
+                          className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all ${
+                            isSelected
+                              ? 'bg-white/5 border-emerald-500/30 text-white'
+                              : 'bg-black/20 border-white/5 text-[#888] opacity-60'
+                          }`}
+                        >
+                          <label className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {
+                                const next = new Set(selectedReceiptItemIds);
+                                if (next.has(item.id)) next.delete(item.id);
+                                else next.add(item.id);
+                                setSelectedReceiptItemIds(next);
+                              }}
+                              className="rounded text-emerald-500 focus:ring-0 w-4 h-4 cursor-pointer"
+                            />
+                            <div className="min-w-0">
+                              <span className="font-bold text-white block truncate">{item.name}</span>
+                              <span className="text-[10px] text-[#A89F91]">
+                                {item.quantity} {item.unit} • {item.department}
+                              </span>
+                            </div>
+                          </label>
+
+                          <div className="text-right shrink-0 ml-2">
+                            <span className="font-mono font-bold text-emerald-400 block">
+                              ${(item.realPrice || item.estimatedPriceMxn || 0).toFixed(2)}
+                            </span>
+                            <span className="text-[9px] text-[#A89F91]">Ticket</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Botones de Destino del Ticket */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-white/5">
+                    <button
+                      type="button"
+                      onClick={handleImportReceiptToShoppingList}
+                      className="flex items-center justify-center gap-2 p-3 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold shadow-md transition-all"
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                      <span>📥 Meter a Lista del Súper</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleImportReceiptDirectToPantry}
+                      className="flex items-center justify-center gap-2 p-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all"
+                    >
+                      <Warehouse className="w-4 h-4" />
+                      <span>✅ Ya los Compré: Guardar en Despensa</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
+
+          {/* ═════════════════════════════════════════════════════════════════
+              PESTAÑA 3: INGRESO MANUAL DE CÓDIGOS DE BARRA O ID
+             ═════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'MANUAL' && (
+            <form onSubmit={handleManualSubmit} className="p-4 rounded-2xl bg-[#1A1613] border border-[#2A2521] space-y-4">
+              <div>
+                <label className="text-xs font-extrabold text-[#E0B441] block mb-1">
+                  Escribe los dígitos del código de barras o clave corta:
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={manualCode}
+                    onChange={(e) => setManualCode(e.target.value)}
+                    placeholder="Ej. 7501055300076 o ALC-4B7"
+                    className="w-full pl-4 pr-12 py-3 rounded-xl bg-[#12100E] border border-[#2A2521] text-white font-mono text-sm focus:outline-none focus:border-[#E0B441]"
+                  />
                   <button
-                    onClick={() => {
-                      executeDirectAction(scannedResult.product, 'CONSUME_EXIT');
-                      setScannedResult(null);
-                    }}
-                    className="py-2.5 px-3 text-xs font-bold text-rose-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/40 border border-rose-500/40 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    type="submit"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-[#E0B441] text-[#12100E] font-bold hover:brightness-110"
                   >
-                    <Minus className="w-4 h-4" />
-                    <span>➖ Consumí (-1)</span>
+                    <ArrowRight className="w-4 h-4" />
                   </button>
-                )}
-
-                {/* 3. Mandar al Súper */}
-                <button
-                  onClick={() => {
-                    executeDirectAction(scannedResult.product, 'RESTOCK_SUPER');
-                    setScannedResult(null);
-                  }}
-                  className="py-2.5 px-3 text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:brightness-110 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                  <span>🛒 Falta (Súper)</span>
-                </button>
+                </div>
               </div>
 
-              {/* Si es artículo nuevo y se quiere registrar ficha permanente */}
-              {!scannedResult.isExisting && (
-                <div className="pt-1">
-                  <button
-                    onClick={() => {
-                      audio.click();
-                      onOpenManualCaptureWithBarcode({
-                        ...scannedResult.product,
-                        zone: selectedTargetZone || scannedResult.product.zone || 'Alacena Principal'
-                      });
-                      onClose();
-                    }}
-                    className="w-full py-2 px-3 text-xs font-bold text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>➕ Registrar Ficha Completa en {selectedTargetZone || 'Alacena'}</span>
-                  </button>
-                </div>
-              )}
-            </div>
+              <div className="text-[11px] text-[#A89F91] space-y-1">
+                <p>💡 <strong>Tip del Comprador:</strong> Puedes escribir el código de barras impreso en cualquier envase de supermercado para consultar su catálogo o sumarlo a tu inventario.</p>
+              </div>
+            </form>
           )}
 
         </div>
 
+        {/* Buffer oculto para scanFile */}
+        <div id="barcode-file-scan-buffer" className="hidden" />
       </div>
     </div>
   );
