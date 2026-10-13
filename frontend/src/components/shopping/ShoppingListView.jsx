@@ -74,6 +74,7 @@ export default function ShoppingListView({
   const [isReconciliationOpen, setIsReconciliationOpen] = useState(false);
   const [isWeeklyStaplesOpen, setIsWeeklyStaplesOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [hideChecked, setHideChecked] = useState(false);
 
   // Batch import callback con desduplicación previa
   const handleBatchImportItems = (importedItems) => {
@@ -161,6 +162,8 @@ export default function ShoppingListView({
     enrichedList.forEach((item) => {
       // Filtrar por tienda si aplica
       if (selectedStore !== 'ALL' && (item.store || 'Supermercado') !== selectedStore) return;
+      // Filtrar si el usuario activó 'Solo Pendientes'
+      if (hideChecked && item.checked) return;
 
       const deptId = item.computedDept || 'ABARROTES';
       if (!groups[deptId]) groups[deptId] = [];
@@ -168,7 +171,7 @@ export default function ShoppingListView({
     });
 
     return groups;
-  }, [enrichedList, selectedStore]);
+  }, [enrichedList, selectedStore, hideChecked]);
 
   // Tiendas disponibles
   const stores = useMemo(() => {
@@ -574,11 +577,35 @@ export default function ShoppingListView({
 
       {/* 4. Selector de Pasillos / Departamentos del Supermercado */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
-            <Layers className="w-4 h-4 text-emerald-400" />
-            <span>Pasillos del Supermercado:</span>
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+              <Layers className="w-4 h-4 text-emerald-400" />
+              <span>Pasillos:</span>
+            </span>
+
+            {/* Toggle Ergonómico: Solo Faltantes / Ocultar Marcados */}
+            <button
+              type="button"
+              onClick={() => {
+                audio.click();
+                setHideChecked(!hideChecked);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                hideChecked
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm'
+                  : 'bg-white/5 text-gray-400 hover:text-white border-white/10'
+              }`}
+              title="Ocultar los productos que ya metiste al carrito para despejar la vista"
+            >
+              <span>{hideChecked ? '👁️ Solo Faltantes' : '👁️ Ocultar en Carrito'}</span>
+              {metrics.inCartCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-black/40 text-[10px] font-mono">
+                  {metrics.inCartCount}
+                </span>
+              )}
+            </button>
+          </div>
           {metrics.inCartCount > 0 && (
             <div className="flex items-center gap-2">
               <button
@@ -1103,6 +1130,23 @@ export default function ShoppingListView({
               </div>
               
               <div className="flex items-center gap-2">
+                {/* Botón Solo Faltantes en Modo Súper Táctil */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    audio.click();
+                    setHideChecked(!hideChecked);
+                  }}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1 border ${
+                    hideChecked
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm'
+                      : 'bg-[#1C1916] text-gray-300 border-[#3D3630]'
+                  }`}
+                  title="Ocultar los artículos ya metidos al carrito"
+                >
+                  <span>{hideChecked ? '👁️ Solo Faltantes' : '👁️ Ver Todos'}</span>
+                </button>
+
                 {metrics.inCartCount > 0 && (
                   <button
                     onClick={handleFinishPurchase}
@@ -1119,7 +1163,7 @@ export default function ShoppingListView({
                   }}
                   className="px-3.5 py-2 rounded-xl text-xs font-bold text-[#F2EDE4] bg-[#1C1916] hover:bg-[#2A2521] border border-[#3D3630]"
                 >
-                  ✕ Salir Modo Súper
+                  ✕ Salir
                 </button>
               </div>
             </div>
