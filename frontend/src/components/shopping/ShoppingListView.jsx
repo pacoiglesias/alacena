@@ -505,43 +505,43 @@ export default function ShoppingListView({
       </div>
 
       {/* 3. Métricas Visuales en Tiempo Real */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
         
         {/* Por Comprar */}
-        <div className="glass-panel p-5 rounded-3xl flex items-center justify-between border border-white/10">
-          <div>
-            <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">
-              Faltan por Comprar
+        <div className="glass-panel p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl flex items-center justify-between border border-white/10">
+          <div className="min-w-0">
+            <span className="text-[10px] sm:text-[11px] font-bold text-amber-400 uppercase tracking-wider block truncate">
+              Por Comprar
             </span>
-            <div className="text-3xl font-extrabold text-white mt-1 font-mono">
-              {metrics.pendingCount} <span className="text-xs text-gray-400 font-sans font-normal">artículos</span>
+            <div className="text-xl sm:text-3xl font-extrabold text-white mt-0.5 sm:mt-1 font-mono truncate">
+              {metrics.pendingCount} <span className="text-[10px] sm:text-xs text-gray-400 font-sans font-normal">arts</span>
             </div>
-            <span className="text-xs text-gray-400 mt-1 block">
-              Distribuidos en los departamentos
+            <span className="text-[10px] sm:text-xs text-gray-400 mt-0.5 block truncate">
+              Pendientes
             </span>
           </div>
-          <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/25 text-amber-400">
-            <ShoppingCart className="w-6 h-6" />
+          <div className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-amber-500/15 border border-amber-500/25 text-amber-400 shrink-0 ml-1">
+            <ShoppingCart className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
         </div>
 
         {/* En el Carrito & Barra de Progreso */}
-        <div className="glass-panel p-5 rounded-3xl border border-white/10 flex flex-col justify-between">
+        <div className="glass-panel p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-white/10 flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
-                En el Carrito ({metrics.progressPercent}%)
+            <div className="min-w-0">
+              <span className="text-[10px] sm:text-[11px] font-bold text-emerald-400 uppercase tracking-wider block truncate">
+                Carrito ({metrics.progressPercent}%)
               </span>
-              <div className="text-3xl font-extrabold text-emerald-300 mt-1 font-mono">
-                {metrics.inCartCount} de {metrics.totalItems}
+              <div className="text-xl sm:text-3xl font-extrabold text-emerald-300 mt-0.5 sm:mt-1 font-mono truncate">
+                {metrics.inCartCount} / {metrics.totalItems}
               </div>
             </div>
-            <div className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400">
-              <CheckSquare className="w-6 h-6" />
+            <div className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 shrink-0 ml-1">
+              <CheckSquare className="w-4 h-4 sm:w-6 sm:h-6" />
             </div>
           </div>
           
-          <div className="w-full bg-white/10 h-2.5 rounded-full overflow-hidden mt-3">
+          <div className="w-full bg-white/10 h-2 sm:h-2.5 rounded-full overflow-hidden mt-2 sm:mt-3">
             <div 
               className="bg-emerald-500 h-full transition-all duration-300 rounded-full"
               style={{ width: `${metrics.progressPercent}%` }}
@@ -550,27 +550,26 @@ export default function ShoppingListView({
         </div>
 
         {/* Presupuesto Estimado (Moneda Dinámica: EUR o MXN según el Hogar) */}
-        <div className="glass-panel p-5 rounded-3xl flex items-center justify-between border border-white/10">
-          <div>
-            <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
-              Presupuesto Estimado ({activeHouse?.currency || 'MXN'})
+        <div className="glass-panel p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl flex items-center justify-between border border-white/10 col-span-2 sm:col-span-1">
+          <div className="min-w-0">
+            <span className="text-[10px] sm:text-[11px] font-bold text-emerald-400 uppercase tracking-wider block truncate">
+              Presupuesto ({activeHouse?.currency || 'MXN'})
             </span>
-            <div className="text-2xl sm:text-3xl font-extrabold text-white mt-1 font-mono">
+            <div className="text-xl sm:text-3xl font-extrabold text-white mt-0.5 sm:mt-1 font-mono truncate">
               {activeHouse?.currency === 'EUR' ? '€' : '$'}
               {metrics.totalEstimatedMxn.toLocaleString(activeHouse?.currency === 'EUR' ? 'es-ES' : 'es-MX', { minimumFractionDigits: 2 })}{' '}
-              <span className="text-xs text-emerald-400 font-sans font-bold">
+              <span className="text-[10px] sm:text-xs text-emerald-400 font-sans font-bold">
                 {activeHouse?.currency || 'MXN'}
               </span>
             </div>
-            <span className="text-xs text-gray-400 mt-1 block">
-              Llevas en carrito: {activeHouse?.currency === 'EUR' ? '€' : '$'}{metrics.cartTotalMxn.toFixed(2)} {activeHouse?.currency || 'MXN'}
+            <span className="text-[10px] sm:text-xs text-gray-400 mt-0.5 block truncate">
+              En carrito: {activeHouse?.currency === 'EUR' ? '€' : '$'}{metrics.cartTotalMxn.toFixed(2)}
             </span>
           </div>
-          <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400">
-            <DollarSign className="w-6 h-6" />
+          <div className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 shrink-0 ml-1">
+            <DollarSign className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
         </div>
-
       </div>
 
       {/* 4. Selector de Pasillos / Departamentos del Supermercado */}

@@ -11,6 +11,7 @@ import ZonesBar from '../zones/ZonesBar';
 import ProactiveHomeAdvisor from '../assistant/ProactiveHomeAdvisor';
 import ItemQrModal from '../shopping/ItemQrModal';
 import PantryQrBookletModal from '../shopping/PantryQrBookletModal';
+import InventoryChartsWidget from './InventoryChartsWidget';
 
 // Helper: cálculo del estado de caducidad FEFO
 export function getExpiryStatus(expiryDate) {
@@ -210,99 +211,109 @@ export default function InventoryView({
     <div className="space-y-6">
       
       {/* Top Metrics Cards (Luxe Look in MXN) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         
         {/* 1. Total Artículos en Casa */}
-        <div className="rounded-2xl p-5 flex items-center justify-between border border-[#1E2638] bg-[#121622] shadow-sm hover:border-emerald-500/30 transition-all">
-          <div>
-            <span className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider block">
+        <div className="rounded-2xl p-3.5 sm:p-5 flex items-center justify-between border border-[#1E2638] bg-[#121622] shadow-sm hover:border-emerald-500/30 transition-all">
+          <div className="min-w-0">
+            <span className="text-[10px] sm:text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider block truncate">
               En Despensa & Cava
             </span>
-            <div className="text-2xl sm:text-3xl font-black text-white mt-1 font-mono-num">
-              {metrics.totalItems} <span className="text-xs text-[#94A3B8] font-sans font-normal">insumos</span>
+            <div className="text-xl sm:text-3xl font-black text-white mt-0.5 sm:mt-1 font-mono-num truncate">
+              {metrics.totalItems} <span className="text-[10px] sm:text-xs text-[#94A3B8] font-sans font-normal">insumos</span>
             </div>
-            <span className="text-xs text-[#94A3B8] mt-1 block">
-              Repartidos en {zones.length} zonas de tu casa
+            <span className="text-[10px] sm:text-xs text-[#94A3B8] mt-0.5 sm:mt-1 block truncate">
+              {zones.length} zonas de tu casa
             </span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-            <Warehouse className="w-6 h-6" />
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 ml-1.5">
+            <Warehouse className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
         </div>
 
         {/* 2. Stock Bajo / Por Agotarse */}
         <div 
           onClick={() => { audio.click(); setStatusFilter(statusFilter === 'LOW' ? 'ALL' : 'LOW'); }}
-          className={`rounded-2xl p-5 flex items-center justify-between border transition-all cursor-pointer shadow-sm ${
+          className={`rounded-2xl p-3.5 sm:p-5 flex items-center justify-between border transition-all cursor-pointer shadow-sm ${
             statusFilter === 'LOW'
               ? 'bg-rose-500/10 border-rose-500/50'
               : 'border-[#1E2638] bg-[#121622] hover:border-rose-500/40'
           }`}
         >
-          <div>
-            <span className="text-[11px] font-bold text-rose-400 uppercase tracking-wider block">
+          <div className="min-w-0">
+            <span className="text-[10px] sm:text-[11px] font-bold text-rose-400 uppercase tracking-wider block truncate">
               Por Agotarse
             </span>
-            <div className="text-2xl sm:text-3xl font-black text-rose-400 mt-1 font-mono-num">
-              {metrics.lowStockCount} <span className="text-xs text-[#94A3B8] font-sans font-normal">artículos</span>
+            <div className="text-xl sm:text-3xl font-black text-rose-400 mt-0.5 sm:mt-1 font-mono-num truncate">
+              {metrics.lowStockCount} <span className="text-[10px] sm:text-xs text-[#94A3B8] font-sans font-normal">faltantes</span>
             </div>
-            <span className="text-xs text-[#94A3B8] mt-1 block">
-              {statusFilter === 'LOW' ? '✓ Filtro activo (clic para quitar)' : 'Clic para filtrar faltantes'}
+            <span className="text-[10px] sm:text-xs text-[#94A3B8] mt-0.5 sm:mt-1 block truncate">
+              {statusFilter === 'LOW' ? '✓ Filtro activo' : 'Filtrar faltantes'}
             </span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400">
-            <AlertTriangle className="w-6 h-6" />
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0 ml-1.5">
+            <AlertTriangle className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
         </div>
 
         {/* 3. Por Vencer Pronto (Caducidad) */}
         <div 
           onClick={() => { audio.click(); setStatusFilter(statusFilter === 'EXPIRING' ? 'ALL' : 'EXPIRING'); }}
-          className={`rounded-2xl p-5 flex items-center justify-between border transition-all cursor-pointer shadow-sm ${
+          className={`rounded-2xl p-3.5 sm:p-5 flex items-center justify-between border transition-all cursor-pointer shadow-sm ${
             statusFilter === 'EXPIRING'
               ? 'bg-amber-500/10 border-amber-500/50'
               : 'border-[#1E2638] bg-[#121622] hover:border-amber-500/40'
           }`}
         >
-          <div>
-            <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">
-              Vence Pronto (&le;15 días)
+          <div className="min-w-0">
+            <span className="text-[10px] sm:text-[11px] font-bold text-amber-400 uppercase tracking-wider block truncate">
+              Vence Pronto (&le;15d)
             </span>
-            <div className="text-2xl sm:text-3xl font-black text-amber-300 mt-1 font-mono-num">
-              {metrics.expiringSoonCount} <span className="text-xs text-[#94A3B8] font-sans font-normal">por consumir</span>
+            <div className="text-xl sm:text-3xl font-black text-amber-300 mt-0.5 sm:mt-1 font-mono-num truncate">
+              {metrics.expiringSoonCount} <span className="text-[10px] sm:text-xs text-[#94A3B8] font-sans font-normal">por consumir</span>
             </div>
-            <span className="text-xs text-[#94A3B8] mt-1 block">
-              {statusFilter === 'EXPIRING' ? '✓ Filtro activo (clic para quitar)' : 'Evita tirar comida en el refri'}
+            <span className="text-[10px] sm:text-xs text-[#94A3B8] mt-0.5 sm:mt-1 block truncate">
+              {statusFilter === 'EXPIRING' ? '✓ Filtro activo' : 'Evita mermas'}
             </span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
-            <Clock className="w-6 h-6" />
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 ml-1.5">
+            <Clock className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
         </div>
 
         {/* 4. Valor Estimado de la Despensa (Moneda dinámica según el Hogar: EUR o MXN) */}
-        <div className="rounded-2xl p-5 flex items-center justify-between border border-[#1E2638] bg-[#121622] shadow-sm hover:border-emerald-500/30 transition-all">
-          <div>
-            <span className="text-[11px] font-bold text-sky-400 uppercase tracking-wider block">
-              Valor de tu Despensa
+        <div className="rounded-2xl p-3.5 sm:p-5 flex items-center justify-between border border-[#1E2638] bg-[#121622] shadow-sm hover:border-emerald-500/30 transition-all">
+          <div className="min-w-0">
+            <span className="text-[10px] sm:text-[11px] font-bold text-sky-400 uppercase tracking-wider block truncate">
+              Valor Despensa
             </span>
-            <div className="text-2xl sm:text-3xl font-black text-white mt-1 font-mono-num">
+            <div className="text-xl sm:text-3xl font-black text-white mt-0.5 sm:mt-1 font-mono-num truncate">
               {activeHouse?.currency === 'EUR' ? '€' : '$'}
-              {Math.round(metrics.totalValuationMxn).toLocaleString(activeHouse?.currency === 'EUR' ? 'es-ES' : 'es-MX')}{' '}
-              <span className="text-xs text-[#94A3B8] font-sans font-normal">
-                {activeHouse?.currency || 'MXN'}
-              </span>
+              {Math.round(metrics.totalValuationMxn).toLocaleString(activeHouse?.currency === 'EUR' ? 'es-ES' : 'es-MX')}
             </div>
-            <span className="text-xs text-[#94A3B8] mt-1 block">
-              Inversión total en {activeHouse?.name || 'la casa'}
+            <span className="text-[10px] sm:text-xs text-[#94A3B8] mt-0.5 sm:mt-1 block truncate">
+              {activeHouse?.currency || 'MXN'} • {activeHouse?.name || 'Hogar'}
             </span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400">
-            <DollarSign className="w-6 h-6" />
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 shrink-0 ml-1.5">
+            <DollarSign className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
         </div>
 
       </div>
+
+      {/* ═════════════════════════════════════════════════════════════════
+          GRÁFICOS & ANALÍTICA RESPONSIVA (Mobile-First Data Viz)
+         ═════════════════════════════════════════════════════════════════ */}
+      <InventoryChartsWidget
+        products={products}
+        zones={zones}
+        activeHouse={activeHouse}
+        selectedZone={selectedZone}
+        onSelectZone={setSelectedZone}
+        statusFilter={statusFilter}
+        onSelectStatusFilter={setStatusFilter}
+      />
 
       {/* ═════════════════════════════════════════════════════════════════
           ASISTENTE PROACTIVO DEL HOGAR (Recomendaciones, Cava & Desabasto)
@@ -381,9 +392,20 @@ export default function InventoryView({
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-12 py-2.5 rounded-xl bg-[#12100E] border border-[#2A2521] text-white placeholder-[#7A7268] text-xs sm:text-sm focus:outline-none focus:border-[#E0B441] transition-all"
             />
-            <kbd className="absolute right-3 top-3 px-1.5 py-0.5 rounded bg-[#1C1916] border border-[#2A2521] text-[10px] text-[#8B8378] font-mono pointer-events-none">
-              /
-            </kbd>
+            {search ? (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-2.5 p-1 rounded-md text-[#94A3B8] hover:text-white"
+                title="Limpiar búsqueda"
+              >
+                ✕
+              </button>
+            ) : (
+              <kbd className="absolute right-3 top-3 px-1.5 py-0.5 rounded bg-[#1C1916] border border-[#2A2521] text-[10px] text-[#8B8378] font-mono pointer-events-none hidden sm:inline">
+                /
+              </kbd>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -899,21 +921,21 @@ export default function InventoryView({
         ) : (
           
           /* ═════════════════════════════════════════════════════════════════
-             VISTA TABLA CONTABLE (Para auditoría rápida)
+             VISTA TABLA CONTABLE (Optimizada para Móvil y Desktop)
              ═════════════════════════════════════════════════════════════════ */
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-2xl border border-[#1E2638] bg-[#121622]">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-[#2A2521] text-[#8B8378] uppercase tracking-wider font-bold text-[10px]">
-                  <th className="py-3 px-4">Artículo & Categoría</th>
-                  <th className="py-3 px-3">Ubicación Física</th>
-                  <th className="py-3 px-3">Existencia</th>
-                  <th className="py-3 px-3">Costo Unitario ($ MXN)</th>
-                  <th className="py-3 px-3">Valuación Total</th>
-                  <th className="py-3 px-4 text-right">Acciones</th>
+                <tr className="border-b border-[#1E2638] text-[#94A3B8] uppercase tracking-wider font-bold text-[10px] bg-[#0E121A]">
+                  <th className="py-3 px-3 sm:px-4">Artículo</th>
+                  <th className="py-3 px-3 hidden md:table-cell">Zona</th>
+                  <th className="py-3 px-2 sm:px-3">Existencia</th>
+                  <th className="py-3 px-3 hidden sm:table-cell">Precio</th>
+                  <th className="py-3 px-3 hidden lg:table-cell">Valuación</th>
+                  <th className="py-3 px-2 sm:px-4 text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#2A2521]">
+              <tbody className="divide-y divide-[#1E2638]">
                 {filteredProducts.map((p) => {
                   const isLow = (p.quantity || 0) <= (p.minStock || 0);
                   const isOut = (p.quantity || 0) <= 0;
@@ -924,87 +946,77 @@ export default function InventoryView({
                       key={p.id}
                       className="hover:bg-white/[0.02] transition-colors group"
                     >
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          {p.isWine && <span className="text-base">{p.countryFlag || '🍷'}</span>}
-                          <span className="font-bold text-white text-sm">{p.name}</span>
+                      <td className="py-2.5 sm:py-3 px-3 sm:px-4">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          {p.isWine && <span className="text-sm sm:text-base">{p.countryFlag || '🍷'}</span>}
+                          <span className="font-bold text-white text-xs sm:text-sm truncate max-w-[130px] xs:max-w-[170px] sm:max-w-none block">{p.name}</span>
                           {p.rating > 0 && (
-                            <span className="text-[#E0B441] text-xs font-bold font-mono">
-                              ⭐ {p.rating}/5
+                            <span className="text-[#E0B441] text-[10px] sm:text-xs font-bold font-mono shrink-0">
+                              ⭐ {p.rating}
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5 text-[#8B8378]">
-                          <span>{p.category}</span>
-                          {p.vintage && (
-                            <>
-                              <span>•</span>
-                              <span className="text-[#E0B441] font-mono-num">Añada {p.vintage}</span>
-                            </>
-                          )}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[#94A3B8] text-[10px] sm:text-xs">
+                          <span className="md:hidden px-1.5 py-0.2 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 font-mono text-[9px]">
+                            {p.zone}
+                          </span>
+                          <span className="truncate">{p.category}</span>
+                          <span className="sm:hidden font-mono text-emerald-400/90 font-bold">
+                            • ${totalRowValuation.toFixed(0)}
+                          </span>
                         </div>
                       </td>
 
-                      <td className="py-3 px-3">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#1F4D3A]/20 text-[#3D8B6E] border border-[#1F4D3A]/40 font-mono">
+                      <td className="py-3 px-3 hidden md:table-cell">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono">
                           {p.zone}
                         </span>
                       </td>
 
-                      <td className="py-3 px-3">
-                        <div className="flex items-center gap-3">
-                          <div className="font-mono-num font-bold text-sm text-white">
-                            {p.quantity} <span className="text-xs text-[#8B8378] font-sans">{p.unit}</span>
-                          </div>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold font-mono-num ${
+                      <td className="py-2.5 sm:py-3 px-2 sm:px-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                          <span className="font-mono-num font-bold text-xs sm:text-sm text-white whitespace-nowrap">
+                            {p.quantity} <span className="text-[10px] sm:text-xs text-[#94A3B8] font-sans">{p.unit}</span>
+                          </span>
+                          <span className={`px-1.5 py-0.2 rounded text-[9px] font-extrabold font-mono-num inline-block w-fit ${
                             isOut
                               ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                               : isLow
                               ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                               : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                           }`}>
-                            {isOut ? 'AGOTADO' : isLow ? 'STOCK BAJO' : 'ÓPTIMO'}
+                            {isOut ? 'AGOTADO' : isLow ? 'BAJO' : 'OK'}
                           </span>
                         </div>
                       </td>
 
-                      <td className="py-3 px-3 font-mono-num text-gray-200">
-                        ${(p.unitPriceMxn || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+                      <td className="py-3 px-3 font-mono-num text-gray-300 hidden sm:table-cell text-xs">
+                        ${(p.unitPriceMxn || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                       </td>
 
-                      <td className="py-3 px-3 font-mono-num font-bold text-emerald-400">
-                        ${totalRowValuation.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+                      <td className="py-3 px-3 font-mono-num font-bold text-emerald-400 hidden lg:table-cell text-xs">
+                        ${totalRowValuation.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                       </td>
 
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="py-2.5 sm:py-3 px-2 sm:px-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => handleAdjustQuantity(p, -1)}
-                            className="w-7 h-7 rounded-lg bg-[#12100E] border border-[#2A2521] text-gray-300 hover:text-white flex items-center justify-center font-bold text-xs"
+                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#1A2030] hover:bg-rose-500/20 border border-[#252E42] text-gray-300 hover:text-white flex items-center justify-center font-bold text-xs active:scale-95 cursor-pointer"
+                            title="Consumir 1 unidad"
                           >
                             -
                           </button>
                           <button
                             onClick={() => handleAdjustQuantity(p, 1)}
-                            className="w-7 h-7 rounded-lg bg-[#12100E] border border-[#2A2521] text-gray-300 hover:text-white flex items-center justify-center font-bold text-xs"
+                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#1A2030] hover:bg-emerald-500/20 border border-[#252E42] text-gray-300 hover:text-white flex items-center justify-center font-bold text-xs active:scale-95 cursor-pointer"
+                            title="Añadir 1 unidad"
                           >
                             +
                           </button>
-                          {(p.isWine || p.category === 'Vinos & Licores') && (
-                            <button
-                              onClick={() => {
-                                audio.click();
-                                if (onOpenWineTasting) onOpenWineTasting(p);
-                              }}
-                              className="px-2.5 py-1 rounded-xl bg-[#6B1F2E]/30 text-[#E0B441] border border-[#A83A50]/40 text-[11px] font-bold flex items-center gap-1 ml-1"
-                            >
-                              <span>🍷</span>
-                              <span>Cata</span>
-                            </button>
-                          )}
                           <button
                             onClick={() => { audio.click(); onEditProduct(p); }}
-                            className="p-1.5 text-gray-400 hover:text-white rounded-lg ml-1"
+                            className="p-1.5 text-gray-400 hover:text-white rounded-lg hidden xs:inline-flex"
                             title="Editar insumo"
                           >
                             <Pencil className="w-3.5 h-3.5" />
@@ -1016,7 +1028,7 @@ export default function InventoryView({
                                 onDeleteProduct(p.id);
                               }
                             }}
-                            className="p-1.5 text-gray-400 hover:text-rose-400 hover:bg-rose-500/20 rounded-lg ml-1"
+                            className="p-1.5 text-gray-400 hover:text-rose-400 rounded-lg hidden sm:inline-flex"
                             title="Eliminar del inventario"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

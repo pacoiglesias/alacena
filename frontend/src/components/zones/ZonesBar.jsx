@@ -31,7 +31,7 @@ export default function ZonesBar({
           <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">
             Zonas Físicas de Almacén
           </span>
-          <span className="text-[11px] text-gray-500 font-medium">
+          <span className="text-[11px] text-gray-500 font-medium hidden sm:inline">
             (Haz clic en ✏️ para cambiar nombres como Cava o Cuarto Frío)
           </span>
         </div>
