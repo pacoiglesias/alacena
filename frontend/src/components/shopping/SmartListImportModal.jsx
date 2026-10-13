@@ -95,6 +95,40 @@ SUBTOTAL                     $2,303.00
 IVA                          $0.00
 TOTAL MXN                    $2,303.00
 VISA DEBITO                  $2,303.00`;
+    } else if (type === 'lacomer') {
+      storeName = 'La Comer (Las Ánimas, Puebla)';
+      sampleTicket = 
+`laComer
+Suc. Las Animas
+Boulevard Atlixco, 3156
+Puebla, Puebla C.P. 72400
+
+CANT SKU ARTICULO PRECIO REGULAR PRECIO PROMOCION TOTAL
+1 425 REFRESCO COCA COLA  161.00  161.00
+1 999 REFRESCO MUNDET 235  130.00  130.00
+1 785 AGUA CANADA DRY 237  68.60  68.60
+2 869 ALUBIAS CIDACOS 570  95.00  190.00
+1 969 EMPZANIZADOR BIMBO  48.10  46.00  46.00
+2 073 QUESO SAINT MAURE C  87.00  174.00
+1 669 HARINA HUNGRY JACK  99.00  99.00
+2 142 MINI PEPINO PERSA C  49.70  99.40
+2 772 TOCINO AHUMADO EN P  137.50  275.00
+2 123 ELOTE COCIDO LOS AZ  49.90  99.80
+0.645 029 PORO  49.90  32.19
+1 660 LECHUGA HIDROPÓNICA  54.90  54.90
+1 162 REFRESCO MUNDET 355  22.00  22.00
+1 944 ESPINACA VEGETALIST  46.80  46.80
+3 101 ARROZ SOS 1 KG  68.00  204.00
+1 056 FRIJOL VERDE VALLE  50.40  50.40
+2 318 GALLETAS OKKO SUPER  33.00  66.00
+0.615 050 CHILE POBLANO  64.90  39.91
+1 211 MORCILLA DE CONDE D  109.50  109.50
+1 823 GALLETA NESTLE 108  42.00  42.00
+1 105 CHORIZO TIPO CONDE  133.50  133.50
+0.66 745 CASTAÑA  425.00  298.00  196.68
+SUBTOTAL 2340.68
+1 Estacionamiento (Las Animas) 5.00
+TOTAL $ 2345.68`;
     }
 
     setRawText(sampleTicket);
@@ -124,6 +158,9 @@ VISA DEBITO                  $2,303.00`;
 - 2 botellas de vino tinto
 - 1.5 l de leche entera`
       );
+    } else if (type === 'lacomer') {
+      handleLoadSampleTicket('lacomer');
+      return;
     } else if (type === 'costco') {
       handleLoadSampleTicket('costco');
       return;
@@ -468,6 +505,13 @@ VISA DEBITO                  $2,303.00`;
                   </button>
                   <button
                     type="button"
+                    onClick={() => handleLoadSampleText('lacomer')}
+                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-[#E0B441] border border-[#E0B441]/30 transition-all font-bold"
+                  >
+                    🇲🇽 La Comer
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => handleLoadSampleText('costco')}
                     className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-[#E5724A] border border-[#E5724A]/30 transition-all"
                   >
@@ -560,6 +604,13 @@ VISA DEBITO                  $2,303.00`;
                   Probar Tickets Reales (1-Clic):
                 </span>
                 <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleLoadSampleTicket('lacomer')}
+                    className="px-2.5 py-1 rounded-lg bg-[#E0B441]/15 hover:bg-[#E0B441]/25 text-xs text-[#E0B441] border border-[#E0B441]/30 transition-all font-semibold"
+                  >
+                    🇲🇽 Ticket La Comer (Puebla)
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleLoadSampleTicket('mercadona')}

@@ -23,17 +23,27 @@ export const UNIT_SYNONYMS = {
 };
 
 export const DEPT_KEYWORDS = {
-  'Frutas & Verduras': ['jitomate', 'tomate', 'cebolla', 'aguacate', 'limon', 'limón', 'manzana', 'platano', 'plátano', 'papa', 'cilantro', 'lechuga', 'zanahoria', 'calabaza', 'chile', 'serrano', 'jalapeño', 'fresa', 'uva', 'naranja', 'espinaca', 'apio', 'ajo', 'ajos', 'puerro', 'morrón', 'morron', 'laurel', 'champignon', 'champiñon', 'moras', 'mango', 'pepino', 'pera', 'melon', 'sandia', 'kiwi'],
+  'Frutas & Verduras': ['jitomate', 'tomate', 'cebolla', 'aguacate', 'limon', 'limón', 'manzana', 'platano', 'plátano', 'papa', 'cilantro', 'lechuga', 'zanahoria', 'calabaza', 'chile', 'serrano', 'jalapeño', 'fresa', 'uva', 'naranja', 'espinaca', 'apio', 'ajo', 'ajos', 'puerro', 'poro', 'elote', 'castaña', 'castana', 'pepino', 'morrón', 'morron', 'laurel', 'champignon', 'champiñon', 'moras', 'mango', 'pera', 'melon', 'sandia', 'kiwi'],
   'Carnes & Proteínas': ['carne', 'pollo', 'res', 'pechuga', 'ribeye', 'arrachera', 'molida', 'salmon', 'salmón', 'atun', 'atún', 'pescado', 'camaron', 'camarón', 'tocino', 'jamon', 'jamón', 'lomo', 'costilla', 'chuleta', 'filete', 'chorizo', 'morcilla', 'compango', 'chistorra', 'panceta', 'merluza', 'bacalao', 'dorada', 'lubina', 'calamar', 'gambas', 'pavo', 'ternera', 'cerdo'],
   'Lácteos & Huevos': ['huevo', 'huevos', 'leche', 'queso', 'crema', 'mantequilla', 'yogurt', 'yoghurt', 'yogur', 'parmesano', 'manchego', 'gouda', 'oaxaca', 'mozzarella', 'nata', 'cuajada'],
   'Vinos & Licores': ['vino', 'tinto', 'blanco', 'cabernet', 'malbec', 'tequila', 'mezcal', 'ron', 'whisky', 'whiskey', 'gin', 'ginebra', 'cerveza', 'champagne', 'cava', 'prosecco', 'bodega', 'ribera', 'rioja', 'reserva', 'crianza'],
   'Aceites & Condimentos': ['aceite', 'oliva', 'sal', 'pimienta', 'vinagre', 'oregano', 'orégano', 'comino', 'canela', 'soya', 'mayonesa', 'mostaza', 'catsup', 'pimentón', 'pimenton', 'azafran', 'azafrán', 'curry'],
-  'Abarrotes': ['arroz', 'frijol', 'frijoles', 'negritos', 'alubia', 'alubias', 'legumbres', 'pasta', 'harina', 'azucar', 'azúcar', 'cereal', 'avena', 'galletas', 'pan', 'cafe', 'café', 'te', 'té', 'miel', 'mermelada', 'lenteja', 'garbanzo', 'espagueti', 'macarrones'],
+  'Abarrotes': ['arroz', 'frijol', 'frijoles', 'negritos', 'alubia', 'alubias', 'legumbres', 'pasta', 'harina', 'empanizador', 'empzanizador', 'azucar', 'azúcar', 'cereal', 'avena', 'galletas', 'pan', 'cafe', 'café', 'te', 'té', 'miel', 'mermelada', 'lenteja', 'garbanzo', 'espagueti', 'macarrones'],
   'Limpieza & Hogar': ['jabon', 'jabón', 'detergente', 'suavizante', 'cloro', 'papel', 'higienico', 'higiénico', 'servilleta', 'servilletas', 'bolsas de basura', 'trapeador', 'escoba', 'fabuloso', 'pinol', 'lavatrastes', 'esponja', 'aluminio', 'kleenex', 'lavavajillas', 'lejia', 'fregasuelos'],
-  'Bebidas & Refrescos': ['agua', 'refresco', 'coca', 'coca-cola', 'mineral', 'peñafiel', 'jugo', 'tehuacan', 'squirt', 'sprite', 'tonica', 'tónica', 'fanta', 'aquarius', 'gaseosa'],
+  'Bebidas & Refrescos': ['agua', 'refresco', 'coca', 'coca-cola', 'coca cola', 'mundet', 'canada dry', 'mineral', 'peñafiel', 'jugo', 'tehuacan', 'squirt', 'sprite', 'tonica', 'tónica', 'fanta', 'aquarius', 'gaseosa'],
 };
 
 export const STORE_KEYWORDS = {
+  // México
+  'La Comer': ['lacomer', 'la comer', 'comer', 'fresko', 'city fresko', 'comercial mexicana'],
+  'Costco': ['costco', 'kirkland', 'paquete grande', 'bulk', 'kilo y medio'],
+  'City Market': ['city market', 'gourmet', 'prime', 'importado', 'reserva', 'prosciutto', 'parmigiano', 'trufa'],
+  'Chedraui Selecto': ['chedraui', 'selecto chedraui'],
+  'Walmart Express': ['walmart', 'express', 'superama'],
+  'OXXO': ['oxxo', 'six', 'hielo'],
+  'Soriana': ['soriana', 'hiper'],
+  'Mercado Local': ['mercado', 'tianguis', 'recauderia', 'carniceria', 'polleria'],
+
   // España
   'Mercadona': ['mercadona', 'hacendado', 'deliplus', 'bosque verde', 'compy'],
   'Dia Supermercados': ['dia', 'supermercados dia', 'dia market', 'dia maxi'],
@@ -43,28 +53,30 @@ export const STORE_KEYWORDS = {
   'Lidl España': ['lidl'],
   'Alcampo': ['alcampo', 'auchan'],
   'Pescadería del Barrio': ['pescaderia', 'pescadería', 'lonja', 'marisqueria'],
-
-  // México
-  'Costco': ['costco', 'kirkland', 'paquete grande', 'bulk', 'kilo y medio'],
-  'City Market': ['city market', 'gourmet', 'prime', 'importado', 'reserva', 'prosciutto', 'parmigiano', 'trufa'],
-  'Chedraui Selecto': ['chedraui', 'selecto', 'super'],
-  'Walmart Express': ['walmart', 'express', 'superama'],
-  'OXXO': ['oxxo', 'six', 'hielo'],
-  'Soriana': ['soriana', 'hiper'],
-  'Mercado Local': ['mercado', 'tianguis', 'recauderia', 'carniceria', 'polleria'],
 };
 
 // Frases de saludo o metadatos de tickets a ignorar
 export const IGNORED_LINE_PATTERNS = [
   /^(hola|buen[ao]s|saludos|oiga|don|doña|buenas tardes|buenos días)/i,
   /^(esto falta|falta en la cocina|te paso la lista|lista del super|lista de compras|por favor|gracias|adjunto|saludos)/i,
-  /^(cif|nif|rfc|factura|simplificada|ticket|caja|cajero|oper|tpv|terminal|folio|fecha|hora|tienda|sucursal|direcci[oó]n|calle|avda|c\/|tel|tel[eé]fono|atendido|atendi[oó])/i,
-  /^(total|subtotal|sub-total|importe|base\s+imponible|cuota|tarjeta|visa|mastercard|efectivo|cambio|cambio\s+entregado|art[ií]culos|unidades|iva|iva\s*incluido)/i,
+  /^(cif|nif|rfc|factura|simplificada|ticket|caja|cajero|oper|tpv|terminal|folio|fecha|hora|tienda|sucursal|direcci[oó]n|calle|avda|av\.|c\/|tel|tel[eé]fono|atendido|atendi[oó])/i,
+  /^(total|subtotal|sub-total|importe|base\s+imponible|cuota|tarjeta|visa|mastercard|efectivo|cambio|cambio\s+entregado|art[ií]culos|unidades|iva|iva\s*incluido|ieps)/i,
   /^(gracias\s+por\s+su\s+visita|devoluci[oó]n|conservar|atenci[oó]n|puntos|descuento|ahorro|promoci[oó]n|v[aá]lido|caducidad|le\s+atendi[oó]|bienvenido[s]?)/i,
   /^(supermercado|supermercados|hipermercado|supermercado\s+selecto|autoservicio|comprobante|recibo\s+de\s+compra)/i,
-  /^(mercadona|carrefour|dia\s+supermercados|el\s+corte\s+ingl[eé]s|costco|chedraui|walmart|oxxo|soriana|alcampo|hipercor|supercor|lidl|aldi)(?:,?\s*(?:s\.?a\.?|s\.?l\.?|de\s+c\.?v\.?))?$/i,
+  /^(mercadona|carrefour|dia\s+supermercados|el\s+corte\s+ingl[eé]s|costco|chedraui|walmart|oxxo|soriana|alcampo|hipercor|supercor|lidl|aldi|lacomer|la\s+comer)(?:,?\s*(?:s\.?a\.?|s\.?l\.?|de\s+c\.?v\.?))?$/i,
   /^(descripci[oó]n|art[ií]culo|concepto|producto)\s+(cant|cantidad)?\s*(precio|pvp)?\s*(importe|total)?/i,
-  /^(cant|cantidad)\s+(descripci[oó]n|art[ií]culo)\s*(precio|pvp)?\s*(importe|total)?/i,
+  /^(cant|cantidad)?\s*(sku\s+)?(art[ií]culo|descripci[oó]n|concepto)\s*(precio|pvp)?/i,
+  /^(precio\s+regular|precio\s+promoci[oó]n|precio\s+promocion)/i,
+  /^(suc\.|sucursal|boulevard|blvd|calle|avda|av\.|avenida|fraccionamiento|fracc\.|col\.|colonia|puebla|cdmx|ciudad\s+de\s+m[eé]xico|c\.p\.|cp\s*\d{4,5})/i,
+  /^(comercial\s+city\s+fresko|city\s+fresko|fresko|la\s*comer|lacomer|comercial\s+mexicana|nueva\s+walmart|tiendas\s+soriana)/i,
+  /^(r[eé]gimen|regimen|personas\s+morales|t[ií]tulo\s+ii|lisr)/i,
+  /^(?:\d+\s+)?(?:estacionamiento|boleto|folio|cajero|transacci[oó]n|token|d[eé]bito|cr[eé]dito|autorizad[oa])/i,
+  /estacionamiento/i,
+  /(?:autorizado\s+con\s+firma|firma\s+digital|paga\s+menos|ahorraste|ofertas\s+y\s+descuentos)/i,
+  /(?:servicio\s+a\s+clientes|entrega\s+a\s+domicilio|tu\s+opini[oó]n\s+nos\s+importa|monedero\s+naranja|timbres\s+bandejas|expira\s+\d+)/i,
+  /^(?:vas\s+al\s+super|la\s+comer\s+en\s+tu\s+casa)/i,
+  /(?:www\.[a-z0-9\-]+\.com|800-\d+)/i,
+  /^\d{12,}$/, // Código de barras numérico largo
   /^[🛒]\s*lista\s+de\s+compras/i,
   /^lista\s+de\s+compras/i,
   /^[-=*_~·\s]{3,}$/, // Separadores tipográficos
@@ -82,24 +94,23 @@ export const CATEGORY_HEADER_REGEX = /^(?:🫘|🥩|🥬|🥫|🍚|🍷|☕|🧼
 export function formatProductName(rawName) {
   if (!rawName) return '';
   const trimmed = rawName.trim();
-  
-  // Si no está completamente en mayúsculas, respetar mayúsculas originales
-  if (trimmed !== trimmed.toUpperCase() || trimmed.length <= 3) {
-    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-  }
 
   const preserveUpper = ['1L', '2L', '1KG', '2KG', '500G', '250G', '750ML', 'DO', 'DOC', 'AOP', 'BIO', 'ECO', 'AOVE', 'V.E.', 'XL', 'L'];
-  const words = trimmed.toLowerCase().split(/\s+/);
+  const words = trimmed.split(/\s+/);
   
-  const formatted = words.map((w, idx) => {
+  const formattedWords = words.map((w, idx) => {
     const upperW = w.toUpperCase();
+    if (upperW === 'EMPZANIZADOR') return 'Empanizador';
+    if (upperW === 'VEGETALIST') return 'Vegetalistos';
     if (preserveUpper.includes(upperW)) return upperW;
-    if (idx > 0 && ['de', 'del', 'con', 'en', 'al', 'y', 'e', 'o', 'la', 'el', 'los', 'las', 'd'].includes(w)) {
-      return w;
+    const lowerW = w.toLowerCase();
+    if (idx > 0 && ['de', 'del', 'con', 'en', 'al', 'y', 'e', 'o', 'la', 'el', 'los', 'las', 'd'].includes(lowerW)) {
+      return lowerW;
     }
-    return w.charAt(0).toUpperCase() + w.slice(1);
-  }).join(' ');
+    return lowerW.charAt(0).toUpperCase() + lowerW.slice(1);
+  });
 
+  const formatted = formattedWords.join(' ');
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
@@ -185,18 +196,25 @@ export function parseRawShoppingText(rawText, existingProducts = []) {
     // Quitar códigos de barras / PLU numéricos largos al inicio (ej. "848000012345 1 LECHE")
     cleanLine = cleanLine.replace(/^\d{8,14}\s+/, '').trim();
 
-    // 4. DETECCIÓN Y EXTRACCIÓN DE PRECIO DE TICKET AL FINAL DE LA LÍNEA
-    // Soporta: "0,95", "4.50 €", "$ 28.50", "2,44 A", "9.60 EUR"
+    // 4. DETECCIÓN Y EXTRACCIÓN DE PRECIO(S) DE TICKET AL FINAL DE LA LÍNEA
+    // Soporta múltiples columnas de precio (ej. PRECIO REGULAR + PRECIO PROMO + TOTAL: "48.10 46.00 46.00", "95.00 190.00" o "161.00 161.00")
     let extractedTicketPrice = null;
-    const priceEndMatch = cleanLine.match(/(?:[\$€]\s*)?(\d+[.,]\d{2})\s*(?:€|\$|EUR|MXN)?(?:\s+[A-Za-z])?$/i);
-    if (priceEndMatch) {
-      extractedTicketPrice = parseFloat(priceEndMatch[1].replace(',', '.'));
-      cleanLine = cleanLine.slice(0, priceEndMatch.index).trim();
+    let unitTicketPrice = null;
+    const trailingPrices = [];
 
-      // Si había un segundo precio previo (ej. Precio unitario seguido del importe total: "4,80 9,60")
-      const unitPriceBeforeMatch = cleanLine.match(/(?:[\$€]\s*)?(\d+[.,]\d{2})\s*(?:€|\$)?$/i);
-      if (unitPriceBeforeMatch) {
-        cleanLine = cleanLine.slice(0, unitPriceBeforeMatch.index).trim();
+    while (true) {
+      const priceEndMatch = cleanLine.match(/(?:[\$€]\s*)?(\d+[.,]\d{2})\s*(?:€|\$|EUR|MXN)?(?:\s+[A-Za-z])?$/i);
+      if (!priceEndMatch) break;
+      const num = parseFloat(priceEndMatch[1].replace(',', '.'));
+      trailingPrices.unshift(num);
+      cleanLine = cleanLine.slice(0, priceEndMatch.index).trim();
+    }
+
+    if (trailingPrices.length > 0) {
+      // El último importe al final de la fila es siempre el Total cobrado
+      extractedTicketPrice = trailingPrices[trailingPrices.length - 1];
+      if (trailingPrices.length > 1) {
+        unitTicketPrice = trailingPrices[0];
       }
     }
 
@@ -204,27 +222,41 @@ export function parseRawShoppingText(rawText, existingProducts = []) {
     cleanLine = cleanLine.replace(/^un\s+chorrito\s+de\s+/i, '1 chorrito ');
     cleanLine = cleanLine.replace(/^un[a]?\s+/i, '1 ');
 
-    // 5. DETECCIÓN DE CANTIDAD Y UNIDAD
+    // 5. DETECCIÓN DE CANTIDAD, SKU Y UNIDAD
     let quantity = 1;
     let unit = 'piezas';
 
-    // A. Fracciones (ej: "1/2 kg de queso")
-    const fractionMatch = cleanLine.match(/^(\d+)\/(\d+)\s*/);
-    if (fractionMatch) {
-      quantity = parseFloat((parseInt(fractionMatch[1], 10) / parseInt(fractionMatch[2], 10)).toFixed(2));
-      cleanLine = cleanLine.replace(fractionMatch[0], '').trim();
+    // A. Formato específico de Tickets de Supermercado: [CANTIDAD] [SKU (2 a 5 dígitos)] [ARTICULO]
+    // Ej: "1 425 REFRESCO COCA COLA", "0.645 029 PORO", "2 869 ALUBIAS CIDACOS 570"
+    const ticketSkuMatch = cleanLine.match(/^(\d+(?:[.,]\d+)?)\s+(\d{2,5})\s+([A-Za-zÁÉÍÓÚáéíóúñÑ].*)$/);
+    if (ticketSkuMatch) {
+      quantity = parseFloat(ticketSkuMatch[1].replace(',', '.'));
+      // ticketSkuMatch[2] es el código SKU interno de la tienda (ej. 425, 029, 745), se descarta limpiamente
+      cleanLine = ticketSkuMatch[3].trim();
+
+      // Si la cantidad es decimal (< 1 o fraccionaria), se trata de un artículo pesado a granel (kg)
+      if (quantity % 1 !== 0 || quantity < 1) {
+        unit = 'kg';
+      }
     } else {
-      // B. Multiplicador tipo "2 x Leche" o "3 X Yogur"
-      const multiplierMatch = cleanLine.match(/^(\d+)\s*[xX]\s*/);
-      if (multiplierMatch) {
-        quantity = parseFloat(multiplierMatch[1]);
-        cleanLine = cleanLine.replace(multiplierMatch[0], '').trim();
+      // B. Fracciones (ej: "1/2 kg de queso")
+      const fractionMatch = cleanLine.match(/^(\d+)\/(\d+)\s*/);
+      if (fractionMatch) {
+        quantity = parseFloat((parseInt(fractionMatch[1], 10) / parseInt(fractionMatch[2], 10)).toFixed(2));
+        cleanLine = cleanLine.replace(fractionMatch[0], '').trim();
       } else {
-        // C. Número inicial (ej. "2 Leches", "1.5 kg", "1 LECHE ENTERA")
-        const numberMatch = cleanLine.match(/^(\d+(?:[.,]\d+)?)\s*/);
-        if (numberMatch) {
-          quantity = parseFloat(numberMatch[1].replace(',', '.'));
-          cleanLine = cleanLine.replace(numberMatch[0], '').trim();
+        // C. Multiplicador tipo "2 x Leche" o "3 X Yogur"
+        const multiplierMatch = cleanLine.match(/^(\d+)\s*[xX]\s*/);
+        if (multiplierMatch) {
+          quantity = parseFloat(multiplierMatch[1]);
+          cleanLine = cleanLine.replace(multiplierMatch[0], '').trim();
+        } else {
+          // D. Número inicial (ej. "2 Leches", "1.5 kg", "1 LECHE ENTERA")
+          const numberMatch = cleanLine.match(/^(\d+(?:[.,]\d+)?)\s*/);
+          if (numberMatch) {
+            quantity = parseFloat(numberMatch[1].replace(',', '.'));
+            cleanLine = cleanLine.replace(numberMatch[0], '').trim();
+          }
         }
       }
     }
@@ -267,7 +299,7 @@ export function parseRawShoppingText(rawText, existingProducts = []) {
       const prevWordLower = (words[words.length - 2] || '').toLowerCase();
       const isClassOrSize = lastWordLower === 'l' && ['clase', 'talla', 'tamano', 'tamaño'].includes(prevWordLower);
       
-      if (!isClassOrSize) {
+      if (!isClassOrSize && !ticketSkuMatch) {
         for (const [standardUnit, synonyms] of Object.entries(UNIT_SYNONYMS)) {
           if (synonyms.includes(lastWordLower)) {
             unit = standardUnit;
@@ -306,7 +338,13 @@ export function parseRawShoppingText(rawText, existingProducts = []) {
       department = matchedPantryProd.category;
     } else {
       for (const [deptName, keywords] of Object.entries(DEPT_KEYWORDS)) {
-        if (keywords.some((k) => prodLower.includes(k))) {
+        const matchesKeyword = keywords.some((k) => {
+          if (k.length <= 4) {
+            return new RegExp(`(?:^|[\\s,\\/\\-\\(\\)])${k}(?:$|[\\s,\\/\\-\\(\\)])`, 'i').test(prodLower);
+          }
+          return prodLower.includes(k);
+        });
+        if (matchesKeyword) {
           department = deptName;
           break;
         }

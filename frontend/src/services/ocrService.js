@@ -284,6 +284,35 @@ export async function extractTextFromFile(file, existingProducts = []) {
             return;
           }
 
+          // Si el PDF no tiene texto vectorial pero contiene imágenes escaneadas embebidas (JPEG)
+          const uint8 = new Uint8Array(buffer);
+          let startIdx = -1;
+          for (let i = 0; i < uint8.length - 2; i++) {
+            if (uint8[i] === 0xFF && uint8[i + 1] === 0xD8 && uint8[i + 2] === 0xFF) {
+              startIdx = i;
+              break;
+            }
+          }
+          if (startIdx !== -1) {
+            let endIdx = -1;
+            for (let i = uint8.length - 2; i >= startIdx; i--) {
+              if (uint8[i] === 0xFF && uint8[i + 1] === 0xD9) {
+                endIdx = i + 2;
+                break;
+              }
+            }
+            if (endIdx > startIdx) {
+              const imageBlob = new Blob([uint8.subarray(startIdx, endIdx)], { type: 'image/jpeg' });
+              const ocrRes = await extractShoppingListFromImage(imageBlob, () => {}, existingProducts);
+              resolve({
+                rawText: ocrRes.rawText,
+                items: ocrRes.items,
+                note: ocrRes.items.length > 0 ? `Se extrajo y procesó la imagen escaneada del PDF con éxito (${ocrRes.items.length} artículos detectados).` : null,
+              });
+              return;
+            }
+          }
+
           resolve({
             rawText: '',
             items: [],
