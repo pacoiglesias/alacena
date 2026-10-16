@@ -68,10 +68,11 @@ export default function PurchaseHistoryModal({
                     <span>{new Date(receipt.date).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                   </div>
                   <span className="font-mono-num font-bold text-white">
-                    Total: ${(receipt.totalMxn || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+                    Total: {new Intl.NumberFormat('es-MX', { style: 'currency', currency: receipt.currency || 'MXN' }).format(receipt.totalMxn || 0)} {receipt.currency || 'MXN'}
                   </span>
                 </div>
 
+                <p className="text-xs text-[#B8AFA3]">Compró: {receipt.buyer || 'Sin registrar'}{receipt.notes ? ` · ${receipt.notes}` : ''}</p>
                 <div className="space-y-2">
                   {receipt.items.map((item, iIdx) => (
                     <div 

@@ -19,18 +19,15 @@ db.version(2).stores({
 // Helper sync utilities
 export async function syncPantryToIndexedDb(products, shoppingList, recipes, auditLogs) {
   try {
-    if (products && products.length) {
-      await db.products.bulkPut(products);
-    }
-    if (shoppingList && shoppingList.length) {
-      await db.shoppingList.bulkPut(shoppingList);
-    }
-    if (recipes && recipes.length) {
-      await db.recipes.bulkPut(recipes);
-    }
-    if (auditLogs && auditLogs.length) {
-      await db.auditLogs.bulkPut(auditLogs);
-    }
+    const entries = [[db.products, products], [db.shoppingList, shoppingList],
+      [db.recipes, recipes], [db.auditLogs, auditLogs]].filter(([, rows]) => Array.isArray(rows));
+    if (!entries.length) return;
+    await db.transaction('rw', entries.map(([table]) => table), async () => {
+      for (const [table, rows] of entries) {
+        await table.clear();
+        if (rows.length) await table.bulkPut(rows);
+      }
+    });
   } catch (err) {
     console.warn('[Dexie DB] Background sync warning:', err);
   }

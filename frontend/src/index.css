@@ -1,10 +1,10 @@
 @import "tailwindcss";
 @import "./styles/tokens.css";
+@import "./styles/home-shopping.css";
 
 @layer base {
   :root {
     --font-sans: var(--font-body);
-    --font-mono: var(--font-mono);
   }
 
   body {

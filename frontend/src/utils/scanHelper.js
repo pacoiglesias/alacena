@@ -9,59 +9,39 @@
  * - Clave directa: ALC-1, 7501000111223, prod-1
  */
 export function extractCodeFromScan(rawCode) {
-  if (!rawCode) return '';
-  let str = String(rawCode).trim();
-
-  // 1. Si es un JSON serializado de ALACENA
-  if (str.startsWith('{') && str.endsWith('}')) {
+  if (rawCode == null) return '';
+  const value = String(rawCode).trim();
+  if (!value || value.length > 4096) return '';
+  if (value.startsWith('{')) {
     try {
-      const parsed = JSON.parse(str);
-      if (parsed.barcode) return String(parsed.barcode).trim();
-      if (parsed.id) return String(parsed.id).trim();
-    } catch (_) {}
+      const parsed = JSON.parse(value);
+      const code = parsed.barcode || parsed.qrId || parsed.id;
+      return typeof code === 'string' || typeof code === 'number' ? String(code).trim() : '';
+    } catch { return ''; }
   }
-
-  // 2. Si contiene parámetros de consulta (?scan=, &scan=, ?qr=, ?id=)
-  if (str.includes('?scan=') || str.includes('&scan=')) {
+  if (value.includes('?')) {
     try {
-      const dummyUrl = new URL(str, typeof window !== 'undefined' ? window.location.origin : 'https://alacena.local');
-      const val = dummyUrl.searchParams.get('scan');
-      if (val) return decodeURIComponent(val).trim();
-    } catch (_) {
-      const m = str.match(/[?&]scan=([^&#\s]+)/i);
-      if (m && m[1]) return decodeURIComponent(m[1]).trim();
-    }
+      const url = new URL(value, 'https://alacena.local');
+      for (const key of ['scan', 'qr', 'id']) {
+        const code = url.searchParams.get(key);
+        if (code) return code.trim(); // URLSearchParams already decodes percent escapes.
+      }
+    } catch { return ''; }
   }
+  const path = value.match(/\/(\d{8,14})(?:\/|\.|$|\?)/);
+  if (path) return path[1];
+  return value;
+}
 
-  if (str.includes('?qr=') || str.includes('&qr=')) {
-    try {
-      const dummyUrl = new URL(str, typeof window !== 'undefined' ? window.location.origin : 'https://alacena.local');
-      const val = dummyUrl.searchParams.get('qr');
-      if (val) return decodeURIComponent(val).trim();
-    } catch (_) {
-      const m = str.match(/[?&]qr=([^&#\s]+)/i);
-      if (m && m[1]) return decodeURIComponent(m[1]).trim();
-    }
-  }
-
-  if (str.includes('?id=') || str.includes('&id=')) {
-    try {
-      const dummyUrl = new URL(str, typeof window !== 'undefined' ? window.location.origin : 'https://alacena.local');
-      const val = dummyUrl.searchParams.get('id');
-      if (val) return decodeURIComponent(val).trim();
-    } catch (_) {
-      const m = str.match(/[?&]id=([^&#\s]+)/i);
-      if (m && m[1]) return decodeURIComponent(m[1]).trim();
-    }
-  }
-
-  // 3. Si es una URL externa con código numérico en la ruta (ej. https://.../product/7501030491024)
-  const numPathMatch = str.match(/\/(\d{8,14})(?:\/|\.|$|\?)/);
-  if (numPathMatch && numPathMatch[1]) {
-    return numPathMatch[1].trim();
-  }
-
-  return str;
+/** User-facing camera errors and the next useful action. */
+export function cameraErrorMessage(error) {
+  if (typeof window !== 'undefined' && !window.isSecureContext)
+    return 'La cámara necesita HTTPS. Abre ALACENA desde su dirección segura o usa una foto del código.';
+  const name = error?.name || String(error || '');
+  if (/NotAllowed|PermissionDenied|denied/i.test(name)) return 'El permiso de cámara está bloqueado. Actívalo en los permisos de este sitio y toca Reintentar. También puedes usar una foto o escribir el código.';
+  if (/NotFound|DevicesNotFound|no camera/i.test(name)) return 'No encontramos una cámara. Conecta una, sube una foto del código o escríbelo abajo.';
+  if (/NotReadable|TrackStart|in use/i.test(name)) return 'Otra aplicación está usando la cámara. Ciérrala y toca Reintentar.';
+  return 'No pudimos iniciar esta cámara. Toca Reintentar, elige otra cámara o usa una foto del código.';
 }
 
 /**
@@ -91,10 +71,12 @@ export function findProductByScanCode(products = [], rawInput) {
   for (const p of products) {
     if (!p) continue;
 
-    const pIdLower = (p.id || '').toLowerCase();
-    const pIdUpper = (p.id || '').toUpperCase();
-    const pBarcodeLower = (p.barcode || '').toLowerCase();
-    const pBarcodeUpper = (p.barcode || '').toUpperCase();
+    const pIdLower = String(p.id || '').toLowerCase();
+    const pIdUpper = String(p.id || '').toUpperCase();
+    const pBarcodeLower = String(p.barcode || '').toLowerCase();
+    const pBarcodeUpper = String(p.barcode || '').toUpperCase();
+
+    if (p.qrId && String(p.qrId).toLowerCase() === cleanLower) return { product: p, cleanCode };
 
     // 1. Coincidencia directa por ID o Barcode
     if (pIdLower === cleanLower) return { product: p, cleanCode };
@@ -119,7 +101,7 @@ export function findProductByScanCode(products = [], rawInput) {
     // 5. Normalización UPC / EAN-13 (tolerancia de cero inicial)
     if (/^\d{12,14}$/.test(cleanCode) && p.barcode && /^\d{12,14}$/.test(p.barcode)) {
       const cleanNum = cleanCode.replace(/^0+/, '');
-      const pNum = p.barcode.replace(/^0+/, '');
+      const pNum = String(p.barcode).replace(/^0+/, '');
       if (cleanNum === pNum) return { product: p, cleanCode };
     }
 

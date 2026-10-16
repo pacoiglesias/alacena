@@ -7,9 +7,10 @@ import {
   Wine, Edit3, Flashlight, Receipt, FileText, Loader2, ArrowRight,
   TrendingDown, TrendingUp, Award, DollarSign
 } from 'lucide-react';
+import TicketReview from '../shopping/TicketReview';
 import { audio } from '../../services/audioService';
 import { lookupBarcode } from '../../services/barcodeLookupService';
-import { findProductByScanCode, extractCodeFromScan } from '../../utils/scanHelper';
+import { findProductByScanCode, extractCodeFromScan, cameraErrorMessage } from '../../utils/scanHelper';
 import { isCavaZone, isAlcoholicOrBeverage, sanitizeCavaProduct } from '../../utils/cavaGuard';
 import { extractShoppingListFromImage, preprocessImageForOcr, extractTextFromFile } from '../../services/ocrService';
 import { parseRawShoppingText } from '../../services/smartListParser';
@@ -22,6 +23,9 @@ export default function CameraScannerModal({
   zones = [], 
   onAddStockDirect, 
   onBatchAddToInventory,
+  onConfirmReceipt,
+  shoppingList = [],
+  currency = 'MXN',
   onSubtractStockDirect,
   onAddToShoppingList, 
   onOpenManualCaptureWithBarcode,
@@ -37,6 +41,10 @@ export default function CameraScannerModal({
   const [cameras, setCameras] = useState([]);
   const [selectedCameraId, setSelectedCameraId] = useState('');
   const [torchOn, setTorchOn] = useState(false);
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [cameraStarting, setCameraStarting] = useState(false);
+  const [scanLocked, setScanLocked] = useState(false);
+  const [actionQuantity, setActionQuantity] = useState(1);
   const [isSearching, setIsSearching] = useState(false);
   const [scannedResult, setScannedResult] = useState(null);
   const [manualCode, setManualCode] = useState('');
@@ -56,14 +64,19 @@ export default function CameraScannerModal({
   const [selectedReceiptItemIds, setSelectedReceiptItemIds] = useState(new Set());
   const [receiptNotice, setReceiptNotice] = useState(null);
   const [receiptStoreName, setReceiptStoreName] = useState('');
+  const [receiptRawText, setReceiptRawText] = useState('');
 
   // Refs de hardware y control
   const videoRef = useRef(null);
   const mediaStreamRef = useRef(null);
-  const nativeBarcodeDetectorRef = useRef(null);
-  const animationFrameIdRef = useRef(null);
+  const cameraSessionRef = useRef(0);
+  const startingRef = useRef(false);
+  const scanCallbackRef = useRef(null);
+  const processingRef = useRef(false);
+  const armedRef = useRef(true);
+  const requestRef = useRef(0);
   const html5QrCodeRef = useRef(null);
-  const lastScanTimeRef = useRef(0);
+
   const fileBarcodeRef = useRef(null);
   const fileReceiptRef = useRef(null);
   const scannerContainerId = 'alacena-qr-barcode-viewport';
@@ -78,6 +91,7 @@ export default function CameraScannerModal({
 
   // Manejar apertura y cierre del modal
   useEffect(() => {
+    requestRef.current++;
     if (!isOpen) {
       stopAllCameras();
       setScannedResult(null);
@@ -96,6 +110,7 @@ export default function CameraScannerModal({
       }, 250);
       return () => {
         clearTimeout(timer);
+        requestRef.current++;
         stopAllCameras();
       };
     } else {
@@ -103,222 +118,86 @@ export default function CameraScannerModal({
     }
   }, [isOpen, activeTab]);
 
-  // Detener todas las fuentes de cámara de forma limpia
+  useEffect(() => {
+    const onHidden = () => { if (document.hidden) { requestRef.current++; stopAllCameras(); } };
+    const onKey = (event) => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('visibilitychange', onHidden);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('visibilitychange', onHidden); document.removeEventListener('keydown', onKey); };
+  }, [onClose]);
+
   const stopAllCameras = async () => {
-    // 1. Detener bucle nativo
-    if (animationFrameIdRef.current) {
-      cancelAnimationFrame(animationFrameIdRef.current);
-      animationFrameIdRef.current = null;
+    cameraSessionRef.current++;
+    const scanner = html5QrCodeRef.current;
+    html5QrCodeRef.current = null;
+    if (scanner) {
+      try { if (scanner.isScanning) await scanner.stop(); } catch { /* Already stopped. */ }
+      try { scanner.clear(); } catch { /* A pending start cleans up after resolving. */ }
     }
-
-    // 2. Detener WebRTC MediaStream
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => {
-        try { track.stop(); } catch (_) {}
-      });
-      mediaStreamRef.current = null;
-    }
-
-    // 3. Detener Html5Qrcode si estaba activo
-    if (html5QrCodeRef.current) {
-      try {
-        if (html5QrCodeRef.current.isScanning) {
-          await html5QrCodeRef.current.stop().catch(() => {});
-        }
-        try { html5QrCodeRef.current.clear(); } catch (_) {}
-      } catch (_) {}
-      html5QrCodeRef.current = null;
-    }
-
-    setScannerActive(false);
+    setScannerActive(false); setTorchOn(false); setTorchSupported(false);
   };
 
-  // Iniciar escáner de códigos de barras (con soporte nativo por hardware + fallback Html5Qrcode)
   const startBarcodeScanner = async (forcedDeviceId = null) => {
+    if (startingRef.current) return;
+    startingRef.current = true; setCameraStarting(true); setCameraError(null);
+    await stopAllCameras();
+    const session = cameraSessionRef.current;
+    let scanner;
     try {
-      setCameraError(null);
-      await stopAllCameras();
-
-      // 1. Detectar si el navegador cuenta con BarcodeDetector nativo por hardware
-      const hasNativeBarcodeDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
-
-      if (hasNativeBarcodeDetector) {
-        try {
-          const supported = await window.BarcodeDetector.getSupportedFormats();
-          const targetFormats = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'].filter(
-            f => supported.includes(f)
-          );
-
-          if (targetFormats.length > 0) {
-            nativeBarcodeDetectorRef.current = new window.BarcodeDetector({ formats: targetFormats });
-            
-            // Iniciar WebRTC con restricciones móviles seguras (sin min: 1280 que causa crash)
-            const constraints = {
-              video: {
-                facingMode: forcedDeviceId ? undefined : { ideal: 'environment' },
-                deviceId: forcedDeviceId ? { exact: forcedDeviceId } : undefined,
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-              },
-              audio: false,
-            };
-
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            mediaStreamRef.current = stream;
-
-            // Listar cámaras
-            try {
-              const devices = await navigator.mediaDevices.enumerateDevices();
-              const videoDevices = devices.filter(d => d.kind === 'videoinput');
-              setCameras(videoDevices);
-            } catch (_) {}
-
-            if (videoRef.current) {
-              videoRef.current.srcObject = stream;
-              await videoRef.current.play();
-
-              // Intentar autofoco continuo
-              try {
-                const track = stream.getVideoTracks()[0];
-                const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-                if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
-                  track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
-                }
-              } catch (_) {}
-
-              setScannerActive(true);
-              startNativeDetectionLoop();
-              return;
-            }
-          }
-        } catch (nativeErr) {
-          console.warn('BarcodeDetector nativo no disponible, usando fallback:', nativeErr);
-        }
-      }
-
-      // 2. FALLBACK ROBUSTO: Html5Qrcode
-      const containerEl = document.getElementById(scannerContainerId);
-      if (!containerEl) {
-        setCameraError('Contenedor visual de cámara no listo.');
-        return;
-      }
-      containerEl.innerHTML = '';
-
-      let availableCameras = [];
-      try {
-        availableCameras = await Html5Qrcode.getCameras();
-        setCameras(availableCameras || []);
-      } catch (_) {}
-
-      const formats = [
-        Html5QrcodeSupportedFormats.QR_CODE,
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39,
-      ];
-
-      html5QrCodeRef.current = new Html5Qrcode(scannerContainerId, {
-        formatsToSupport: formats,
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) throw new Error('CameraUnavailable');
+      scanner = new Html5Qrcode(scannerContainerId, {
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E, Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.ITF],
         verbose: false,
       });
-
-      let cameraConfig;
-      if (forcedDeviceId) {
-        cameraConfig = { deviceId: { exact: forcedDeviceId } };
-      } else if (availableCameras.length > 0) {
-        const backCam = availableCameras.find(c => {
-          const l = (c.label || '').toLowerCase();
-          return l.includes('back') || l.includes('trasera') || l.includes('rear') || l.includes('environment');
-        });
-        if (backCam) {
-          setSelectedCameraId(backCam.id);
-          cameraConfig = { deviceId: { exact: backCam.id } };
-        } else {
-          cameraConfig = { facingMode: 'environment' };
-        }
-      } else {
-        cameraConfig = { facingMode: 'environment' };
+      html5QrCodeRef.current = scanner;
+      // Read the entire frame: a narrow barcode crop can exclude part of a QR.
+      const config = { fps: 12, disableFlip: false, aspectRatio: 1.333333 };
+      try {
+        await scanner.start(forcedDeviceId ? { deviceId: { exact: forcedDeviceId } } : { facingMode: 'environment' },
+          config, (code) => scanCallbackRef.current?.(code), () => {});
+      } catch (error) {
+        if (forcedDeviceId || /NotAllowed|Permission|denied/i.test(error?.name || String(error))) throw error;
+        // Laptops and front-camera-only devices can reject facingMode=environment.
+        await scanner.start({ facingMode: 'user' }, config, (code) => scanCallbackRef.current?.(code), () => {});
       }
-
-      await html5QrCodeRef.current.start(
-        cameraConfig,
-        {
-          fps: 24,
-          qrbox: (w, h) => {
-            const width = Math.min(Math.floor(w * 0.92), 480);
-            const height = Math.min(Math.floor(h * 0.65), 280);
-            return { width: Math.max(width, 240), height: Math.max(height, 150) };
-          },
-        },
-        onScanSuccess,
-        () => {}
-      );
-
+      if (session !== cameraSessionRef.current || !document.getElementById(scannerContainerId)) {
+        if (scanner.isScanning) await scanner.stop(); scanner.clear(); return;
+      }
       setScannerActive(true);
-      setCameraError(null);
-    } catch (err) {
-      console.warn('Error al iniciar cámara de escáner:', err);
-      setCameraError(
-        'No se pudo abrir la cámara en vivo. Asegúrate de conceder permisos de cámara o usa el botón "📸 Subir / Tomar Foto".'
-      );
-      setScannerActive(false);
-    }
-  };
-
-  // Bucle nativo de detección con BarcodeDetector
-  const startNativeDetectionLoop = () => {
-    const detect = async () => {
-      if (!videoRef.current || !nativeBarcodeDetectorRef.current || !mediaStreamRef.current) return;
-
-      if (videoRef.current.readyState >= 2) {
-        try {
-          const barcodes = await nativeBarcodeDetectorRef.current.detect(videoRef.current);
-          if (barcodes && barcodes.length > 0) {
-            const code = barcodes[0].rawValue;
-            if (code) {
-              await onScanSuccess(code);
-            }
-          }
-        } catch (_) {}
+      const settings = scanner.getRunningTrackSettings();
+      setSelectedCameraId(settings.deviceId || forcedDeviceId || '');
+      const capabilities = scanner.getRunningTrackCapabilities();
+      setTorchSupported(capabilities.torch === true);
+      if (capabilities.focusMode?.includes('continuous')) {
+        try { await scanner.applyVideoConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch { /* Optional capability. */ }
       }
-
-      animationFrameIdRef.current = requestAnimationFrame(detect);
-    };
-
-    animationFrameIdRef.current = requestAnimationFrame(detect);
+      try { setCameras(await Html5Qrcode.getCameras()); } catch { /* Scanning still works without enumeration. */ }
+    } catch (error) {
+      if (session === cameraSessionRef.current) { setCameraError(cameraErrorMessage(error)); setScannerActive(false); }
+      try { scanner?.clear(); } catch { /* No active scanner. */ }
+    } finally { startingRef.current = false; setCameraStarting(false); }
   };
 
-  // Callback de éxito al detectar código de barra o QR
-  const onScanSuccess = async (decodedText) => {
-    const now = Date.now();
-    if (now - lastScanTimeRef.current < 1200) return;
-    lastScanTimeRef.current = now;
-
+  const onScanSuccess = async (code) => {
+    if (!armedRef.current || processingRef.current) return;
+    armedRef.current = false; setScanLocked(true);
     audio.tripleFeedback(880, 35);
-    await processBarcode(decodedText);
+    await processBarcode(code);
   };
 
-  // Linterna / Flash
+  const scanNext = () => {
+    armedRef.current = true; setScanLocked(false); setScannedResult(null);
+    setLastBatchMessage(null); setActionQuantity(1);
+  };
+
   const handleToggleTorch = async () => {
     try {
-      if (mediaStreamRef.current) {
-        const track = mediaStreamRef.current.getVideoTracks()[0];
-        const newTorch = !torchOn;
-        await track.applyConstraints({ advanced: [{ torch: newTorch }] });
-        setTorchOn(newTorch);
-        audio.click();
-      } else if (html5QrCodeRef.current && scannerActive) {
-        const newTorch = !torchOn;
-        await html5QrCodeRef.current.applyVideoConstraints({ advanced: [{ torch: newTorch }] });
-        setTorchOn(newTorch);
-        audio.click();
-      }
-    } catch (e) {
-      alert('La linterna no está disponible en esta cámara o navegador.');
-    }
+      await html5QrCodeRef.current?.applyVideoConstraints({ advanced: [{ torch: !torchOn }] });
+      setTorchOn(!torchOn);
+    } catch { setCameraError('No pudimos activar la linterna. Acerca el código a una fuente de luz.'); }
   };
 
   // Alternar entre cámaras disponibles
@@ -335,7 +214,10 @@ export default function CameraScannerModal({
 
   // Procesar código de barras o QR escaneado
   const processBarcode = async (rawCode) => {
-    if (!rawCode) return;
+    if (!rawCode || processingRef.current) return;
+    processingRef.current = true;
+    armedRef.current = false; setScanLocked(true);
+    const request = ++requestRef.current;
     setIsSearching(true);
 
     const cavaZone = zones.find(z => z.type === 'WINE_CELLAR') || zones[0];
@@ -344,14 +226,15 @@ export default function CameraScannerModal({
     // 1. Coincidencia en despensa local
     const { product: existingInPantry, cleanCode } = findProductByScanCode(products, rawCode);
 
+    if (!cleanCode) { setCameraError('Este QR no contiene un código de producto válido.'); setIsSearching(false); processingRef.current = false; return; }
     if (existingInPantry) {
       audio.success();
-      const assignedZone = selectedTargetZone || existingInPantry.zone || pantryZone.name;
+      const assignedZone = existingInPantry.zone || selectedTargetZone || pantryZone?.name || 'Alacena Principal';
       const targetProd = sanitizeCavaProduct({ ...existingInPantry, zone: assignedZone }, zones);
 
       if (scanDirectionMode !== 'INTERACTIVE') {
         executeDirectAction(targetProd, scanDirectionMode);
-        setIsSearching(false);
+        setIsSearching(false); processingRef.current = false;
         return;
       }
 
@@ -360,13 +243,14 @@ export default function CameraScannerModal({
         product: targetProd,
         isExisting: true,
       });
-      setIsSearching(false);
+      setIsSearching(false); processingRef.current = false;
       return;
     }
 
     // 2. Consulta en catálogo comercial Open Food Facts / GS1
     try {
       const lookup = await lookupBarcode(cleanCode);
+      if (request !== requestRef.current) return;
       audio.success();
 
       const isWine = Boolean(lookup?.isWine) || isAlcoholicOrBeverage(lookup?.name, lookup?.category);
@@ -388,15 +272,15 @@ export default function CameraScannerModal({
         quantity: 1,
       };
 
-      if (scanDirectionMode === 'RESTOCK_SUPER') {
+      if (!lookup?.needsName && scanDirectionMode === 'RESTOCK_SUPER') {
         executeDirectAction(newProd, 'RESTOCK_SUPER');
-        setIsSearching(false);
+        setIsSearching(false); processingRef.current = false;
         return;
       }
 
-      if (scanDirectionMode === 'ADD_ENTRY') {
+      if (!lookup?.needsName && scanDirectionMode === 'ADD_ENTRY') {
         executeDirectAction(newProd, 'ADD_ENTRY');
-        setIsSearching(false);
+        setIsSearching(false); processingRef.current = false;
         return;
       }
 
@@ -423,31 +307,35 @@ export default function CameraScannerModal({
         isExisting: false,
       });
     } finally {
-      setIsSearching(false);
+      setIsSearching(false); processingRef.current = false;
     }
   };
 
   // Ejecución directa según modo multidireccional
   const executeDirectAction = (targetProduct, actionType) => {
+    if (!targetProduct.name?.trim()) { setCameraError('Escribe el nombre del producto antes de guardarlo.'); return false; }
+    const amount = Number(actionQuantity);
+    if (!Number.isFinite(amount) || amount < 0.001) { setCameraError('La cantidad mínima es 0.001.'); return false; }
+    if (actionType === 'CONSUME_EXIT' && (!targetProduct.id || Number(targetProduct.quantity) < amount)) { setCameraError('No hay suficiente existencia de este producto para descontar esa cantidad.'); return false; }
     if (actionType === 'ADD_ENTRY') {
       audio.success();
       if (onAddStockDirect) {
-        onAddStockDirect(targetProduct, 1, selectedTargetZone || targetProduct.zone);
+        onAddStockDirect(targetProduct, amount, targetProduct.zone || selectedTargetZone);
       }
       setBatchCount(prev => prev + 1);
-      setLastBatchMessage(`➕ +1 "${targetProduct.name}" agregado a ${selectedTargetZone || targetProduct.zone}`);
-      setTimeout(() => setLastBatchMessage(null), 3000);
+      setLastBatchMessage(`➕ +${amount} "${targetProduct.name}" agregado a ${selectedTargetZone || targetProduct.zone}`);
+
       return;
     }
 
     if (actionType === 'CONSUME_EXIT') {
       audio.click();
       if (onSubtractStockDirect) {
-        onSubtractStockDirect(targetProduct, 1);
+        onSubtractStockDirect(targetProduct.id, amount);
       }
       setBatchCount(prev => prev + 1);
-      setLastBatchMessage(`➖ -1 "${targetProduct.name}" descontado por consumo`);
-      setTimeout(() => setLastBatchMessage(null), 3000);
+      setLastBatchMessage(`➖ -${amount} "${targetProduct.name}" descontado por consumo`);
+
       return;
     }
 
@@ -456,7 +344,7 @@ export default function CameraScannerModal({
       if (onAddToShoppingList) {
         onAddToShoppingList({
           name: targetProduct.name,
-          quantity: 1,
+          quantity: amount,
           unit: targetProduct.unit || 'piezas',
           department: targetProduct.category || 'Abarrotes',
           store: targetProduct.store || 'Supermercado',
@@ -467,7 +355,7 @@ export default function CameraScannerModal({
       }
       setBatchCount(prev => prev + 1);
       setLastBatchMessage(`🛒 "${targetProduct.name}" enviado a la Lista del Súper`);
-      setTimeout(() => setLastBatchMessage(null), 3000);
+
       return;
     }
   };
@@ -475,7 +363,8 @@ export default function CameraScannerModal({
   // Manejo de código manual
   const handleManualSubmit = async (e) => {
     e.preventDefault();
-    if (!manualCode.trim()) return;
+    if (!manualCode.trim() || processingRef.current) return;
+    setScannedResult(null);
     audio.click();
     await processBarcode(manualCode.trim());
     setManualCode('');
@@ -486,10 +375,13 @@ export default function CameraScannerModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    await stopAllCameras();
+    let fileScanner;
     try {
       audio.click();
-      setIsSearching(true);
-      const scanner = new Html5Qrcode('barcode-file-scan-buffer');
+      setScannedResult(null); setIsSearching(true);
+      const scanner = new Html5Qrcode('barcode-file-scan-buffer', { verbose: false });
+      fileScanner = scanner;
       const decoded = await scanner.scanFile(file, false);
       try { scanner.clear(); } catch (_) {}
 
@@ -500,8 +392,9 @@ export default function CameraScannerModal({
         throw new Error('No se leyó código');
       }
     } catch (err) {
-      alert('No se detectó un código de barras claro en la imagen. Intenta con mejor luz o escribe los dígitos abajo.');
+      setCameraError('No encontramos un QR o código de barras legible en esta foto. Prueba una foto de frente y con más luz, o escribe el código.');
     } finally {
+      try { fileScanner?.clear(); } catch { /* Clear the detached file canvas. */ }
       setIsSearching(false);
       if (fileBarcodeRef.current) fileBarcodeRef.current.value = '';
     }
@@ -545,6 +438,7 @@ export default function CameraScannerModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 20 * 1024 * 1024) { setReceiptNotice({ type: 'error', text: 'Este archivo supera 20 MB. Usa una imagen más ligera o divide el ticket en varias fotos.' }); return; }
     audio.click();
     setReceiptImage(file);
     const isPdf = file.name?.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
@@ -567,6 +461,7 @@ export default function CameraScannerModal({
 
     try {
       const result = await extractTextFromFile(pdfFile, products, (p) => setOcrProgress(p));
+      setReceiptRawText(result.rawText || '');
       if (!result.items || result.items.length === 0) {
         setReceiptNotice({
           type: 'warning',
@@ -621,7 +516,7 @@ export default function CameraScannerModal({
         setReceiptStoreName(result.items[0]?.store || 'Supermercado');
         setReceiptNotice({
           type: 'success',
-          text: `🧾 ¡Ticket procesado con éxito! Se detectaron ${result.items.length} artículos con sus importes reales.`,
+          text: `Lectura lista: ${result.items.length} artículos. Revisa nombres, cantidades y precios antes de guardar.${result.confidence < 60 ? ' La imagen tiene baja confianza de lectura; revisa cada partida.' : ''}`,
         });
         audio.success();
       }
@@ -706,6 +601,7 @@ LECHE LALA ENTERA 6PK     1  $165.00
 TOTAL MXN                    $2,303.00`;
     }
 
+    setReceiptRawText(sampleText);
     const items = parseRawShoppingText(sampleText, products);
     setExtractedReceiptItems(items);
     setSelectedReceiptItemIds(new Set(items.map(i => i.id)));
@@ -719,7 +615,7 @@ TOTAL MXN                    $2,303.00`;
 
   // Análisis de inteligencia de precios para los artículos del ticket
   const priceIntelligence = useMemo(() => {
-    return analyzeTicketPriceIntelligence(extractedReceiptItems, receiptStoreName || 'Supermercado');
+    return analyzeTicketPriceIntelligence(extractedReceiptItems.map((i) => ({ ...i, currency })), receiptStoreName || 'Supermercado');
   }, [extractedReceiptItems, receiptStoreName]);
 
   // Importar artículos del ticket a la Lista de Compras
@@ -776,10 +672,12 @@ TOTAL MXN                    $2,303.00`;
     onClose();
   };
 
+  scanCallbackRef.current = onScanSuccess;
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+    <div role="dialog" aria-modal="true" aria-label="Escáner QR y códigos de barras" className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-2xl max-h-[96vh] rounded-3xl bg-[#12100E] border border-[#E0B441]/35 shadow-2xl flex flex-col overflow-hidden">
         
         {/* Header Superior Limpio */}
@@ -800,7 +698,7 @@ TOTAL MXN                    $2,303.00`;
 
           <button
             type="button"
-            onClick={() => {
+            aria-label="Cerrar escáner" onClick={() => {
               audio.click();
               onClose();
             }}
@@ -825,7 +723,7 @@ TOTAL MXN                    $2,303.00`;
             }`}
           >
             <ScanLine className="w-4 h-4" />
-            <span>📦 Código de Barras / QR</span>
+            <span>QR / Barras</span>
           </button>
 
           <button
@@ -841,7 +739,7 @@ TOTAL MXN                    $2,303.00`;
             }`}
           >
             <Receipt className="w-4 h-4" />
-            <span>🧾 Ticket de Compra (OCR)</span>
+            <span>Ticket</span>
           </button>
 
           <button
@@ -857,12 +755,89 @@ TOTAL MXN                    $2,303.00`;
             }`}
           >
             <Keyboard className="w-4 h-4" />
-            <span className="hidden sm:inline">⌨️ Manual</span>
+            <span>Escribir</span>
           </button>
         </div>
 
         {/* Cuerpo del Modal */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 custom-scrollbar">
+          {isSearching && <div role="status" className="p-4 rounded-xl bg-emerald-950 text-emerald-200 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Buscando el producto…</div>}
+          {lastBatchMessage && activeTab !== 'BARCODE' && <p role="status" className="p-3 bg-emerald-950 text-emerald-200 rounded-xl">{lastBatchMessage}</p>}
+          {cameraError && <p role="status" className="text-sm text-amber-300">{cameraError}</p>}
+          {scanLocked && !isSearching && <button type="button" onClick={scanNext} className="w-full py-3 rounded-xl bg-emerald-700 text-white font-bold">Escanear otro producto</button>}
+              {/* Tarjeta del Producto Detectado (Modo Interactivo) */}
+              {scannedResult && (
+                <div className="p-4 rounded-2xl bg-[#1C1814] border border-[#E0B441]/40 space-y-3 animate-fade-in shadow-xl">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                        scannedResult.isExisting ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                      }`}>
+                        {scannedResult.isExisting ? '✓ En tu Despensa' : '✨ Nuevo Producto'}
+                      </span>
+                      {!scannedResult.isExisting && <label className="block text-xs text-[#A89F91] mt-3">Nombre del producto
+                        <input aria-label="Nombre del producto escaneado" value={scannedResult.product.name || ''} placeholder="Ej. Leche entera 1 litro" maxLength={300} onChange={(e) => setScannedResult((prev) => ({ ...prev, product: { ...prev.product, name: e.target.value } }))} className="block w-full p-3 mt-1 rounded-xl border border-white/20 text-white bg-black/20" />
+                      </label>}
+                      <p className="text-xs text-emerald-300 mt-2">{scannedResult.isExisting ? `En esta casa: ${scannedResult.product.quantity} ${scannedResult.product.unit}` : 'Confirma el nombre antes de registrarlo.'}</p>
+                      <h4 className="text-base font-bold text-white mt-1">
+                        {scannedResult.product.name}
+                      </h4>
+                      <p className="text-xs text-[#A89F91]">
+                        Código: <span className="font-mono text-white">{scannedResult.barcode}</span> • {scannedResult.product.category}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setScannedResult(null)}
+                      className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <label className="text-xs text-[#A89F91] flex gap-3 items-center">Cantidad ({scannedResult.product.unit || 'piezas'})<input aria-label="Cantidad a registrar" type="number" inputMode="decimal" min="0.001" step="0.001" value={actionQuantity} onChange={(e) => setActionQuantity(e.target.value)} className="w-24 p-2 rounded-lg bg-black/30 text-white border border-white/20" /></label>
+                  {/* Acciones para el Producto */}
+                  <div className="grid grid-cols-3 gap-2 pt-1" inert={!scannedResult.product.name?.trim() || !Number.isFinite(Number(actionQuantity)) || Number(actionQuantity) <= 0 ? true : undefined}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        executeDirectAction(scannedResult.product, 'ADD_ENTRY');
+                        setScannedResult(null);
+                      }}
+                      className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Ingresar</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={!scannedResult.isExisting || Number(scannedResult.product.quantity) < Number(actionQuantity)} onClick={() => {
+                        executeDirectAction(scannedResult.product, 'CONSUME_EXIT');
+                        setScannedResult(null);
+                      }}
+                      className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md transition-all"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                      <span>Consumir</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        executeDirectAction(scannedResult.product, 'RESTOCK_SUPER');
+                        setScannedResult(null);
+                      }}
+                      className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold shadow-md transition-all"
+                    >
+                      <ShoppingCart className="w-3.5 h-3.5" />
+                      <span>Al Súper</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
 
           {/* ═════════════════════════════════════════════════════════════════
               PESTAÑA 1: CÓDIGO DE BARRAS & QR (CÁMARA FLUIDA)
@@ -890,7 +865,7 @@ TOTAL MXN                    $2,303.00`;
                         type="button"
                         onClick={() => {
                           audio.click();
-                          setScanDirectionMode(mode.id);
+                          setScanDirectionMode(mode.id); scanNext();
                         }}
                         className={`flex items-center gap-1.5 p-2 rounded-xl text-[11px] font-bold transition-all text-left ${
                           isSelected
@@ -927,13 +902,13 @@ TOTAL MXN                    $2,303.00`;
                   ref={videoRef}
                   playsInline
                   muted
-                  className={`w-full h-full object-cover min-h-[300px] sm:min-h-[360px] ${scannerActive && videoRef.current?.srcObject ? 'block' : 'hidden'}`}
+                  className="hidden"
                 />
 
                 {/* Contenedor Fallback Html5Qrcode */}
                 <div
                   id={scannerContainerId}
-                  className={`w-full ${scannerActive && !videoRef.current?.srcObject ? 'block' : 'hidden'}`}
+                  className="w-full min-w-0"
                 />
 
                 {/* Retícula de Enfoque con Láser Central */}
@@ -946,7 +921,7 @@ TOTAL MXN                    $2,303.00`;
                       <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-emerald-400 -mb-1 -mr-1 rounded-br-lg" />
                       <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_12px_#10B981] animate-pulse" />
                       <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-emerald-300 bg-black/80 px-2.5 py-0.5 rounded-full border border-emerald-500/40 absolute bottom-2">
-                        Centra el código de barras
+                        Centra el QR o todas las barras
                       </span>
                     </div>
                   </div>
@@ -965,7 +940,7 @@ TOTAL MXN                    $2,303.00`;
                         <RefreshCw className="w-4 h-4" />
                       </button>
                     )}
-                    <button
+                    {torchSupported && <button
                       type="button"
                       onClick={handleToggleTorch}
                       className={`p-2 rounded-xl backdrop-blur-md transition-all ${
@@ -974,21 +949,21 @@ TOTAL MXN                    $2,303.00`;
                       title="Linterna / Flash"
                     >
                       <Flashlight className="w-4 h-4" />
-                    </button>
+                    </button>}
                   </div>
                 )}
 
                 {/* Estado de Error o Cámara Pausada */}
                 {!scannerActive && (
-                  <div className="p-6 text-center space-y-3 z-10">
+                  <div className="absolute inset-0 bg-black/90 p-6 flex flex-col items-center justify-center text-center space-y-3 z-10">
                     <AlertCircle className="w-9 h-9 mx-auto text-[#E0B441]" />
                     <p className="text-xs text-[#A89F91] max-w-sm mx-auto">
-                      {cameraError || 'La cámara no está activa en este momento.'}
+                      {cameraError || (cameraStarting ? 'Abriendo cámara…' : 'La cámara está detenida. Puedes reintentar o usar una foto.')}
                     </p>
                     <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
                       <button
                         type="button"
-                        onClick={() => startBarcodeScanner()}
+                        disabled={cameraStarting} onClick={() => startBarcodeScanner()}
                         className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all"
                       >
                         🔄 Reintentar Cámara
@@ -1005,11 +980,13 @@ TOTAL MXN                    $2,303.00`;
                 )}
               </div>
 
+              <p className="text-xs text-[#A89F91]">Coloca el envase a 15–25 cm, evita reflejos y mantén el código completo dentro de la imagen.</p>
               {/* Botón Alternativo de Subida por Foto */}
               <input
                 type="file"
                 ref={fileBarcodeRef}
                 accept="image/*"
+                aria-label="Subir foto de un QR o código de barras"
                 onChange={handleBarcodeFileUpload}
                 className="hidden"
               />
@@ -1025,73 +1002,6 @@ TOTAL MXN                    $2,303.00`;
                 </button>
               </div>
 
-              {/* Tarjeta del Producto Detectado (Modo Interactivo) */}
-              {scannedResult && (
-                <div className="p-4 rounded-2xl bg-[#1C1814] border border-[#E0B441]/40 space-y-3 animate-fade-in shadow-xl">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
-                        scannedResult.isExisting ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                      }`}>
-                        {scannedResult.isExisting ? '✓ En tu Despensa' : '✨ Nuevo Producto'}
-                      </span>
-                      <h4 className="text-base font-bold text-white mt-1">
-                        {scannedResult.product.name}
-                      </h4>
-                      <p className="text-xs text-[#A89F91]">
-                        Código: <span className="font-mono text-white">{scannedResult.barcode}</span> • {scannedResult.product.category}
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setScannedResult(null)}
-                      className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* Acciones para el Producto */}
-                  <div className="grid grid-cols-3 gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        executeDirectAction(scannedResult.product, 'ADD_ENTRY');
-                        setScannedResult(null);
-                      }}
-                      className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>+1 Entrada</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        executeDirectAction(scannedResult.product, 'CONSUME_EXIT');
-                        setScannedResult(null);
-                      }}
-                      className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md transition-all"
-                    >
-                      <Minus className="w-3.5 h-3.5" />
-                      <span>-1 Salida</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        executeDirectAction(scannedResult.product, 'RESTOCK_SUPER');
-                        setScannedResult(null);
-                      }}
-                      className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold shadow-md transition-all"
-                    >
-                      <ShoppingCart className="w-3.5 h-3.5" />
-                      <span>Al Súper</span>
-                    </button>
-                  </div>
-                </div>
-              )}
 
             </div>
           )}
@@ -1266,96 +1176,11 @@ TOTAL MXN                    $2,303.00`;
                     </div>
                   )}
 
-                  {/* Tabla / Tarjetas de Artículos */}
-                  <div className="max-h-56 overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
-                    {extractedReceiptItems.map((item) => {
-                      const isSelected = selectedReceiptItemIds.has(item.id);
-                      const itemIntel = priceIntelligence?.itemsAnalysis?.find(ia => ia.id === item.id);
-                      const trend = itemIntel?.trend;
-                      const crossStore = itemIntel?.crossStore;
+                  <TicketReview key={receiptRawText} items={extractedReceiptItems} setItems={setExtractedReceiptItems}
+                    selectedIds={selectedReceiptItemIds} setSelectedIds={setSelectedReceiptItemIds} rawText={receiptRawText}
+                    store={receiptStoreName} setStore={setReceiptStoreName} currency={currency} shoppingList={shoppingList}
+                    onSave={onConfirmReceipt || ((payload) => onBatchAddToInventory?.(payload.checkedItems, receiptStoreName))} onClose={onClose} />
 
-                      return (
-                        <div
-                          key={item.id}
-                          className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all ${
-                            isSelected
-                              ? 'bg-white/5 border-emerald-500/30 text-white'
-                              : 'bg-black/20 border-white/5 text-[#888] opacity-60'
-                          }`}
-                        >
-                          <label className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => {
-                                const next = new Set(selectedReceiptItemIds);
-                                if (next.has(item.id)) next.delete(item.id);
-                                else next.add(item.id);
-                                setSelectedReceiptItemIds(next);
-                              }}
-                              className="rounded text-emerald-500 focus:ring-0 w-4 h-4 cursor-pointer"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <span className="font-bold text-white block truncate">{item.name}</span>
-                              <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-[#A89F91] mt-0.5">
-                                <span>{item.quantity} {item.unit} • {item.department}</span>
-                                {trend?.status === 'down' && (
-                                  <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold flex items-center gap-0.5 text-[9px]">
-                                    <TrendingDown className="w-2.5 h-2.5" />
-                                    <span>{trend.text}</span>
-                                  </span>
-                                )}
-                                {trend?.status === 'up' && (
-                                  <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-bold flex items-center gap-0.5 text-[9px]">
-                                    <TrendingUp className="w-2.5 h-2.5" />
-                                    <span>{trend.text}</span>
-                                  </span>
-                                )}
-                                {crossStore && !crossStore.isBestPrice && crossStore.savings > 0 && (
-                                  <span className="px-1.5 py-0.2 rounded bg-[#E0B441]/15 text-[#E0B441] border border-[#E0B441]/25 text-[9px]">
-                                    💡 Más barato en {crossStore.cheapestStore} (${crossStore.cheapestPrice.toFixed(2)})
-                                  </span>
-                                )}
-                                {crossStore?.isBestPrice && trend?.status !== 'first' && (
-                                  <span className="px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 text-[9px] font-bold">
-                                    🏆 Mejor precio
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </label>
-
-                          <div className="text-right shrink-0 ml-2">
-                            <span className="font-mono font-bold text-emerald-400 block">
-                              ${(item.realPrice || item.estimatedPriceMxn || 0).toFixed(2)}
-                            </span>
-                            <span className="text-[9px] text-[#A89F91]">Ticket</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Botones de Destino del Ticket */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-white/5">
-                    <button
-                      type="button"
-                      onClick={handleImportReceiptToShoppingList}
-                      className="flex items-center justify-center gap-2 p-3 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold shadow-md transition-all"
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                      <span>📥 Meter a Lista del Súper</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleImportReceiptDirectToPantry}
-                      className="flex items-center justify-center gap-2 p-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all"
-                    >
-                      <Warehouse className="w-4 h-4" />
-                      <span>✅ Ya los Compré: Guardar en Despensa</span>
-                    </button>
-                  </div>
                 </div>
               )}
 
@@ -1373,14 +1198,14 @@ TOTAL MXN                    $2,303.00`;
                 </label>
                 <div className="relative">
                   <input
-                    type="text"
+                    aria-label="Código de barras o QR" type="text" autoComplete="off" maxLength={4096}
                     value={manualCode}
                     onChange={(e) => setManualCode(e.target.value)}
                     placeholder="Ej. 7501055300076 o ALC-4B7"
                     className="w-full pl-4 pr-12 py-3 rounded-xl bg-[#12100E] border border-[#2A2521] text-white font-mono text-sm focus:outline-none focus:border-[#E0B441]"
                   />
                   <button
-                    type="submit"
+                    aria-label="Buscar código" disabled={isSearching || !manualCode.trim()} type="submit"
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-[#E0B441] text-[#12100E] font-bold hover:brightness-110"
                   >
                     <ArrowRight className="w-4 h-4" />
@@ -1397,7 +1222,7 @@ TOTAL MXN                    $2,303.00`;
         </div>
 
         {/* Buffer oculto para scanFile */}
-        <div id="barcode-file-scan-buffer" className="hidden" />
+        <div id="barcode-file-scan-buffer" style={{ position: 'fixed', left: -10000, width: 600 }} />
       </div>
     </div>
   );

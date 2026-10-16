@@ -17,6 +17,22 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Acceso a la casa autorizado exclusivamente mediante Admin SDK (custom claim).
+    // No basta con iniciar sesión, ni con elegir un rol en la interfaz.
+    function hasHomeAccess() {
+      return isAuthenticated() && request.auth.token.email_verified == true &&
+        request.auth.token.alacenaAccess == true;
+    }
+
+    function validHomeRecord() {
+      return request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 300 &&
+        request.resource.data.quantity is number && request.resource.data.quantity >= 0 &&
+        request.resource.data.quantity <= 1000000 &&
+        request.resource.data.householdId is string &&
+        request.resource.data.householdId.size() <= 128;
+    }
+
     // Obtener datos del miembro dentro del workspace/tenant
     function getWorkspaceMember(workspaceId) {
       return get(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid)).data;
@@ -34,7 +50,7 @@ service cloud.firestore {
     // Rol Admin / Owner del Workspace (Control total: precios, auditoría, configuración)
     function isWorkspaceAdmin(workspaceId) {
       return isWorkspaceMember(workspaceId) && (
-        request.auth.token.role in ['admin', 'owner', 'superadmin'] ||
+        ((request.auth.token.workspaceId == workspaceId || request.auth.token.tenantId == workspaceId) && request.auth.token.role in ['admin', 'owner', 'superadmin']) ||
         getWorkspaceMember(workspaceId).role in ['admin', 'owner']
       );
     }
@@ -52,7 +68,10 @@ service cloud.firestore {
     // =========================================================================
     match /users/{userId} {
       allow read: if isAuthenticated() && (request.auth.uid == userId || request.auth.token.role == 'superadmin');
-      allow create, update: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() && request.auth.uid == userId &&
+        !request.resource.data.keys().hasAny(['role', 'isAdmin', 'workspaceId', 'tenantId', 'alacenaAccess']);
+      allow update: if isAuthenticated() && request.auth.uid == userId &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isAdmin', 'workspaceId', 'tenantId', 'alacenaAccess']);
       allow delete: if false;
     }
 
@@ -71,48 +90,33 @@ service cloud.firestore {
     // 🏠 COLECCIONES GLOBALES / WEB DIRECTAS:
     // Soporte para clientes web y sincronización directa
     // =========================================================================
-    
-    // Productos en Alacena
+
     match /products/{productId} {
-      allow read: if true;
-      allow create, update: if isAuthenticated() || true; // Permitir operación en residencia
-      allow delete: if isAuthenticated() && request.auth.token.role in ['admin', 'superadmin'];
+      allow read, delete: if hasHomeAccess();
+      allow create, update: if hasHomeAccess() && validHomeRecord();
     }
-
-    // Lista de Compras
     match /shopping_list/{itemId} {
-      allow read, create, update, delete: if true;
+      allow read, delete: if hasHomeAccess();
+      allow create, update: if hasHomeAccess() && validHomeRecord() &&
+        request.resource.data.quantity > 0 && request.resource.data.checked is bool;
     }
-
-    // Zonas de Almacén (Cava, Cuarto Frío, Alacena, etc.)
-    match /zones/{zoneId} {
-      allow read: if true;
-      allow write: if isAuthenticated() || true;
+    match /zones/{zoneId} { allow read, write: if hasHomeAccess(); }
+    match /recipes/{recipeId} { allow read, write: if hasHomeAccess(); }
+    match /households/{houseId} { allow read, write: if hasHomeAccess(); }
+    match /learned_products/{productId} { allow read, write: if hasHomeAccess(); }
+    match /purchase_history/{receiptId} {
+      allow read: if hasHomeAccess();
+      allow create: if hasHomeAccess() && request.resource.data.items is list && request.resource.data.items.size() <= 150 && request.resource.data.totalMxn is number && request.resource.data.totalMxn >= 0;
+      allow update: if hasHomeAccess() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['items']) && request.resource.data.items is list && request.resource.data.items.size() <= 150;
+      allow delete: if false;
     }
-
-    // Recetas de Cocina
-    match /recipes/{recipeId} {
-      allow read: if true;
-      allow write: if isAuthenticated() || true;
-    }
-
-    // Residencias y Casas
-    match /households/{houseId} {
-      allow read: if true;
-      allow write: if isAuthenticated() || true;
-    }
-
-    // 🛡️ BITÁCORA FORENSE INMUTABLE (APPEND-ONLY)
     match /audit_logs/{logId} {
-      allow read: if true;
-      allow create: if true;
-      // PROHIBICIÓN ABSOLUTA DE EDICIÓN O BORRADO EN AUDITORÍA
+      allow read: if hasHomeAccess();
+      allow create: if hasHomeAccess() && request.resource.data.cloudTimestamp == request.time &&
+        request.resource.data.description is string && request.resource.data.description.size() <= 4000;
       allow update, delete: if false;
     }
 
-    // =========================================================================
-    // 🏢 ARQUITECTURA MULTI-TENANT ENTERPRISE: /workspaces/{workspaceId}
-    // =========================================================================
     match /workspaces/{workspaceId} {
       allow read: if isWorkspaceMember(workspaceId);
       allow create: if isAuthenticated(); // Alta de nueva cuenta/familia SaaS

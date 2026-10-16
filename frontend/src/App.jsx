@@ -1,50 +1,57 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
+import { belongsToHouse, sameStockItem, positiveQuantity, purchaseSummary } from './utils/householdShopping';
+import { readLocalState, writeLocalState } from './services/localState';
+import { reconcileReceiptList } from './utils/receiptReview';
+import { inventoryMovement } from './utils/inventoryMovement';
+import OfflineStatus from './components/layout/OfflineStatus';
+import CloudStatus from './components/layout/CloudStatus';
+import { onAuthStateChanged, getIdTokenResult } from 'firebase/auth';
+import { auth } from './services/firebase';
 import Header from './components/layout/Header';
 import BottomNavBar from './components/layout/BottomNavBar';
-import InventoryView from './components/inventory/InventoryView';
-import ManualProductModal from './components/inventory/ManualProductModal';
+const InventoryView = lazy(() => import('./components/inventory/InventoryView'));
+const ManualProductModal = lazy(() => import('./components/inventory/ManualProductModal'));
 import ShoppingListView from './components/shopping/ShoppingListView';
-import RecipesView from './components/recipes/RecipesView';
-import AuditTrailView from './components/audit/AuditTrailView';
-import CameraScannerModal from './components/scanner/CameraScannerModal';
-import AddWineModal from './components/sommelier/AddWineModal';
-import WineTastingModal from './components/sommelier/WineTastingModal';
-import CavaProCommandCenterModal from './components/layout/CavaProCommandCenterModal';
-import ZoneModal from './components/zones/ZoneModal';
-import HouseholdsModal from './components/households/HouseholdsModal';
-import ChangelogModal from './components/changelog/ChangelogModal';
-import PurchaseHistoryModal from './components/shopping/PurchaseHistoryModal';
-import QuickScanActionModal from './components/scanner/QuickScanActionModal';
-import PantryQrBookletModal from './components/shopping/PantryQrBookletModal';
+const RecipesView = lazy(() => import('./components/recipes/RecipesView'));
+const AuditTrailView = lazy(() => import('./components/audit/AuditTrailView'));
+const CameraScannerModal = lazy(() => import('./components/scanner/CameraScannerModal'));
+const AddWineModal = lazy(() => import('./components/sommelier/AddWineModal'));
+const WineTastingModal = lazy(() => import('./components/sommelier/WineTastingModal'));
+const CavaProCommandCenterModal = lazy(() => import('./components/layout/CavaProCommandCenterModal'));
+const ZoneModal = lazy(() => import('./components/zones/ZoneModal'));
+const HouseholdsModal = lazy(() => import('./components/households/HouseholdsModal'));
+const ChangelogModal = lazy(() => import('./components/changelog/ChangelogModal'));
+const PurchaseHistoryModal = lazy(() => import('./components/shopping/PurchaseHistoryModal'));
+const QuickScanActionModal = lazy(() => import('./components/scanner/QuickScanActionModal'));
+const PantryQrBookletModal = lazy(() => import('./components/shopping/PantryQrBookletModal'));
 import { audio } from './services/audioService';
 import { syncPantryToIndexedDb } from './services/db';
 import { findProductByScanCode, extractCodeFromScan } from './utils/scanHelper';
 import { lookupBarcode } from './services/barcodeLookupService';
 import { recordPricePoints } from './services/priceIntelligenceService';
-import { 
-  subscribeToProducts, 
-  saveProductToCloud, 
-  deleteProductFromCloud, 
-  subscribeToShoppingList, 
-  saveShoppingItemToCloud, 
-  deleteShoppingItemFromCloud, 
-  logAuditEventToCloud, 
-  subscribeToAuditLogs,
-  seedCloudIfEmpty
+import {
+  subscribeToProducts, savePurchaseTransaction, subscribeToPurchaseHistory,
+  saveProductToCloud,
+  deleteProductFromCloud,
+  subscribeToShoppingList,
+  saveShoppingItemToCloud,
+  deleteShoppingItemFromCloud,
+  logAuditEventToCloud,
+  subscribeToAuditLogs
 } from './services/firestoreSyncService';
 import { learnProduct, trackConsumption } from './services/learningService';
-import { 
-  INITIAL_PRODUCTS, 
-  INITIAL_ZONES, 
-  INITIAL_RECIPES, 
-  INITIAL_HOUSEHOLDS, 
-  INITIAL_STAFF, 
-  INITIAL_AUDIT_LOGS 
+import {
+  INITIAL_PRODUCTS,
+  INITIAL_ZONES,
+  INITIAL_RECIPES,
+  INITIAL_HOUSEHOLDS,
+  INITIAL_STAFF,
+  INITIAL_AUDIT_LOGS
 } from './services/demoData';
-import { 
-  areItemsEquivalent, 
-  deduplicateShoppingItems, 
-  deduplicateInventoryProducts 
+import {
+  areItemsEquivalent,
+  deduplicateShoppingItems,
+  deduplicateInventoryProducts
 } from './utils/deduplication';
 import { sanitizeAllInventory, sanitizeCavaProduct } from './utils/cavaGuard';
 
@@ -85,46 +92,46 @@ const INITIAL_SHOPPING_LIST = [
 export default function App() {
   // Local storage persisted state con saneamiento de duplicados
   const [products, setProducts] = useState(() => {
-    const saved = localStorage.getItem('alacena_products');
-    return saved 
-      ? sanitizeAllInventory(deduplicateInventoryProducts(JSON.parse(saved)), INITIAL_ZONES) 
-      : sanitizeAllInventory(INITIAL_PRODUCTS, INITIAL_ZONES);
+    const saved = readLocalState('alacena_products', []);
+    return saved
+      ? sanitizeAllInventory(deduplicateInventoryProducts(saved), INITIAL_ZONES)
+      : [];
   });
 
   const [shoppingList, setShoppingList] = useState(() => {
-    const saved = localStorage.getItem('alacena_shopping_list');
-    return saved ? deduplicateShoppingItems(JSON.parse(saved)) : INITIAL_SHOPPING_LIST;
+    const saved = readLocalState('alacena_shopping_list', []);
+    return saved ? deduplicateShoppingItems(saved) : [];
   });
 
   const [zones, setZones] = useState(() => {
-    const saved = localStorage.getItem('alacena_zones');
-    return saved ? JSON.parse(saved) : INITIAL_ZONES;
+    const saved = readLocalState('alacena_zones', INITIAL_ZONES);
+    return saved ? saved : INITIAL_ZONES;
   });
 
   const [recipes, setRecipes] = useState(() => {
-    const saved = localStorage.getItem('alacena_recipes');
-    return saved ? JSON.parse(saved) : INITIAL_RECIPES;
+    const saved = readLocalState('alacena_recipes', INITIAL_RECIPES);
+    return saved ? saved : INITIAL_RECIPES;
   });
 
   const [households, setHouseholds] = useState(() => {
-    const saved = localStorage.getItem('alacena_households');
-    return saved ? JSON.parse(saved) : INITIAL_HOUSEHOLDS;
+    const saved = readLocalState('alacena_households', INITIAL_HOUSEHOLDS);
+    return saved ? saved : INITIAL_HOUSEHOLDS;
   });
 
   const [activeHouse, setActiveHouse] = useState(() => {
-    const saved = localStorage.getItem('alacena_active_house');
-    return saved ? JSON.parse(saved) : INITIAL_HOUSEHOLDS[0];
+    const saved = readLocalState('alacena_active_house', INITIAL_HOUSEHOLDS[0]);
+    return saved ? saved : INITIAL_HOUSEHOLDS[0];
   });
 
   const [auditLogs, setAuditLogs] = useState(() => {
-    const saved = localStorage.getItem('alacena_audit_logs');
-    return saved ? JSON.parse(saved) : INITIAL_AUDIT_LOGS;
+    const saved = readLocalState('alacena_audit_logs', []);
+    return saved ? saved : [];
   });
 
   const [staffList] = useState(INITIAL_STAFF);
 
   // UI state
-  const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' | 'shopping' | 'recipes' | 'audit'
+  const [activeTab, setActiveTab] = useState('shopping'); // 'inventory' | 'shopping' | 'recipes' | 'audit'
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -134,6 +141,7 @@ export default function App() {
   const [editingZone, setEditingZone] = useState(null);
   const [isHouseModalOpen, setIsHouseModalOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
+  const [operationNotice, setOperationNotice] = useState('');
   const [isMuted, setIsMuted] = useState(audio.isMuted());
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isWineTastingOpen, setIsWineTastingOpen] = useState(false);
@@ -149,7 +157,7 @@ export default function App() {
       const params = new URLSearchParams(window.location.search);
       const scanParam = params.get('scan') || params.get('qr') || params.get('id');
       if (scanParam) {
-        const { product: found, cleanCode } = findProductByScanCode(products, scanParam);
+        const { product: found, cleanCode } = findProductByScanCode(products.filter((p) => belongsToHouse(p, activeHouse.id)), scanParam);
         if (found) {
           setQuickScanProduct(found);
           setIsQuickScanOpen(true);
@@ -189,8 +197,8 @@ export default function App() {
   // Historial de compras para devoluciones y auditoría
   const [purchaseHistory, setPurchaseHistory] = useState(() => {
     try {
-      const saved = localStorage.getItem('alacena_purchase_history');
-      return saved ? JSON.parse(saved) : [];
+      const saved = readLocalState('alacena_purchase_history', []);
+      return saved ? saved : [];
     } catch (e) {
       return [];
     }
@@ -198,7 +206,7 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('alacena_purchase_history', JSON.stringify(purchaseHistory));
+      writeLocalState('alacena_purchase_history', purchaseHistory);
     } catch (e) {}
   }, [purchaseHistory]);
 
@@ -224,31 +232,31 @@ export default function App() {
 
   // Save to localStorage
   useEffect(() => {
-    localStorage.setItem('alacena_products', JSON.stringify(products));
+    writeLocalState('alacena_products', products);
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem('alacena_shopping_list', JSON.stringify(shoppingList));
+    writeLocalState('alacena_shopping_list', shoppingList);
   }, [shoppingList]);
 
   useEffect(() => {
-    localStorage.setItem('alacena_zones', JSON.stringify(zones));
+    writeLocalState('alacena_zones', zones);
   }, [zones]);
 
   useEffect(() => {
-    localStorage.setItem('alacena_recipes', JSON.stringify(recipes));
+    writeLocalState('alacena_recipes', recipes);
   }, [recipes]);
 
   useEffect(() => {
-    localStorage.setItem('alacena_households', JSON.stringify(households));
+    writeLocalState('alacena_households', households);
   }, [households]);
 
   useEffect(() => {
-    localStorage.setItem('alacena_active_house', JSON.stringify(activeHouse));
+    writeLocalState('alacena_active_house', activeHouse);
   }, [activeHouse]);
 
   useEffect(() => {
-    localStorage.setItem('alacena_audit_logs', JSON.stringify(auditLogs));
+    writeLocalState('alacena_audit_logs', auditLogs);
   }, [auditLogs]);
 
   // IndexedDB Primario (Dexie.js) - Persistencia Offline Real en Segundo Plano
@@ -256,38 +264,49 @@ export default function App() {
     syncPantryToIndexedDb(products, shoppingList, recipes, auditLogs);
   }, [products, shoppingList, recipes, auditLogs]);
 
-  // 🌐 Sincronización en Tiempo Real México ⇄ España (Firestore Cloud onSnapshot)
+  const [cloudAllowed, setCloudAllowed] = useState(false);
+  const [cloudState, setCloudState] = useState('local');
+  const [storageError, setStorageError] = useState(false);
   useEffect(() => {
-    // 1. Inicializar semillas si Firestore está vacío
-    seedCloudIfEmpty(INITIAL_PRODUCTS, INITIAL_HOUSEHOLDS);
-
-    // 2. Suscribirse a productos del hogar activo (o todos con etiquetado)
-    const unsubProducts = subscribeToProducts(null, (cloudProducts) => {
-      if (cloudProducts && cloudProducts.length > 0) {
-        setProducts(cloudProducts);
-      }
+    let currentUser;
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      currentUser = user;
+      setCloudAllowed(false);
+      setCloudState('local');
+      if (!user) return;
+      try {
+        const token = await getIdTokenResult(user);
+        if (currentUser !== user) return;
+        const allowed = token.claims.alacenaAccess === true && token.claims.email_verified === true;
+        writeLocalState('alacena_cloud_access', { uid: user.uid, allowed });
+        setCloudAllowed(allowed);
+        setCloudState(allowed ? 'connecting' : 'unauthorized');
+      } catch { if (currentUser === user) { const cached = readLocalState('alacena_cloud_access', {}); if (cached.uid === user.uid && cached.allowed) { setCloudAllowed(true); setCloudState('cached'); } else setCloudState('error'); } }
     });
-
-    // 3. Suscribirse a la lista del súper
-    const unsubShopping = subscribeToShoppingList(null, (cloudShopping) => {
-      if (cloudShopping && cloudShopping.length > 0) {
-        setShoppingList(cloudShopping);
-      }
-    });
-
-    // 4. Suscribirse a la bitácora forense de consumo y compras
-    const unsubAudit = subscribeToAuditLogs((cloudLogs) => {
-      if (cloudLogs && cloudLogs.length > 0) {
-        setAuditLogs(cloudLogs);
-      }
-    });
-
-    return () => {
-      unsubProducts();
-      unsubShopping();
-      unsubAudit();
-    };
+    const onStorageError = () => setStorageError(true);
+    window.addEventListener('alacena-storage-error', onStorageError);
+    const onSyncError = () => setCloudState('error');
+    window.addEventListener('alacena-sync-error', onSyncError);
+    const pending = () => setCloudState('pending'), complete = () => setCloudState('synced');
+    window.addEventListener('alacena-sync-pending', pending); window.addEventListener('alacena-sync-complete', complete);
+    return () => { window.removeEventListener('alacena-sync-pending', pending); window.removeEventListener('alacena-sync-complete', complete); currentUser = null; unsubscribe(); window.removeEventListener('alacena-sync-error', onSyncError); window.removeEventListener('alacena-storage-error', onStorageError); };
   }, []);
+
+  useEffect(() => {
+    if (!cloudAllowed) return;
+    const fail = () => setCloudState('error');
+    // Preserve the device copy before switching to the authoritative cloud snapshot.
+    writeLocalState('alacena_before_cloud_connection', { products: readLocalState('alacena_products', []), shoppingList: readLocalState('alacena_shopping_list', []), savedAt: new Date().toISOString() });
+    const unsubProducts = subscribeToProducts(null, (rows, metadata) => { if (!rows.length && metadata?.fromCache) return; setProducts(rows); }, fail);
+    const unsubShopping = subscribeToShoppingList(null, (items, metadata) => {
+      if (!items.length && metadata?.fromCache) return;
+      setShoppingList(items);
+      setCloudState(metadata?.hasPendingWrites ? 'pending' : metadata?.fromCache ? 'cached' : 'synced');
+    }, fail);
+    const unsubAudit = subscribeToAuditLogs(setAuditLogs, fail);
+    const unsubHistory = subscribeToPurchaseHistory(setPurchaseHistory, fail);
+    return () => { unsubProducts(); unsubShopping(); unsubAudit(); unsubHistory(); };
+  }, [cloudAllowed]);
 
   // Audio mute toggle
   const handleToggleMute = () => {
@@ -350,7 +369,7 @@ export default function App() {
   // Helper to add audit log
   const addAuditEntry = (staff, action, description, details = '') => {
     const newLog = {
-      id: `log-${Date.now()}`,
+      id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
       staff: staff || 'Administrador General',
       action,
@@ -365,65 +384,23 @@ export default function App() {
 
   // Product actions
   const handleSaveProduct = (productData) => {
-    const itemWithHouse = sanitizeCavaProduct({
-      ...productData,
-      householdId: productData.householdId || activeHouse?.id || 'house-1',
-      householdName: productData.householdName || activeHouse?.name || 'Casa México',
-    }, zones);
-
-    setProducts((prev) => {
-      const exists = prev.find((p) => p.id === itemWithHouse.id);
-      if (exists) {
-        addAuditEntry(
-          itemWithHouse.lastLoggedBy,
-          'MODIFICACION_ARTICULO',
-          `Modificó datos de ${itemWithHouse.name} en ${itemWithHouse.zone}`,
-          `Cantidad: ${itemWithHouse.quantity} ${itemWithHouse.unit}`
-        );
-        saveProductToCloud(itemWithHouse);
-        return prev.map((p) => (p.id === itemWithHouse.id ? itemWithHouse : p));
-      } else {
-        // Verificar si ya existe un insumo equivalente para evitar registros duplicados
-        const duplicateIdx = prev.findIndex((p) => 
-          areItemsEquivalent(p.name, itemWithHouse.name) || 
-          (p.barcode && itemWithHouse.barcode && p.barcode === itemWithHouse.barcode)
-        );
-
-        if (duplicateIdx >= 0) {
-          const existing = prev[duplicateIdx];
-          const newQty = parseFloat(((existing.quantity || 0) + (itemWithHouse.quantity || 0)).toFixed(2));
-          addAuditEntry(
-            itemWithHouse.lastLoggedBy,
-            'CONSOLIDACION_ARTICULO',
-            `Consolidó +${itemWithHouse.quantity} ${itemWithHouse.unit} en insumo existente "${existing.name}" (Total: ${newQty} ${existing.unit})`,
-            `Evitó registro duplicado en inventario`
-          );
-          const updated = [...prev];
-          const mergedItem = {
-            ...existing,
-            quantity: newQty,
-            minStock: Math.max(existing.minStock || 1, itemWithHouse.minStock || 1),
-            idealStock: Math.max(existing.idealStock || 5, itemWithHouse.idealStock || 5),
-            unitPriceMxn: itemWithHouse.unitPriceMxn > 0 ? itemWithHouse.unitPriceMxn : existing.unitPriceMxn,
-            updatedAt: new Date().toISOString(),
-          };
-          updated[duplicateIdx] = mergedItem;
-          saveProductToCloud(mergedItem);
-          return updated;
-        }
-
-        addAuditEntry(
-          itemWithHouse.lastLoggedBy,
-          'ALTA_MANUAL',
-          `Registró manualmente ${itemWithHouse.name} (${itemWithHouse.quantity} ${itemWithHouse.unit}) en ${itemWithHouse.zone}`,
-          `Costo: ${activeHouse?.currency === 'EUR' ? '€' : '$'}${itemWithHouse.unitPriceMxn.toFixed(2)} ${activeHouse?.currency || 'MXN'}`
-        );
-        saveProductToCloud(itemWithHouse);
-        learnProduct(itemWithHouse);
-        return [itemWithHouse, ...prev];
-      }
-    });
-    setEditingProduct(null);
+    if (!productData?.name?.trim() || !Number.isFinite(Number(productData.quantity)) || Number(productData.quantity) < 0) {
+      setOperationNotice('Escribe el nombre y una existencia válida mayor o igual a cero.'); return false;
+    }
+    const item = sanitizeCavaProduct({ ...productData, id: productData.id || crypto.randomUUID(),
+      name: productData.name.trim(), quantity: Number(productData.quantity), unit: productData.unit || 'piezas',
+      unitPriceMxn: Math.max(0, Number(productData.unitPriceMxn) || 0),
+      householdId: activeHouse.id, householdName: activeHouse.name }, zones);
+    const existing = products.find((p) => belongsToHouse(p, activeHouse.id) && (p.id === item.id || sameStockItem(p, item)));
+    const consolidate = existing && existing.id !== item.id;
+    const saved = consolidate ? { ...existing, quantity: Math.round((Number(existing.quantity || 0) + item.quantity) * 1000) / 1000, updatedAt: new Date().toISOString() } : item;
+    setProducts((previous) => existing ? previous.map((p) => p.id === existing.id ? saved : p) : [saved, ...previous]);
+    saveProductToCloud(saved, consolidate ? { delta: item.quantity } : {});
+    learnProduct(saved);
+    addAuditEntry(item.lastLoggedBy || 'Personal de casa', existing ? 'MODIFICACION_ARTICULO' : 'ALTA_MANUAL',
+      saved.name + ': ' + saved.quantity + ' ' + saved.unit, consolidate ? 'Ingreso consolidado con un producto equivalente de esta casa.' : 'Captura revisada');
+    setEditingProduct(null); setOperationNotice(saved.name + ' guardado: ' + saved.quantity + ' ' + saved.unit + '.');
+    return true;
   };
 
   const handleDeleteProduct = (productId) => {
@@ -440,51 +417,24 @@ export default function App() {
   };
 
   const handleUpdateQuantity = (productId, newQuantity, reason = '') => {
-    setProducts((prev) => {
-      const exists = prev.find((p) => p.id === productId);
-      if (exists) {
-        const delta = newQuantity - (exists.quantity || 0);
-        if (delta !== 0) {
-          addAuditEntry(
-            exists.lastLoggedBy || 'Personal de Cocina',
-            delta > 0 ? 'INCREMENTO_STOCK' : 'CONSUMO_STOCK',
-            `${delta > 0 ? 'Aumentó' : 'Ajustó/Consumió'} ${Math.abs(delta).toFixed(1)} ${exists.unit} de ${exists.name}${reason ? ` (${reason})` : ''}`,
-            `Nuevo stock: ${newQuantity} ${exists.unit}`
-          );
-
-          if (delta < 0) {
-            // Rastrear consumo para análisis de hábitos
-            trackConsumption(exists, Math.abs(delta));
-          } else {
-            // Rastrear compra recurrente
-            learnProduct(exists);
-          }
-        }
-        const updatedItem = { ...exists, quantity: newQuantity, updatedAt: new Date().toISOString() };
-        saveProductToCloud(updatedItem);
-        return prev.map((p) => (p.id === productId ? updatedItem : p));
-      } else if (quickScanProduct && quickScanProduct.id === productId) {
-        // Guardar producto nuevo descubierto vía escáner
-        const newProductObj = {
-          ...quickScanProduct,
-          id: `prod-${Date.now()}`,
-          quantity: newQuantity,
-          householdId: activeHouse?.id || 'house-1',
-          householdName: activeHouse?.name || 'Casa México',
-          updatedAt: new Date().toISOString(),
-        };
-        addAuditEntry(
-          'Administrador / Escáner',
-          'ALTA_PRODUCTO_ESCANEO',
-          `Registró nuevo insumo "${newProductObj.name}" (${newQuantity} ${newProductObj.unit}) vía QR/NFC`,
-          `Ubicación: ${newProductObj.zone}`
-        );
-        saveProductToCloud(newProductObj);
-        learnProduct(newProductObj);
-        return [newProductObj, ...prev];
-      }
-      return prev;
-    });
+    const existing = products.find((p) => p.id === productId && belongsToHouse(p, activeHouse.id));
+    if (!existing) { if (quickScanProduct?.id === productId && quickScanProduct.isNewDiscovered) return handleSaveProduct({ ...quickScanProduct, quantity: newQuantity }); setOperationNotice('No encontramos ese producto en esta casa.'); return false; }
+    const next = Number(newQuantity);
+    if (!Number.isFinite(next) || next < 0) { setOperationNotice('La existencia debe ser un número mayor o igual a cero.'); return false; }
+    const delta = next - Number(existing.quantity || 0);
+    if (!delta) return true;
+    try {
+      const movement = inventoryMovement(products, { id: productId, amount: Math.abs(delta), direction: delta > 0 ? 'in' : 'out', householdId: activeHouse.id });
+      setProducts(movement.products);
+      saveProductToCloud(movement.updated, { delta: movement.delta });
+      if (delta < 0) trackConsumption(existing, Math.abs(delta));
+      else learnProduct(movement.updated);
+      addAuditEntry(existing.lastLoggedBy || 'Personal de casa', delta > 0 ? 'INCREMENTO_STOCK' : 'CONSUMO_STOCK',
+        (delta > 0 ? 'Ingresó ' : 'Consumió ') + Math.abs(delta) + ' ' + existing.unit + ' de ' + existing.name,
+        'Existencia: ' + movement.updated.quantity + (reason ? ' · ' + reason : ''));
+      setOperationNotice(existing.name + ': quedan ' + movement.updated.quantity + ' ' + existing.unit + '.');
+      return true;
+    } catch (error) { setOperationNotice(error.message); return false; }
   };
 
   // Shopping list actions
@@ -505,7 +455,7 @@ export default function App() {
   const handleUpdateShoppingItemQuantity = (itemId, newQuantity) => {
     setShoppingList((prev) => {
       const updated = prev.map((item) =>
-        item.id === itemId ? { ...item, quantity: parseFloat(newQuantity.toFixed(2)) } : item
+        item.id === itemId ? { ...item, quantity: positiveQuantity(newQuantity, item.quantity) } : item
       );
       const target = updated.find((i) => i.id === itemId);
       if (target) saveShoppingItemToCloud(target);
@@ -515,16 +465,23 @@ export default function App() {
 
   // Shopping list actions con DEDUPLICACIÓN Y CONSOLIDACIÓN ESTRICTA
   const handleAddShoppingItem = (item) => {
+    if (!item?.name?.trim()) return;
     const itemWithHouse = {
       ...item,
       householdId: item.householdId || activeHouse?.id || 'house-1',
       householdName: item.householdName || activeHouse?.name || 'Casa México',
       currency: activeHouse?.currency || 'MXN',
+      id: item.id || crypto.randomUUID(),
+      name: item.name.trim(),
+      quantity: positiveQuantity(item.quantity),
+      unit: item.unit || 'piezas',
+      checked: Boolean(item.checked),
+      estimatedPriceMxn: Math.max(0, Number(item.estimatedPriceMxn) || 0),
     };
 
     setShoppingList((prev) => {
       const existingIdx = prev.findIndex(
-        (i) => areItemsEquivalent(i.name, itemWithHouse.name) || (i.barcode && itemWithHouse.barcode && i.barcode === itemWithHouse.barcode)
+        (i) => sameStockItem(i, itemWithHouse)
       );
 
       if (existingIdx >= 0) {
@@ -551,145 +508,86 @@ export default function App() {
   };
 
   const handleDeduplicateShoppingList = () => {
-    setShoppingList((prev) => {
-      const deduplicated = deduplicateShoppingItems(prev);
-      const mergedCount = prev.length - deduplicated.length;
-
-      if (mergedCount > 0) {
-        alert(`🧹 ¡Lista de compras desduplicada con éxito! Se consolidaron ${mergedCount} registros repetidos en ${deduplicated.length} insumos únicos.`);
-      } else {
-        alert('✨ Tu lista de compras está 100% limpia y sin ningún producto duplicado.');
-      }
-      return deduplicated;
-    });
+    const clean = deduplicateShoppingItems(shoppingList);
+    const ids = new Set(clean.map((i) => i.id));
+    shoppingList.filter((i) => !ids.has(i.id)).forEach((i) => deleteShoppingItemFromCloud(i.id));
+    clean.forEach(saveShoppingItemToCloud);
+    setShoppingList(clean);
+    alert(clean.length < shoppingList.length ? 'Se combinaron los productos repetidos de la misma casa y unidad.' : 'Tu lista no tiene productos repetidos.');
   };
 
   const handleClearCheckedShoppingItems = () => {
-    setShoppingList((prev) => prev.filter((i) => !i.checked));
+    const removed = shoppingList.filter((i) => i.checked && belongsToHouse(i, activeHouse.id));
+    removed.forEach((i) => deleteShoppingItemFromCloud(i.id));
+    const ids = new Set(removed.map((i) => i.id));
+    setShoppingList((prev) => prev.filter((i) => !ids.has(i.id)));
     audio.click();
   };
 
   const handleClearAllShoppingItems = () => {
     if (confirm('¿Deseas vaciar por completo la lista de compras?')) {
-      setShoppingList([]);
+      shoppingList.filter((i) => belongsToHouse(i, activeHouse.id)).forEach((i) => deleteShoppingItemFromCloud(i.id));
+      setShoppingList((prev) => prev.filter((i) => !belongsToHouse(i, activeHouse.id)));
       audio.click();
     }
   };
 
   const handleUndoPurchasedItem = (receiptId, item) => {
-    // 1. Descontar o eliminar del inventario
-    setProducts((prev) => {
-      const idx = prev.findIndex((p) => p.name.toLowerCase() === item.name.toLowerCase());
-      if (idx >= 0) {
-        const prod = prev[idx];
-        const newQty = (prod.quantity || 0) - (item.quantity || 0);
-        if (newQty <= 0) {
-          return prev.filter((_, i) => i !== idx);
-        } else {
-          const updated = [...prev];
-          updated[idx] = { ...prod, quantity: newQty, updatedAt: new Date().toISOString() };
-          return updated;
-        }
-      }
-      return prev;
-    });
-
-    // 2. Marcar como devuelto en el recibo
-    setPurchaseHistory((prev) =>
-      prev.map((r) => {
-        if (r.id === receiptId) {
-          return {
-            ...r,
-            items: r.items.map((it) => (it.name.toLowerCase() === item.name.toLowerCase() ? { ...it, reversed: true } : it)),
-          };
-        }
-        return r;
-      })
-    );
-
-    // 3. Auditoría
-    addAuditEntry(
-      'Administrador General',
-      'DEVOLUCION_COMPRA',
-      `Devolvió/eliminó ${item.quantity} ${item.unit} de "${item.name}" de la alacena`,
-      `Insumo comprado por error o devuelto al supermercado`
-    );
-
-    audio.success();
-    alert(`✅ Insumo "${item.name}" devuelto / descontado del inventario.`);
+    const receipt = purchaseHistory.find((r) => r.id === receiptId);
+    const recorded = receipt?.items.find((i) => i.id === item.id && i.name === item.name);
+    if (!recorded || recorded.reversed || !belongsToHouse(receipt, activeHouse.id)) return;
+    const target = products.find((p) => sameStockItem(p, { ...item, householdId: activeHouse.id }));
+    if (!target || target.quantity < item.quantity) {
+      alert('No hay suficiente existencia para devolver esta cantidad. Revisa si ya se consumió parte de la compra.'); return;
+    }
+    const updated = { ...target, quantity: Math.round((target.quantity - item.quantity) * 1000) / 1000, updatedAt: new Date().toISOString() };
+    const updatedReceipt = { ...receipt, items: receipt.items.map((i) => i.id === item.id && i.name === item.name ? { ...i, reversed: true } : i) };
+    savePurchaseTransaction([{ product: updated, delta: -Number(item.quantity) }], { removedIds: [], updated: [] }, updatedReceipt);
+    setProducts((prev) => prev.map((p) => p.id === target.id ? updated : p));
+    setPurchaseHistory((prev) => prev.map((r) => r.id === receiptId ? { ...r, items: r.items.map((i) => i.id === item.id && i.name === item.name ? { ...i, reversed: true } : i) } : r));
+    addAuditEntry('Administrador General', 'DEVOLUCION_COMPRA', 'Devolvió ' + item.quantity + ' ' + item.unit + ' de ' + item.name);
   };
 
   const handleAutoGenerateShoppingList = () => {
-    // Escanear artículos con stock bajo
-    const lowStockItems = products.filter((p) => (p.quantity || 0) <= (p.minStock || 0));
-    let addedCount = 0;
-
-    setShoppingList((prev) => {
-      const updated = [...prev];
-      lowStockItems.forEach((p) => {
-        const existingIdx = updated.findIndex((i) => 
-          areItemsEquivalent(i.name, p.name) || 
-          (i.barcode && p.barcode && i.barcode === p.barcode)
-        );
-        const deficit = Math.max(1, (p.idealStock || 5) - (p.quantity || 0));
-
-        if (existingIdx >= 0) {
-          // Si ya existe, reactivar y asegurar cantidad mínima necesaria
-          updated[existingIdx] = {
-            ...updated[existingIdx],
-            quantity: Math.max(updated[existingIdx].quantity, deficit),
-            checked: false,
-          };
-        } else {
-          updated.push({
-            id: `shop-${Date.now()}-${Math.random()}`,
-            name: p.name,
-            quantity: deficit,
-            unit: p.unit,
-            store: p.store || 'Costco',
-            estimatedPriceMxn: p.unitPriceMxn || 0,
-            targetZone: p.zone || 'Alacena Principal',
-            checked: false,
-          });
-          addedCount++;
-        }
-      });
-      return deduplicateShoppingItems(updated);
-    });
-
-    if (addedCount > 0) {
-      alert(`⚡ Se agregaron automáticamente ${addedCount} insumos con stock bajo a la lista de compras.`);
-    } else {
-      alert('¡Todo tu inventario tiene stock óptimo! No hay insumos por debajo del mínimo.');
-    }
+    const low = products.filter((p) => belongsToHouse(p, activeHouse.id) && Number(p.quantity || 0) <= Number(p.minStock || 0));
+    const additions = low.filter((p) => !shoppingList.some((i) => sameStockItem(i, p)));
+    additions.forEach((p) => handleAddShoppingItem({
+      name: p.name, barcode: p.barcode || '', unit: p.unit,
+      quantity: Math.max(0.01, (p.idealStock ?? 5) - (p.quantity || 0)),
+      store: p.store || 'Supermercado', estimatedPriceMxn: p.unitPriceMxn || 0,
+      targetZone: p.zone || zones[0]?.name || 'Alacena Principal', checked: false,
+    }));
+    alert(additions.length ? 'Se agregaron ' + additions.length + ' artículos que faltan en esta casa.' : low.length ? 'Los faltantes ya están en tu lista.' : 'La despensa de esta casa tiene suficiente stock.');
   };
 
   const handleCompletePurchaseToPantry = (purchasePayload) => {
-    const isPayloadObj = !Array.isArray(purchasePayload) && purchasePayload?.checkedItems;
-    const checkedItems = isPayloadObj ? purchasePayload.checkedItems : purchasePayload;
-    const realTotalPurchased = isPayloadObj && purchasePayload.realTotalMxn !== undefined 
-      ? purchasePayload.realTotalMxn 
-      : null;
-    const buyer = isPayloadObj?.buyerName || 'Administrador General';
-    const notes = isPayloadObj?.ticketNotes || '';
+    if (purchasePayload?.receiptFingerprint && purchaseHistory.some((r) => r.receiptFingerprint === purchasePayload.receiptFingerprint && belongsToHouse(r, activeHouse.id))) { setOperationNotice('Este ticket ya está registrado. Revisa tu historial para evitar duplicarlo.'); return false; }
+    const summary = purchaseSummary(purchasePayload);
+    const checkedItems = summary.items.map((i) => ({ ...i, householdId: i.householdId || activeHouse.id })).filter((i) => belongsToHouse(i, activeHouse.id));
+    if (!checkedItems.length || checkedItems.some((i) => !i.name?.trim() || !Number.isFinite(Number(i.quantity)) || Number(i.quantity) <= 0)) { setOperationNotice('Revisa los nombres y cantidades de la compra.'); return false; }
+    const buyer = summary.buyer;
+    const notes = summary.notes;
+    const totalEstimatedPurchasedMxn = purchaseSummary(checkedItems).estimated;
+    const realTotalPurchased = summary.total;
 
-    let totalEstimatedPurchasedMxn = 0;
-
+    if (checkedItems.length > 150) { setOperationNotice('Revisa esta compra en grupos de hasta 150 artículos.'); return false; }
+    const productWrites = [];
+    let shoppingChanges;
     // Transferir al inventario
-    setProducts((prev) => {
-      let currentList = [...prev];
+    {
+      let currentList = [...products];
 
       checkedItems.forEach((purchased) => {
         const existingIdx = currentList.findIndex(
-          (p) => areItemsEquivalent(p.name, purchased.name) || (p.barcode && purchased.barcode && p.barcode === purchased.barcode)
+          (p) => sameStockItem(p, { ...purchased, householdId: activeHouse.id })
         );
 
-        const cost = (purchased.quantity || 1) * (purchased.realPrice || purchased.estimatedPriceMxn || 0);
-        totalEstimatedPurchasedMxn += cost;
+
+
 
         if (existingIdx >= 0) {
           const existing = currentList[existingIdx];
-          const newQty = parseFloat(((existing.quantity || 0) + (purchased.quantity || 1)).toFixed(2));
+          const newQty = parseFloat((Number(existing.quantity || 0) + Number(purchased.quantity || 1)).toFixed(3));
           const unitPrice = (purchased.realPrice || purchased.estimatedPriceMxn || 0) > 0 ? (purchased.realPrice || purchased.estimatedPriceMxn) : existing.unitPriceMxn;
           const merged = {
             ...existing,
@@ -699,7 +597,7 @@ export default function App() {
             updatedAt: new Date().toISOString(),
           };
           currentList[existingIdx] = merged;
-          saveProductToCloud(merged);
+          productWrites.push({ product: merged, delta: Number(purchased.quantity || 1) });
           learnProduct(merged);
         } else {
           const newProd = sanitizeCavaProduct({
@@ -720,25 +618,32 @@ export default function App() {
             updatedAt: new Date().toISOString(),
           }, zones);
           currentList.unshift(newProd);
-          saveProductToCloud(newProd);
+          productWrites.push({ product: newProd });
           learnProduct(newProd);
         }
       });
 
       const sanitizedList = sanitizeAllInventory(deduplicateInventoryProducts(currentList), zones);
       syncPantryToIndexedDb(sanitizedList);
-      return sanitizedList;
-    });
+      setProducts(sanitizedList);
+    }
 
-    // Limpiar comprados de la lista de compras
-    const checkedIds = new Set(checkedItems.map((i) => i.id));
-    setShoppingList((prev) => prev.filter((i) => !checkedIds.has(i.id)));
+    // A receipt may satisfy only part of an outstanding quantity.
+    if (purchasePayload?.source === 'receipt') {
+      const match = reconcileReceiptList(shoppingList, checkedItems, activeHouse.id);
+      shoppingChanges = match;
+      setShoppingList(match.remaining);
+    } else {
+      const checkedIds = new Set(checkedItems.map((i) => i.id));
+      shoppingChanges = { removedIds: checkedItems.map((i) => i.id), updated: [] };
+      setShoppingList((prev) => prev.filter((i) => !checkedIds.has(i.id)));
+    }
 
     const finalRecordedTotal = realTotalPurchased !== null ? realTotalPurchased : totalEstimatedPurchasedMxn;
 
     // Guardar en historial de compras para devoluciones o anulaciones
     const newReceipt = {
-      id: `rec-${Date.now()}`,
+      id: purchasePayload?.receiptFingerprint ? `${activeHouse.id}-${purchasePayload.receiptFingerprint}` : crypto.randomUUID(),
       date: new Date().toISOString(),
       items: checkedItems.map((i) => ({
         id: i.id,
@@ -750,15 +655,20 @@ export default function App() {
         zone: i.targetZone || 'Alacena Principal',
         reversed: false,
       })),
+      receiptFingerprint: purchasePayload?.receiptFingerprint || null,
+      source: purchasePayload?.source || 'shopping',
       totalMxn: finalRecordedTotal,
       estimatedMxn: totalEstimatedPurchasedMxn,
       buyer,
       notes,
+      householdId: activeHouse.id,
+      currency: activeHouse.currency || 'MXN',
     };
-    setPurchaseHistory((prev) => [newReceipt, ...prev.slice(0, 30)]);
+    setPurchaseHistory((prev) => [newReceipt, ...prev.slice(0, 29)]);
+    savePurchaseTransaction(productWrites, shoppingChanges, newReceipt);
 
     // Registrar precios en el motor de inteligencia multitienda
-    recordPricePoints(checkedItems, checkedItems[0]?.store || 'Supermercado', newReceipt.date, notes);
+    recordPricePoints(checkedItems.map((i) => ({ ...i, currency: activeHouse.currency || 'MXN' })), checkedItems[0]?.store || 'Supermercado', newReceipt.date, notes);
 
     // Registrar en auditoría
     addAuditEntry(
@@ -779,8 +689,8 @@ export default function App() {
     let addedCount = 0;
     let updatedCount = 0;
 
-    setProducts((prev) => {
-      let currentList = [...prev];
+    {
+      let currentList = [...products];
 
       itemsToAdd.forEach((item) => {
         const itemQty = parseFloat(item.quantity) || 1;
@@ -788,13 +698,12 @@ export default function App() {
         totalRecordedMxn += itemQty * itemPrice;
 
         const existingIdx = currentList.findIndex(
-          (p) => areItemsEquivalent(p.name, item.name) ||
-          (p.barcode && item.barcode && p.barcode === item.barcode)
+          (p) => sameStockItem(p, { ...item, householdId: activeHouse.id })
         );
 
         if (existingIdx >= 0) {
           const existing = currentList[existingIdx];
-          const newQty = parseFloat(((existing.quantity || 0) + itemQty).toFixed(2));
+          const newQty = parseFloat((Number(existing.quantity || 0) + itemQty).toFixed(3));
           const merged = {
             ...existing,
             quantity: newQty,
@@ -835,8 +744,8 @@ export default function App() {
 
       const sanitizedList = sanitizeAllInventory(deduplicateInventoryProducts(currentList), zones);
       syncPantryToIndexedDb(sanitizedList);
-      return sanitizedList;
-    });
+      setProducts(sanitizedList);
+    }
 
     recordPricePoints(itemsToAdd, storeName);
 
@@ -857,24 +766,24 @@ export default function App() {
       recordPricePoints([productOrId], productOrId.store || 'Supermercado');
     }
     const searchId = isObj ? (productOrId.id || productOrId.barcode) : productOrId;
-    const prod = products.find((p) => 
+    const prod = products.find((p) => belongsToHouse(p, activeHouse.id) && (
       (searchId && (p.id === searchId || (p.barcode && p.barcode === searchId))) ||
       (isObj && p.name && productOrId.name && areItemsEquivalent(p.name, productOrId.name))
-    );
+    ));
 
     if (prod) {
-      const newQty = (prod.quantity || 0) + amount;
+      const newQty = Number(prod.quantity || 0) + Number(amount);
       const effectivePrice = isObj && (productOrId.realPrice || productOrId.estimatedPriceMxn || productOrId.price || productOrId.unitPriceMxn)
         ? (productOrId.realPrice || productOrId.estimatedPriceMxn || productOrId.price || productOrId.unitPriceMxn)
         : prod.unitPriceMxn;
 
       if (targetZone && targetZone !== prod.zone) {
-        const updated = sanitizeCavaProduct({ 
-          ...prod, 
-          quantity: newQty, 
+        const updated = sanitizeCavaProduct({
+          ...prod,
+          quantity: newQty,
           unitPriceMxn: effectivePrice,
-          zone: targetZone, 
-          updatedAt: new Date().toISOString() 
+          zone: targetZone,
+          updatedAt: new Date().toISOString()
         }, zones);
         setProducts((prev) => prev.map((p) => (p.id === prod.id ? updated : p)));
         saveProductToCloud(updated);
@@ -926,17 +835,11 @@ export default function App() {
   };
 
   const handleSubtractStockDirect = (productId, amount = 1) => {
-    const prod = products.find((p) => p.id === productId);
-    if (prod) {
-      const newQty = Math.max(0, (prod.quantity || 0) - amount);
-      handleUpdateQuantity(productId, newQty);
-      addAuditEntry(
-        'Cocinera / Personal',
-        'CONSUMO_DIRECTO',
-        `Consumo de ${amount} ${prod.unit} de "${prod.name}" vía QR/NFC`,
-        `Stock actual restante: ${newQty} ${prod.unit}`
-      );
+    const existing = products.find((p) => p.id === productId && belongsToHouse(p, activeHouse.id));
+    if (!existing || Number(amount) <= 0 || Number(amount) > Number(existing.quantity)) {
+      setOperationNotice('No hay suficiente existencia para registrar ese consumo.'); return false;
     }
+    return handleUpdateQuantity(productId, Number(existing.quantity) - Number(amount), 'Escáner QR / barras');
   };
 
   const handleAddToShoppingListFromScan = (product, amount) => {
@@ -1056,6 +959,10 @@ export default function App() {
       zones,
       recipes,
       auditLogs,
+      purchaseHistory,
+      households,
+      activeHouse,
+      beforeCloudConnection: readLocalState('alacena_before_cloud_connection', {}),
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1083,7 +990,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-base,#090B0E)] text-[var(--ink-primary,#F8FAFC)] flex flex-col font-body selection:bg-emerald-500/30 selection:text-white transition-colors duration-200">
-      
+
       {/* Top Header */}
       <Header
         activeTab={activeTab}
@@ -1095,23 +1002,28 @@ export default function App() {
         onOpenScanner={() => setIsScannerOpen(true)}
         onOpenCommandCenter={() => setIsCommandCenterOpen(true)}
         onOpenQrBooklet={() => setIsQrBookletOpen(true)}
-        shoppingCount={shoppingList.filter((i) => !i.checked).length}
+        shoppingCount={shoppingList.filter((i) => !i.checked && belongsToHouse(i, activeHouse.id)).length}
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
         isOnline={isOnline}
         zones={zones}
-        products={products}
-        shoppingList={shoppingList}
+        products={products.filter((p) => belongsToHouse(p, activeHouse.id))}
+        shoppingList={shoppingList.filter((i) => belongsToHouse(i, activeHouse.id))}
         recipes={recipes}
       />
 
+      <CloudStatus state={cloudState} isOnline={isOnline} />
+      <OfflineStatus />
+      {operationNotice && <div role="status" className="mx-auto w-full max-w-7xl px-4 pt-3 text-sm text-emerald-400 flex justify-between gap-3"><span>{operationNotice}</span><button onClick={() => setOperationNotice('')} aria-label="Cerrar aviso">×</button></div>}
+      {storageError && <div role="alert" className="mx-4 p-4 rounded-xl bg-rose-950 text-white">No se pudo guardar en este dispositivo. Descarga un respaldo desde Más antes de cerrar la página.</div>}
+      <Suspense fallback={<div role="status" className="p-12 text-center">Preparando tu alacena…</div>}>
       {/* Main Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-8">
-        
+
         {/* Tab 1: Inventario & Zonas */}
         {activeTab === 'inventory' && (
           <InventoryView
-            products={products}
+            products={products.filter((p) => belongsToHouse(p, activeHouse.id))}
             zones={zones}
             onOpenManualModal={() => {
               setEditingProduct(null);
@@ -1136,7 +1048,7 @@ export default function App() {
             onOpenRecipesTab={() => setActiveTab('recipes')}
             onAddToShoppingList={handleAddShoppingItem}
             recipes={recipes}
-            auditLogs={auditLogs}
+            auditLogs={auditLogs.filter((r) => belongsToHouse(r, activeHouse.id))}
             activeHouse={activeHouse}
             onOpenScanner={() => setIsScannerOpen(true)}
           />
@@ -1145,8 +1057,8 @@ export default function App() {
         {/* Tab 2: Lista de Compras (Modo Súper Interactivo con QR) */}
         {activeTab === 'shopping' && (
           <ShoppingListView
-            shoppingList={shoppingList}
-            products={products}
+            shoppingList={shoppingList.filter((i) => belongsToHouse(i, activeHouse.id))}
+            products={products.filter((p) => belongsToHouse(p, activeHouse.id))}
             zones={zones}
             activeHouse={activeHouse}
             onToggleItem={handleToggleShoppingItem}
@@ -1160,7 +1072,7 @@ export default function App() {
             onClearChecked={handleClearCheckedShoppingItems}
             onClearAll={handleClearAllShoppingItems}
             onOpenPurchaseHistory={() => setIsPurchaseHistoryOpen(true)}
-            purchaseHistoryCount={purchaseHistory.length}
+            purchaseHistoryCount={purchaseHistory.filter((r) => belongsToHouse(r, activeHouse.id)).length}
           />
         )}
 
@@ -1168,7 +1080,7 @@ export default function App() {
         {activeTab === 'recipes' && (
           <RecipesView
             recipes={recipes}
-            products={products}
+            products={products.filter((p) => belongsToHouse(p, activeHouse.id))}
             staffList={staffList}
             onCookRecipe={handleCookRecipe}
             onCreateRecipe={handleCreateRecipe}
@@ -1199,7 +1111,7 @@ export default function App() {
       </main>
 
       {/* Modals */}
-      <ManualProductModal
+      {isManualModalOpen && (<ManualProductModal
         isOpen={isManualModalOpen}
         onClose={() => setIsManualModalOpen(false)}
         onSave={handleSaveProduct}
@@ -1209,23 +1121,26 @@ export default function App() {
         initialProduct={editingProduct}
         activeHouse={activeHouse}
       />
+      )}
 
-      <AddWineModal
+      {isAddWineOpen && (<AddWineModal
         isOpen={isAddWineOpen}
         onClose={() => setIsAddWineOpen(false)}
         onSave={handleSaveProduct}
         zones={zones}
       />
+      )}
 
-      <WineTastingModal
+      {isWineTastingOpen && (<WineTastingModal
         isOpen={isWineTastingOpen}
         onClose={() => setIsWineTastingOpen(false)}
         wine={selectedWineForTasting}
         onSaveRating={handleSaveWineRating}
         onUncorkBottle={handleUncorkWine}
       />
+      )}
 
-      <CavaProCommandCenterModal
+      {isCommandCenterOpen && (<CavaProCommandCenterModal
         isOpen={isCommandCenterOpen}
         onClose={() => setIsCommandCenterOpen(false)}
         onOpenAddProduct={() => {
@@ -1246,16 +1161,20 @@ export default function App() {
         isMuted={isMuted}
         lowStockCount={products.filter((p) => (p.quantity || 0) <= (p.minStock || 0)).length}
       />
+      )}
 
-      <CameraScannerModal
+      {isScannerOpen && (<CameraScannerModal
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
-        products={products}
+        products={products.filter((p) => belongsToHouse(p, activeHouse.id))}
         zones={zones}
         onAddStockDirect={handleAddStockDirect}
         onBatchAddToInventory={handleBatchAddToInventory}
+        onConfirmReceipt={handleCompletePurchaseToPantry}
+        shoppingList={shoppingList.filter((i) => belongsToHouse(i, activeHouse.id))}
+        currency={activeHouse.currency || 'MXN'}
         onSubtractStockDirect={handleSubtractStockDirect}
-        onAddToShoppingList={handleAddToShoppingListFromScan}
+        onAddToShoppingList={handleAddShoppingItem}
         onOpenManualCaptureWithBarcode={handleOpenManualCaptureWithBarcode}
         onEditZone={(zone) => {
           setEditingZone(zone);
@@ -1266,16 +1185,18 @@ export default function App() {
           setIsZoneModalOpen(true);
         }}
       />
+      )}
 
-      <ZoneModal
+      {isZoneModalOpen && (<ZoneModal
         isOpen={isZoneModalOpen}
         onClose={() => setIsZoneModalOpen(false)}
         onSave={handleSaveZone}
         onDelete={handleDeleteZone}
         initialZone={editingZone}
       />
+      )}
 
-      <HouseholdsModal
+      {isHouseModalOpen && (<HouseholdsModal
         isOpen={isHouseModalOpen}
         onClose={() => setIsHouseModalOpen(false)}
         households={households}
@@ -1283,22 +1204,25 @@ export default function App() {
         onSelectHouse={setActiveHouse}
         onAddHouse={(h) => setHouseholds((prev) => [...prev, h])}
       />
+      )}
 
-      <ChangelogModal
+      {isChangelogOpen && (<ChangelogModal
         isOpen={isChangelogOpen}
         onClose={() => setIsChangelogOpen(false)}
       />
+      )}
 
       {/* Modal de Historial de Compras y Devoluciones */}
-      <PurchaseHistoryModal
+      {isPurchaseHistoryOpen && (<PurchaseHistoryModal
         isOpen={isPurchaseHistoryOpen}
         onClose={() => setIsPurchaseHistoryOpen(false)}
-        purchases={purchaseHistory}
+        purchases={purchaseHistory.filter((r) => belongsToHouse(r, activeHouse.id))}
         onUndoPurchasedItem={handleUndoPurchasedItem}
       />
+      )}
 
       {/* Modal de Acción Rápida por Escaneo QR o Toque NFC */}
-      <QuickScanActionModal
+      {isQuickScanOpen && (<QuickScanActionModal
         isOpen={isQuickScanOpen}
         onClose={() => {
           setIsQuickScanOpen(false);
@@ -1306,25 +1230,28 @@ export default function App() {
         }}
         product={quickScanProduct}
         onUpdateQuantity={handleUpdateQuantity}
-        onAddToShoppingList={handleAddShoppingItem}
+        onAddToShoppingList={handleAddToShoppingListFromScan}
         onOpenWineTasting={handleOpenWineTasting}
       />
+      )}
 
       {/* Catálogo Imprimible de QR, Stickers para Frascos y Tuppers */}
-      <PantryQrBookletModal
+      {isQrBookletOpen && (<PantryQrBookletModal
         isOpen={isQrBookletOpen}
         onClose={() => setIsQrBookletOpen(false)}
-        products={products}
+        products={products.filter((p) => belongsToHouse(p, activeHouse.id))}
         zones={zones}
         activeHouse={activeHouse}
         onQuickAddToShoppingList={handleAddShoppingItem}
       />
+      )}
 
       {/* Barra de Navegación Ergonómica para Dispositivos Móviles */}
+      </Suspense>
       <BottomNavBar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        shoppingCount={shoppingList.filter((i) => !i.checked).length}
+        shoppingCount={shoppingList.filter((i) => !i.checked && belongsToHouse(i, activeHouse.id)).length}
         onOpenScanner={() => setIsScannerOpen(true)}
         onOpenCommandCenter={() => setIsCommandCenterOpen(true)}
       />

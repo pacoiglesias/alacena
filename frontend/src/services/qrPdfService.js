@@ -10,7 +10,7 @@ import QRCode from 'qrcode';
  * o sticker NFC abra la app automáticamente al escanear o tocar.
  */
 export function getItemScanUrl(item) {
-  const base = (typeof window !== 'undefined' && window.location.origin)
+  const base = (typeof window !== 'undefined' && !['localhost', '127.0.0.1'].includes(window.location.hostname) && window.location.origin)
     ? window.location.origin
     : 'https://alacena-enterprise-prod.web.app';
   const param = encodeURIComponent(item.id || item.barcode || '');

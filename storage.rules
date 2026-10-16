@@ -3,21 +3,23 @@ service firebase.storage {
   match /b/{bucket}/o {
     
     function isAuthenticated() {
-      return request.auth != null;
+      return request.auth != null && request.auth.token.email_verified == true && request.auth.token.alacenaAccess == true;
     }
 
     // Carpeta de fotos de productos del hogar
     match /households/{householdId}/products/{allPaths=**} {
       allow read: if isAuthenticated();
+      allow delete: if isAuthenticated();
       // Solo imagenes con tamano menor a 15MB
-      allow write: if isAuthenticated() &&
+      allow create, update: if isAuthenticated() &&
         request.resource.size < 15 * 1024 * 1024 &&
         request.resource.contentType.matches('image/.*');
     }
 
     // Carpeta de escaneos de OpenAI Vision / fotos temporales
     match /vision_analysis/{householdId}/{imageId} {
-      allow read, write: if isAuthenticated() &&
+      allow read, delete: if isAuthenticated();
+      allow create, update: if isAuthenticated() &&
         request.resource.size < 20 * 1024 * 1024 &&
         request.resource.contentType.matches('image/.*');
     }

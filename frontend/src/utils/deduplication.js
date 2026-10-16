@@ -6,9 +6,15 @@
 /**
  * Normaliza nombres eliminando mayúsculas, acentos, caracteres especiales y espacios redundantes
  */
+function sameScope(a, b) {
+  if (a.barcode && b.barcode && String(a.barcode) !== String(b.barcode)) return false;
+  return (a.householdId || 'house-1') === (b.householdId || 'house-1') &&
+    normalizeItemName(a.unit || 'piezas') === normalizeItemName(b.unit || 'piezas');
+}
+
 export function normalizeItemName(str = '') {
   if (!str) return '';
-  return str
+  return String(str)
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // Quitar acentos (á -> a, é -> e)
@@ -29,6 +35,8 @@ export function areItemsEquivalent(nameA = '', nameB = '') {
 
   // Normalizar singular / plural en español (ej. "tomates" -> "tomate", "huevos" -> "huevo")
   const toSingular = (w) => {
+    const common = { tomates: 'tomate', jitomates: 'jitomate', chiles: 'chile', elotes: 'elote', aguacates: 'aguacate', aceites: 'aceite', quesos: 'queso', huevos: 'huevo' };
+    if (common[w]) return common[w];
     if (w.endsWith('ces')) return w.slice(0, -3) + 'z'; // peces -> pez
     if (w.endsWith('es') && w.length > 4) return w.slice(0, -2);
     if (w.endsWith('s') && !w.endsWith('ss') && w.length > 3) return w.slice(0, -1);
@@ -38,17 +46,6 @@ export function areItemsEquivalent(nameA = '', nameB = '') {
   const singA = normA.split(' ').map(toSingular).join(' ');
   const singB = normB.split(' ').map(toSingular).join(' ');
   if (singA === singB) return true;
-
-  // Contención exacta para nombres compuestos (ej. "Ribeye Prime" y "Corte Ribeye Prime")
-  if (normA.length > 6 && normB.length > 6) {
-    if (normA.includes(normB) || normB.includes(normA)) {
-      // Solo si comparten la raíz principal de al menos 2 palabras
-      const wordsA = new Set(normA.split(' '));
-      const wordsB = normB.split(' ');
-      const common = wordsB.filter((w) => wordsA.has(w) && w.length > 2);
-      if (common.length >= 2) return true;
-    }
-  }
 
   return false;
 }
@@ -63,13 +60,12 @@ export function deduplicateShoppingItems(items = []) {
   items.forEach((item) => {
     if (!item || !item.name) return;
     const existingIdx = result.findIndex((r) => 
-      areItemsEquivalent(r.name, item.name) || 
-      (r.barcode && item.barcode && r.barcode === item.barcode)
+      sameScope(r, item) && (areItemsEquivalent(r.name, item.name) || (r.barcode && item.barcode && r.barcode === item.barcode))
     );
 
     if (existingIdx >= 0) {
       const existing = result[existingIdx];
-      const newQty = parseFloat(((parseFloat(existing.quantity) || 0) + (parseFloat(item.quantity) || 1)).toFixed(2));
+      const newQty = parseFloat(((parseFloat(existing.quantity) || 0) + (parseFloat(item.quantity) || 1)).toFixed(3));
       result[existingIdx] = {
         ...existing,
         quantity: newQty,
@@ -100,7 +96,7 @@ export function deduplicateRecipeIngredients(ingredients = []) {
 
     if (map.has(norm)) {
       const existing = map.get(norm);
-      existing.amount = parseFloat(((parseFloat(existing.amount) || 0) + (parseFloat(ing.amount) || 1)).toFixed(2));
+      existing.amount = parseFloat(((parseFloat(existing.amount) || 0) + (parseFloat(ing.amount) || 1)).toFixed(3));
     } else {
       map.set(norm, {
         productName: rawName.trim(),
@@ -123,13 +119,12 @@ export function deduplicateInventoryProducts(products = []) {
   products.forEach((prod) => {
     if (!prod || !prod.name) return;
     const existingIdx = result.findIndex((r) => 
-      areItemsEquivalent(r.name, prod.name) || 
-      (r.barcode && prod.barcode && r.barcode === prod.barcode)
+      sameScope(r, prod) && (areItemsEquivalent(r.name, prod.name) || (r.barcode && prod.barcode && r.barcode === prod.barcode))
     );
 
     if (existingIdx >= 0) {
       const existing = result[existingIdx];
-      const newQty = parseFloat(((parseFloat(existing.quantity) || 0) + (parseFloat(prod.quantity) || 0)).toFixed(2));
+      const newQty = parseFloat(((parseFloat(existing.quantity) || 0) + (parseFloat(prod.quantity) || 0)).toFixed(3));
       result[existingIdx] = {
         ...existing,
         quantity: newQty,

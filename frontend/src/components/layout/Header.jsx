@@ -6,7 +6,7 @@ import {
   BookOpen, Palette, Store, Sun, QrCode, Settings
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
-import { SYSTEM_VERSION } from '../changelog/ChangelogModal';
+import { APP_VERSION } from '../../version';
 import CustomTabNamesModal, { DEFAULT_MENU_TABS, ICON_MAP } from './CustomTabNamesModal';
 import SystemManualModal from '../manual/SystemManualModal';
 import CatalogsConfigModal from '../catalogs/CatalogsConfigModal';
@@ -46,7 +46,7 @@ export default function Header({
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeRole, setActiveRole] = useState(() => {
     const saved = localStorage.getItem('alacena_active_role');
-    return saved ? JSON.parse(saved) : SYSTEM_ROLES[0];
+    try { return saved ? SYSTEM_ROLES.find((role) => role.id === JSON.parse(saved).id) || SYSTEM_ROLES[0] : SYSTEM_ROLES[0]; } catch { return SYSTEM_ROLES[0]; }
   });
   const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
@@ -142,7 +142,7 @@ export default function Header({
         }`}>
           
           {/* Logo & Brand Identity */}
-          <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
+          <div className="home-brand-row flex items-center gap-2.5 sm:gap-4 min-w-0">
             {/* Monograma "A" en cuadrado redondeado */}
             <div className="flex items-center gap-2.5 group cursor-pointer" onClick={() => { audio.click(); setActiveTab('inventory'); }}>
               <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#10B981] via-[#059669] to-[#047857] flex items-center justify-center text-white shadow-lg shadow-emerald-950/40 border border-emerald-400/30 transition-transform group-hover:scale-105">
@@ -161,11 +161,11 @@ export default function Header({
                       onOpenChangelog();
                     }}
                     className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#121622] border border-[#1E2638] hover:border-emerald-500/50 text-[10px] font-mono font-bold text-emerald-400 transition-all cursor-pointer shrink-0"
-                    title="Ver Ficha Técnica y Mejoras del Hogar"
+                    title="Ver Ficha Técnica y Mejoras del Hogar" data-home-version
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="hidden sm:inline">v3.7.0 · Enterprise Luxe</span>
-                    <span className="sm:hidden">v3.7.0</span>
+                    <span className="hidden sm:inline">v{APP_VERSION} · Casa</span>
+                    <span className="sm:hidden">v{APP_VERSION}</span>
                   </button>
                 </div>
                 {!isScrolled && (
@@ -182,7 +182,7 @@ export default function Header({
                 audio.click();
                 onOpenHouseModal();
               }}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#121622] hover:bg-[#1A2030] border border-[#1E2638] hover:border-emerald-500/40 transition-all shrink-0 cursor-pointer shadow-sm"
+              className="home-house-select flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#121622] hover:bg-[#1A2030] border border-[#1E2638] hover:border-emerald-500/40 transition-all shrink-0 cursor-pointer shadow-sm"
               title="Cambiar entre Casa México y Casa España"
             >
               <span className="text-base leading-none">
@@ -221,7 +221,7 @@ export default function Header({
                     ? 'bg-[#1A2030] border-emerald-500/50 text-white' 
                     : 'bg-[#121622] border-[#1E2638] text-[#94A3B8] hover:text-white'
                 }`}
-                title="Cambiar Rol de Operación en el Hogar"
+                title="Cambiar Rol de Operación en el Hogar" data-home-role
               >
                 {React.createElement(activeRole.icon, { className: 'w-3.5 h-3.5 text-emerald-400' })}
                 <span className="hidden sm:inline font-medium">{activeRole.label}</span>
@@ -262,7 +262,7 @@ export default function Header({
                 onOpenScanner();
               }}
               className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:brightness-110 border border-emerald-400/40 shadow-lg shadow-emerald-950/50 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-              title="Abrir Escáner de Códigos de Barra y Lector de Tickets de Compra (OCR)"
+              title="Abrir Escáner de Códigos de Barra y Lector de Tickets de Compra (OCR)" data-home-scan
             >
               <Camera className="w-4 h-4 text-emerald-100" />
               <span>📷 Escanear</span>
@@ -399,7 +399,7 @@ export default function Header({
         </div>
 
         {/* Bottom Row: Pilares Dinámicos y Configurables de Navegación */}
-        <nav className="flex items-center gap-1.5 sm:gap-2 pt-1 pb-1.5 overflow-x-auto no-scrollbar">
+        <nav className="hidden md:flex items-center gap-1.5 sm:gap-2 pt-1 pb-1.5 overflow-x-auto no-scrollbar">
           
           {enabledTabs.map((tab) => {
             const IconComponent = ICON_MAP[tab.icon] || Layers;

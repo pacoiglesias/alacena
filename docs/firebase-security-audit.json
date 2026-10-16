@@ -1,0 +1,10 @@
+{
+  "score": 3,
+  "summary": "Las reglas cierran el acceso público doméstico, exigen Google con correo verificado y permiso emitido por administrador, validan cantidades y protegen auditoría y tickets repetidos. Acceso real comprobado antes de publicar. Revisión parcial de las rutas SaaS heredadas; no equivale a certificación integral.",
+  "findings": [
+    { "check": "Authority Source", "severity": "critical", "issue": "La versión anterior permitía leer y escribir colecciones domésticas sin autenticación. Corregido en los archivos de reglas; pendiente confirmar publicación.", "recommendation": "Publicar tras comprobar acceso Google del propietario y verificar rechazo anónimo en producción." },
+    { "check": "Type Safety / Storage Abuse", "severity": "moderate", "issue": "Las colecciones heredadas de workspace y algunos catálogos de confianza no tienen esquemas y límites exhaustivos.", "recommendation": "Añadir validaciones por colección y pruebas de privilegios antes de habilitar clientes ajenos a la familia." },
+    { "check": "Field-Level vs. Identity-Level Security", "severity": "minor", "issue": "Las cuentas con alacenaAccess comparten las casas de esta instalación; el selector de rol local es una preferencia de interfaz.", "recommendation": "Mantener alta de cuentas en administración de confianza y usar ACL por casa si se necesitan restricciones entre familiares." },
+    { "check": "Business Logic vs. Rules", "severity": "minor", "issue": "Las devoluciones permiten modificar la lista de artículos del historial a miembros aprobados. Las reglas no demuestran matemáticamente el movimiento inverso de inventario.", "recommendation": "Para contabilidad estricta, centralizar movimientos en funciones con transacciones y un libro de eventos inmutable." }
+  ]
+}

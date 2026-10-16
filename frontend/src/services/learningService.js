@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, updateDoc, increment, collection, getDocs } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 
 /**
  * Servicio de Aprendizaje Autónomo y Estadísticas de Consumo Frecuente
@@ -56,7 +56,7 @@ export async function learnProduct(product) {
   }
 
   // B. Guardar en la Nube Firestore si hay conexión
-  if (db) {
+  if (db && auth.currentUser) {
     try {
       const docId = barcode || name.toLowerCase().replace(/[^a-z0-9]/g, '_');
       const docRef = doc(db, 'learned_products', docId);
@@ -87,7 +87,7 @@ export async function trackConsumption(product, quantity = 1) {
     }
   } catch (e) {}
 
-  if (db) {
+  if (db && auth.currentUser) {
     try {
       const docId = barcode || name.toLowerCase().replace(/[^a-z0-9]/g, '_');
       const docRef = doc(db, 'learned_products', docId);

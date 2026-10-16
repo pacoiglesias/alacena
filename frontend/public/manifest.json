@@ -1,13 +1,17 @@
 {
-  "name": "ALACENA Enterprise Luxe",
+  "id": "/",
+  "scope": "/",
+  "name": "ALACENA · Mi casa",
   "short_name": "ALACENA",
-  "description": "Sistema premium de control de alacena, cuartos fríos, cava y cocina de restaurante con valuación estricta.",
+  "description": "Tu lista del súper, despensa y tickets, también sin conexión.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0F1218",
-  "theme_color": "#10B981",
+  "background_color": "#f7f5ee",
+  "theme_color": "#35634f",
   "orientation": "portrait",
   "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
     {
       "src": "/favicon.svg",
       "sizes": "any",

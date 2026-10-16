@@ -5,8 +5,8 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.7.0-Enterprise-Luxe';
-export const RELEASE_DATE = '13 Octubre 2026';
+export const SYSTEM_VERSION = 'v3.8.0-Casa';
+export const RELEASE_DATE = '16 Octubre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState('changelog'); // 'changelog' | 'plan30'
@@ -42,11 +42,11 @@ export default function ChangelogModal({ isOpen, onClose }) {
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold tracking-tight text-white font-mono">{SYSTEM_VERSION}</h2>
                 <span className="px-2.5 py-0.5 text-[10px] font-extrabold tracking-wider text-emerald-400 uppercase rounded-full bg-emerald-500/15 border border-emerald-500/30">
-                  Producción Luxe
+                  Tu casa
                 </span>
               </div>
               <p className="text-xs text-gray-400 mt-0.5">
-                Desplegado el {RELEASE_DATE} • Firebase Spark 0 USD • Latencia Red: 12ms
+                Versión del {RELEASE_DATE} · Lista, despensa y tickets
               </p>
             </div>
           </div>

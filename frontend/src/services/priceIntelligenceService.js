@@ -2,7 +2,7 @@
 // Compara variaciones de precios (Subió vs. Bajó) y asesora dónde comprar más barato
 // entre supermercados (La Comer, Costco, Walmart, Chedraui, Mercadona, etc.)
 
-const STORAGE_KEY = 'alacena_price_records';
+const STORAGE_KEY = 'alacena_price_records_verified_v2';
 
 /**
  * Normaliza nombres de productos de tickets para obtener su nombre canónico
@@ -13,98 +13,8 @@ const STORAGE_KEY = 'alacena_price_records';
  *     "Chile Poblano" -> "chile poblano"
  */
 export function getCanonicalProductName(rawName) {
-  if (!rawName) return '';
-  let clean = rawName.toLowerCase().trim();
-
-  // Eliminar prefijos de lista o viñetas
-  clean = clean.replace(/^[-•*–—]+\s*/, '');
-
-  // Eliminar presentaciones de empaque y volumen (1kg, 500g, 2l, 355ml, 6pk, etc.)
-  clean = clean.replace(/\b\d+(?:[.,]\d+)?\s*(?:kg|kilos|g|gr|l|lt|lts|ml|piezas|pzas|pz|pack|pk)\b/gi, '');
-  clean = clean.replace(/\b(?:1kg|2kg|500g|250g|1l|2l|1\.5l|355ml|600ml)\b/gi, '');
-
-  // Eliminar referencias genéricas de ticket
-  clean = clean.replace(/\b(?:refresco|agua|galleta|galletas|queso|harina)\b/gi, (match) => {
-    // Preservar la palabra clave pero sin prefijos redundantes
-    return match;
-  });
-
-  // Eliminar sufijos de códigos de lote o letras residuales de tickets (ej: " de conde d" -> " de conde", " en p" -> "")
-  clean = clean.replace(/\s+[a-z]$/i, '');
-  clean = clean.replace(/\s+en\s+[a-z]$/i, '');
-
-  // Normalizar acentos
-  clean = clean.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-  // Limpiar espacios múltiples y caracteres raros
-  clean = clean.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-
-  // Casos especiales frecuentes
-  if (clean.includes('coca cola') || clean.includes('coca')) return 'coca cola';
-  if (clean.includes('mundet')) return 'refresco mundet';
-  if (clean.includes('canada dry')) return 'agua canada dry';
-  if (clean.includes('arroz sos')) return 'arroz sos';
-  if (clean.includes('frijol verde valle') || clean.includes('verde valle')) return 'frijol verde valle';
-  if (clean.includes('alubias cidacos') || clean.includes('cidacos')) return 'alubias cidacos';
-  if (clean.includes('empanizador bimbo')) return 'empanizador bimbo';
-  if (clean.includes('lechuga hidrop')) return 'lechuga hidroponica';
-  if (clean.includes('espinaca')) return 'espinaca';
-  if (clean.includes('chile poblano')) return 'chile poblano';
-  if (clean.includes('poro')) return 'poro';
-  if (clean.includes('castana')) return 'castana';
-  if (clean.includes('tocino')) return 'tocino ahumado';
-  if (clean.includes('pepino')) return 'pepino persa';
-  if (clean.includes('elote')) return 'elote cocido';
-  if (clean.includes('morcilla')) return 'morcilla';
-  if (clean.includes('chorizo')) return 'chorizo';
-  if (clean.includes('aceite oliva')) return 'aceite de oliva';
-  if (clean.includes('aguacate')) return 'aguacate hass';
-  if (clean.includes('leche lala') || clean.includes('leche entera')) return 'leche entera';
-  if (clean.includes('ribeye')) return 'ribeye prime';
-  if (clean.includes('pollo')) return 'pechuga de pollo';
-  if (clean.includes('papel higienico') || clean.includes('papel de bano')) return 'papel higienico';
-
-  return clean;
+  return String(rawName || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
-
-/**
- * Semilla de registros referenciales para benchmarking multitienda inicial
- * (Precios reales de mercado México y España para activar comparativas inmediatas)
- */
-const SEED_PRICE_RECORDS = [
-  // Arroz SOS
-  { canonicalName: 'arroz sos', fullName: 'Arroz SOS 1 Kg', store: 'Walmart Express', unitPrice: 54.50, unit: 'kg', date: '2026-09-28T10:00:00' },
-  { canonicalName: 'arroz sos', fullName: 'Arroz SOS 1 Kg', store: 'Chedraui Selecto', unitPrice: 58.00, unit: 'kg', date: '2026-10-02T11:00:00' },
-  { canonicalName: 'arroz sos', fullName: 'Arroz SOS Bulto 5kg', store: 'Costco Wholesale', unitPrice: 48.00, unit: 'kg', date: '2026-09-15T15:00:00' },
-
-  // Coca Cola
-  { canonicalName: 'coca cola', fullName: 'Refresco Coca Cola 12 Pack', store: 'Costco Wholesale', unitPrice: 142.00, unit: 'piezas', date: '2026-09-20T12:00:00' },
-  { canonicalName: 'coca cola', fullName: 'Refresco Coca Cola Pack', store: 'Walmart Express', unitPrice: 155.00, unit: 'piezas', date: '2026-10-05T14:00:00' },
-
-  // Frijol Verde Valle
-  { canonicalName: 'frijol verde valle', fullName: 'Frijol Negro Verde Valle 1kg', store: 'Walmart Express', unitPrice: 46.50, unit: 'kg', date: '2026-09-22T16:00:00' },
-  { canonicalName: 'frijol verde valle', fullName: 'Frijol Verde Valle 1kg', store: 'Chedraui Selecto', unitPrice: 48.90, unit: 'kg', date: '2026-10-01T17:00:00' },
-
-  // Aceite de Oliva
-  { canonicalName: 'aceite de oliva', fullName: 'Aceite de Oliva Extra Virgen 1L', store: 'La Comer', unitPrice: 185.00, unit: 'litros', date: '2026-09-10T11:00:00' },
-  { canonicalName: 'aceite de oliva', fullName: 'Aceite Oliva Extra 2L Kirkland', store: 'Costco Wholesale', unitPrice: 172.50, unit: 'litros', date: '2026-09-18T13:00:00' },
-  { canonicalName: 'aceite de oliva', fullName: 'Aceite Oliva Virgen Extra 1L Hacendado', store: 'Mercadona', unitPrice: 8.95, unit: 'litros', date: '2026-10-01T12:00:00' },
-
-  // Chile Poblano
-  { canonicalName: 'chile poblano', fullName: 'Chile Poblano Fresco', store: 'Chedraui Selecto', unitPrice: 58.00, unit: 'kg', date: '2026-09-25T10:00:00' },
-  { canonicalName: 'chile poblano', fullName: 'Chile Poblano 1kg', store: 'Mercado Local', unitPrice: 45.00, unit: 'kg', date: '2026-10-08T11:00:00' },
-
-  // Aguacate Hass
-  { canonicalName: 'aguacate hass', fullName: 'Aguacate Hass Malla 1.5kg', store: 'Costco Wholesale', unitPrice: 86.00, unit: 'kg', date: '2026-09-30T10:00:00' },
-  { canonicalName: 'aguacate hass', fullName: 'Aguacate Hass', store: 'La Comer', unitPrice: 94.00, unit: 'kg', date: '2026-09-15T12:00:00' },
-
-  // Alubias Cidacos
-  { canonicalName: 'alubias cidacos', fullName: 'Alubias Cocidas Cidacos 570g', store: 'Chedraui Selecto', unitPrice: 92.00, unit: 'piezas', date: '2026-09-20T10:00:00' },
-
-  // Castañas
-  { canonicalName: 'castana', fullName: 'Castañas a Granel', store: 'Chedraui Selecto', unitPrice: 380.00, unit: 'kg', date: '2026-09-15T10:00:00' },
-];
-
 function getStorage() {
   if (typeof window !== 'undefined' && window.localStorage) {
     return window.localStorage;
@@ -117,19 +27,19 @@ function getStorage() {
  */
 export function getAllPriceRecords() {
   const storage = getStorage();
-  if (!storage) return [...SEED_PRICE_RECORDS];
+  if (!storage) return [];
 
   try {
     const raw = storage.getItem(STORAGE_KEY);
     if (!raw) {
-      storage.setItem(STORAGE_KEY, JSON.stringify(SEED_PRICE_RECORDS));
-      return [...SEED_PRICE_RECORDS];
+      storage.setItem(STORAGE_KEY, JSON.stringify([]));
+      return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [...SEED_PRICE_RECORDS];
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [];
   } catch (e) {
     console.warn('Error leyendo registros de precios:', e);
-    return [...SEED_PRICE_RECORDS];
+    return [];
   }
 }
 
@@ -149,8 +59,8 @@ export function recordPricePoints(items, storeName = 'Supermercado', receiptDate
     if (price <= 0) return;
 
     // Calcular precio unitario o por kg
-    const unitPrice = parseFloat((price / qty).toFixed(2));
-    const canonicalName = getCanonicalProductName(item.name);
+    const unitPrice = price;
+    const canonicalName = getCanonicalProductName(item.name) + ' | ' + (item.unit || 'piezas') + ' | ' + (item.currency || 'MXN');
     if (!canonicalName) return;
 
     newRecords.push({
@@ -159,7 +69,7 @@ export function recordPricePoints(items, storeName = 'Supermercado', receiptDate
       fullName: item.name,
       store: item.store || storeName,
       unitPrice,
-      totalPrice: price,
+      totalPrice: Math.round(price * qty * 100) / 100,
       quantity: qty,
       unit: item.unit || 'piezas',
       date: dateStr,
@@ -187,12 +97,12 @@ export function recordPricePoints(items, storeName = 'Supermercado', receiptDate
  * Compara la variación de precio de un artículo (Subió vs. Bajó)
  * Compara con la compra anterior más reciente en la misma tienda o general.
  */
-export function analyzeItemPriceTrend(productName, currentUnitPrice, currentStore) {
+export function analyzeItemPriceTrend(productName, currentUnitPrice, currentStore, unit = 'piezas', currency = 'MXN') {
   if (!productName || !currentUnitPrice || currentUnitPrice <= 0) {
     return { status: 'first', text: 'Precio inicial', diff: 0, percent: 0 };
   }
 
-  const canonical = getCanonicalProductName(productName);
+  const canonical = getCanonicalProductName(productName) + ' | ' + unit + ' | ' + currency;
   const records = getAllPriceRecords().filter((r) => r.canonicalName === canonical);
 
   if (records.length === 0) {
@@ -256,9 +166,9 @@ export function analyzeItemPriceTrend(productName, currentUnitPrice, currentStor
  * Asesor Multitienda: "¿Dónde comprarlo más barato?"
  * Analiza todas las tiendas donde se ha comprado este producto y encuentra la opción más barata.
  */
-export function getCrossStoreRecommendation(productName, currentUnitPrice, currentStore) {
+export function getCrossStoreRecommendation(productName, currentUnitPrice, currentStore, unit = 'piezas', currency = 'MXN') {
   if (!productName) return null;
-  const canonical = getCanonicalProductName(productName);
+  const canonical = getCanonicalProductName(productName) + ' | ' + unit + ' | ' + currency;
   const records = getAllPriceRecords().filter((r) => r.canonicalName === canonical);
 
   if (records.length === 0) return null;
@@ -352,10 +262,10 @@ export function analyzeTicketPriceIntelligence(items, currentStore = 'Supermerca
   const itemsAnalysis = items.map((item) => {
     const price = Number(item.realPrice || item.estimatedPriceMxn || 0);
     const qty = Number(item.quantity) || 1;
-    const unitPrice = parseFloat((price / qty).toFixed(2));
+    const unitPrice = price;
 
-    const trend = analyzeItemPriceTrend(item.name, unitPrice, item.store || currentStore);
-    const crossStore = getCrossStoreRecommendation(item.name, unitPrice, item.store || currentStore);
+    const trend = analyzeItemPriceTrend(item.name, unitPrice, item.store || currentStore, item.unit || 'piezas', item.currency || 'MXN');
+    const crossStore = getCrossStoreRecommendation(item.name, unitPrice, item.store || currentStore, item.unit || 'piezas', item.currency || 'MXN');
 
     if (trend.status === 'down') {
       priceDropsCount++;

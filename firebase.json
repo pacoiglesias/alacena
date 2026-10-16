@@ -36,6 +36,24 @@
               "value": "no-cache, no-store, must-revalidate"
             }
           ]
+        },
+        {
+          "source": "sw.js",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
+        },
+        {
+          "source": "version.json",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
         }
       ]
     }
@@ -54,5 +72,20 @@
         "firebase-debug.*.log"
       ]
     }
-  ]
+  ],
+  "auth": {
+    "authorizedDomains": [
+      "localhost",
+      "127.0.0.1",
+      "alacena-enterprise-prod.web.app",
+      "alacena-enterprise-prod.firebaseapp.com",
+      "alacena.cobertores.com"
+    ],
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "ALACENA Casa",
+        "supportEmail": "paco@cobertores.com"
+      }
+    }
+  }
 }

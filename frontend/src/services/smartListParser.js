@@ -214,7 +214,7 @@ export function parseRawShoppingText(rawText, existingProducts = []) {
       // El último importe al final de la fila es siempre el Total cobrado
       extractedTicketPrice = trailingPrices[trailingPrices.length - 1];
       if (trailingPrices.length > 1) {
-        unitTicketPrice = trailingPrices[0];
+        unitTicketPrice = trailingPrices[trailingPrices.length - 2];
       }
     }
 
@@ -362,21 +362,13 @@ export function parseRawShoppingText(rawText, existingProducts = []) {
       }
     }
 
-    // Inferencia o asignación del precio
-    let finalEstimatedPrice = extractedTicketPrice;
-    if (finalEstimatedPrice === null || isNaN(finalEstimatedPrice)) {
-      if (matchedPantryProd?.price || matchedPantryProd?.unitPriceMxn) {
-        finalEstimatedPrice = matchedPantryProd.price || matchedPantryProd.unitPriceMxn;
-      } else {
-        // Precios referenciales según departamento si no venía en ticket
-        finalEstimatedPrice = 45.0;
-        if (department.includes('Carnes')) finalEstimatedPrice = 120.0;
-        if (department.includes('Aceites') && prodLower.includes('oliva')) finalEstimatedPrice = 220.0;
-        if (prodLower.includes('pimentón') || prodLower.includes('pimenton')) finalEstimatedPrice = 95.0;
-        if (prodLower.includes('morcilla') || prodLower.includes('chorizo')) finalEstimatedPrice = 85.0;
-        if (prodLower.includes('tocino')) finalEstimatedPrice = 55.0;
-      }
-    }
+    // Receipt columns end with the charged LINE total; stock prices are PER UNIT.
+    const lineTotalMxn = extractedTicketPrice;
+    extractedTicketPrice = lineTotalMxn === null ? null : (
+      unitTicketPrice !== null && Math.abs(Math.round(unitTicketPrice * quantity * 100) / 100 - lineTotalMxn) < 0.011
+        ? unitTicketPrice : Number((lineTotalMxn / Math.max(quantity, 0.001)).toFixed(6))
+    );
+    const finalEstimatedPrice = extractedTicketPrice ?? matchedPantryProd?.unitPriceMxn ?? 0;
 
     // Asignación de Zona Destino
     const targetZone = matchedPantryProd?.zone || (
@@ -396,6 +388,8 @@ export function parseRawShoppingText(rawText, existingProducts = []) {
       store,
       estimatedPriceMxn: finalEstimatedPrice,
       realPrice: extractedTicketPrice,
+      lineTotalMxn,
+      priceSource: lineTotalMxn === null ? (matchedPantryProd ? 'history' : 'unknown') : 'receipt',
       targetZone,
       matchedInPantry: Boolean(matchedPantryProd),
       checked: false,

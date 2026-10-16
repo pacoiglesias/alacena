@@ -6,6 +6,7 @@ import {
   SlidersHorizontal, CheckCircle2, RefreshCw, QrCode, Eye, ChevronDown, ChevronUp, Receipt,
   TrendingDown, TrendingUp, Award, DollarSign
 } from 'lucide-react';
+import TicketReview from './TicketReview';
 import { audio } from '../../services/audioService';
 import { parseRawShoppingText } from '../../services/smartListParser';
 import { extractShoppingListFromImage, extractTextFromFile } from '../../services/ocrService';
@@ -21,6 +22,7 @@ export default function SmartListImportModal({
   zones = [],
   activeHouse
 }) {
+  const [showTicketReview, setShowTicketReview] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState('text'); // 'text' | 'ocr' | 'file'
   
   // Text Tab State
@@ -45,6 +47,10 @@ export default function SmartListImportModal({
   const [extractedItems, setExtractedItems] = useState([]);
   const [selectedItemIds, setSelectedItemIds] = useState(new Set());
   const [importNotice, setImportNotice] = useState(null);
+
+  const priceIntelligence = useMemo(() => {
+    return analyzeTicketPriceIntelligence(extractedItems.map((i) => ({ ...i, currency: activeHouse?.currency || 'MXN' })), detectedStore || 'Supermercado');
+  }, [extractedItems, detectedStore]);
 
   if (!isOpen) return null;
 
@@ -369,9 +375,7 @@ TOTAL $ 2345.68`;
   };
 
   // Análisis de inteligencia de precios para los artículos extraídos
-  const priceIntelligence = useMemo(() => {
-    return analyzeTicketPriceIntelligence(extractedItems, detectedStore || 'Supermercado');
-  }, [extractedItems, detectedStore]);
+
 
   // Confirmar e importar a la lista de compras del Súper
   const handleConfirmImport = () => {
@@ -986,6 +990,7 @@ TOTAL $ 2345.68`;
 
         </div>
 
+        {showTicketReview && <div className="p-4 overflow-y-auto"><TicketReview items={extractedItems} setItems={setExtractedItems} selectedIds={selectedItemIds} setSelectedIds={setSelectedItemIds} rawText={lastOcrRawText || rawText} store={detectedStore || ''} setStore={setDetectedStore} currency={activeHouse?.currency || 'MXN'} onSave={onImportDirectToPantry} onClose={onClose} /></div>}
         {/* Footer Actions */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-t border-[#2A2521] bg-[#1C1814] flex-wrap gap-3">
           <div className="flex items-center gap-3">
@@ -1023,10 +1028,7 @@ TOTAL $ 2345.68`;
                     alert('Selecciona al menos un artículo.');
                     return;
                   }
-                  recordPricePoints(itemsToImport, detectedStore || 'Supermercado');
-                  audio.success();
-                  onImportDirectToPantry(itemsToImport);
-                  onClose();
+                  setShowTicketReview(true);
                 }}
                 disabled={selectedItemIds.size === 0}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-xl transition-all ${

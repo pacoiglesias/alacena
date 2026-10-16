@@ -16,6 +16,7 @@ const app = initializeApp(firebaseConfig);
 
 // Inicializar Firestore con caché persistente y soporte multi-pestaña moderno (sin deprecation warnings)
 export const db = initializeFirestore(app, {
+  ignoreUndefinedProperties: true,
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
   })

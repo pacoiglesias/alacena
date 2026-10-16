@@ -1,25 +1,27 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, lazy, Suspense } from 'react';
 import { 
   ShoppingCart, Plus, Check, Trash2, Share2, 
   Sparkles, Store, CheckSquare, Square, Camera, 
   ArrowRight, Warehouse, DollarSign, RefreshCw, 
   AlertCircle, QrCode, Printer, CheckCircle2, ListChecks,
   Beef, Milk, Apple, Package, Wine, Coffee, Layers, ChevronDown, BookOpen, ShoppingBag,
-  MoreHorizontal, Receipt, Award
+  MoreHorizontal, Receipt, Award, Search, ArrowUpRight, Undo2, FileText
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
-import ItemQrModal from './ItemQrModal';
-import ShoppingListQrTicketModal from './ShoppingListQrTicketModal';
-import PantryQrBookletModal from './PantryQrBookletModal';
-import QuickStaffShoppingModal from './QuickStaffShoppingModal';
-import PrintableShoppingListModal from './PrintableShoppingListModal';
-import SmartListImportModal from './SmartListImportModal';
-import ReceiptReconciliationModal from './ReceiptReconciliationModal';
-import WeeklyStaplesModal from './WeeklyStaplesModal';
-import PriceComparisonModal from './PriceComparisonModal';
+const ItemQrModal = lazy(() => import('./ItemQrModal'));
+const ShoppingListQrTicketModal = lazy(() => import('./ShoppingListQrTicketModal'));
+const PantryQrBookletModal = lazy(() => import('./PantryQrBookletModal'));
+const QuickStaffShoppingModal = lazy(() => import('./QuickStaffShoppingModal'));
+const PrintableShoppingListModal = lazy(() => import('./PrintableShoppingListModal'));
+const SmartListImportModal = lazy(() => import('./SmartListImportModal'));
+const ReceiptReconciliationModal = lazy(() => import('./ReceiptReconciliationModal'));
+const WeeklyStaplesModal = lazy(() => import('./WeeklyStaplesModal'));
+const PriceComparisonModal = lazy(() => import('./PriceComparisonModal'));
 import { getCatalogs } from '../../services/catalogsService';
-import { areItemsEquivalent, deduplicateShoppingItems } from '../../utils/deduplication';
+import { belongsToHouse, positiveQuantity } from '../../utils/householdShopping';
+import { readLocalState, writeLocalState } from '../../services/localState';
+import { normalizeItemName, areItemsEquivalent, deduplicateShoppingItems } from '../../utils/deduplication';
 
 // Departamentos estándar de supermercado físico
 export const SUPERMARKET_DEPARTMENTS = [
@@ -34,7 +36,8 @@ export const SUPERMARKET_DEPARTMENTS = [
 ];
 
 export function getDepartmentForItem(item) {
-  if (item.department) return item.department;
+  const explicit = SUPERMARKET_DEPARTMENTS.find((d) => d.id !== 'ALL' && (d.id === item.department || normalizeItemName(d.name.replace(/^[^a-zA-Z]+/, '')) === normalizeItemName(item.department || '')));
+  if (explicit) return explicit.id;
   const text = `${item.name || ''} ${item.category || ''}`.toLowerCase();
   for (const dept of SUPERMARKET_DEPARTMENTS) {
     if (dept.keywords && dept.keywords.some((kw) => text.includes(kw))) {
@@ -77,6 +80,24 @@ export default function ShoppingListView({
   const [isPriceComparisonOpen, setIsPriceComparisonOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [hideChecked, setHideChecked] = useState(false);
+  const [search, setSearch] = useState('');
+  const [quickName, setQuickName] = useState('');
+  const [removedItem, setRemovedItem] = useState(null);
+  const [notice, setNotice] = useState('');
+  const budgetKey = 'alacena-budget-' + (activeHouse?.id || 'house-1');
+  const [budgets, setBudgets] = useState(() => readLocalState('alacena_budgets', {}));
+  const budget = Number(budgets[budgetKey]) || 0;
+  const currency = activeHouse?.currency || 'MXN';
+  const money = (value) => new Intl.NumberFormat(currency === 'EUR' ? 'es-ES' : 'es-MX', { style: 'currency', currency }).format(value);
+  const removeItem = (item) => { setRemovedItem(item); onRemoveItem(item.id); setNotice('Artículo eliminado.'); };
+  const quickAdd = (e) => {
+    e.preventDefault();
+    if (!quickName.trim()) return;
+    onAddItem({ name: quickName.trim(), quantity: 1, unit: 'piezas', checked: false,
+      estimatedPriceMxn: 0, store: selectedStore === 'ALL' ? 'Supermercado' : selectedStore,
+      targetZone: zones[0]?.name || 'Alacena Principal' });
+    setRemovedItem(null); setNotice('Agregaste ' + quickName.trim() + ' a tu lista.'); setQuickName('');
+  };
 
   // Batch import callback con desduplicación previa
   const handleBatchImportItems = (importedItems) => {
@@ -87,7 +108,7 @@ export default function ShoppingListView({
         name: item.name,
         quantity: item.quantity || 1,
         unit: item.unit || 'piezas',
-        department: item.department || 'Abarrotes',
+        department: getDepartmentForItem(item),
         store: item.store || 'Costco',
         estimatedPriceMxn: item.estimatedPriceMxn || 0,
         targetZone: item.targetZone || zones[0]?.name || 'Alacena Principal',
@@ -107,24 +128,22 @@ export default function ShoppingListView({
   // Detección proactiva inteligente con equivalencia (evita duplicar salmón / salmon)
   const proactiveLowStockItems = useMemo(() => {
     return products.filter((p) => {
+      if (!belongsToHouse(p, activeHouse?.id)) return false;
       const isLow = (p.quantity || 0) <= (p.minStock || 0);
       const alreadyInList = shoppingList.some((i) => areItemsEquivalent(i.name, p.name));
       return isLow && !alreadyInList;
     });
-  }, [products, shoppingList]);
+  }, [products, shoppingList, activeHouse]);
 
   // Enriquecer artículos con departamento y filtrar por el Hogar Activo (México o España)
   const enrichedList = useMemo(() => {
     return shoppingList
       .filter((item) => {
-        if (activeHouse?.id && item.householdId && item.householdId !== activeHouse.id) {
-          return false;
-        }
-        return true;
+        return belongsToHouse(item, activeHouse?.id);
       })
       .map((item) => ({
         ...item,
-        computedDept: item.department || getDepartmentForItem(item),
+        computedDept: getDepartmentForItem(item),
       }));
   }, [shoppingList, activeHouse]);
 
@@ -166,6 +185,7 @@ export default function ShoppingListView({
       if (selectedStore !== 'ALL' && (item.store || 'Supermercado') !== selectedStore) return;
       // Filtrar si el usuario activó 'Solo Pendientes'
       if (hideChecked && item.checked) return;
+      if (search && !normalizeItemName(item.name).includes(normalizeItemName(search))) return;
 
       const deptId = item.computedDept || 'ABARROTES';
       if (!groups[deptId]) groups[deptId] = [];
@@ -173,13 +193,13 @@ export default function ShoppingListView({
     });
 
     return groups;
-  }, [enrichedList, selectedStore, hideChecked]);
+  }, [enrichedList, selectedStore, hideChecked, search]);
 
   // Tiendas disponibles
   const stores = useMemo(() => {
-    const list = new Set(shoppingList.map((i) => i.store || 'Supermercado'));
+    const list = new Set(enrichedList.map((i) => i.store || 'Supermercado'));
     return ['ALL', ...Array.from(list)];
-  }, [shoppingList]);
+  }, [enrichedList]);
 
   // Exportar a WhatsApp formateado POR DEPARTAMENTOS
   const handleShareWhatsAppByDept = () => {
@@ -192,7 +212,7 @@ export default function ShoppingListView({
 
     let text = `🛒 *LISTA DEL SÚPER POR DEPARTAMENTOS*\n`;
     text += `📍 *${activeHouse?.name?.toUpperCase() || 'RESIDENCIA'}*\n`;
-    text += `Total por comprar: ${pending.length} artículos (~$${metrics.totalEstimatedMxn.toFixed(2)} MXN)\n\n`;
+    text += `Total por comprar: ${pending.length} artículos (~${money(metrics.totalEstimatedMxn - metrics.cartTotalMxn)} ${currency})\n\n`;
 
     SUPERMARKET_DEPARTMENTS.forEach((dept) => {
       if (dept.id === 'ALL') return;
@@ -226,7 +246,7 @@ export default function ShoppingListView({
     onAddItem({
       id: `shop-${Date.now()}`,
       name: itemName.trim(),
-      quantity: parseFloat(quantity) || 1,
+      quantity: positiveQuantity(quantity),
       unit,
       department,
       store: store.trim(),
@@ -263,7 +283,34 @@ export default function ShoppingListView({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="shopping-home space-y-5">
+      <section className="shopping-hero">
+        <div className="shopping-hero-copy">
+          <span className="shopping-eyebrow"><span /> TU CASA, EN ORDEN</span>
+          <h1>Menos vueltas.<br /><em>Todo en tu lista.</em></h1>
+          <p>Anota lo que hace falta, marca lo que llevas y guarda tu compra en la despensa.</p>
+          <form onSubmit={quickAdd} className="shopping-quick-add">
+            <Plus size={20} aria-hidden="true" />
+            <input aria-label="Qué hace falta en casa" placeholder="¿Qué hace falta en casa?" value={quickName} maxLength={300} onChange={(e) => setQuickName(e.target.value)} />
+            <button type="submit" disabled={!quickName.trim()}>Agregar <ArrowUpRight size={17} /></button>
+          </form>
+          <span className="shopping-hero-hint">Escribe un producto y presiona Enter. Puedes ajustar la cantidad después.</span>
+        </div>
+        <div className="shopping-plan">
+          <ShoppingBag size={28} strokeWidth={1.5} />
+          <span>TU PRÓXIMA COMPRA</span>
+          <strong>{metrics.pendingCount}<small> pendientes</small></strong>
+          <div className="shopping-plan-rule" />
+          <div className="flex justify-between gap-2"><span>Estimado de la lista</span><b>{money(metrics.totalEstimatedMxn)}</b></div>
+          <label htmlFor="shopping-budget">Mi límite de gasto ({currency})</label>
+          <input id="shopping-budget" type="number" inputMode="decimal" min="0" step="0.01" placeholder="Sin límite" value={budgets[budgetKey] || ''} onChange={(e) => {
+            const next = { ...budgets, [budgetKey]: e.target.value }; setBudgets(next); writeLocalState('alacena_budgets', next);
+          }} />
+          {budget > 0 && <span role="status" className={metrics.totalEstimatedMxn > budget ? 'shopping-over-budget' : ''}>{metrics.totalEstimatedMxn > budget ? 'Superas tu límite por ' : 'Disponible: '}{money(Math.abs(budget - metrics.totalEstimatedMxn))}</span>}
+          {enrichedList.some((i) => !i.estimatedPriceMxn) && <small>Hay productos sin precio. El estimado está incompleto.</small>}
+        </div>
+      </section>
+      {notice && <div className="shopping-notice" role="status"><span>{notice}</span>{removedItem && <button type="button" onClick={() => { onAddItem(removedItem); setRemovedItem(null); setNotice('Artículo restaurado.'); }}><Undo2 size={15} /> Deshacer</button>}</div>}
       
       {/* 1. Banner Proactivo Inteligente: Alerta Automática de Alacena */}
       {proactiveLowStockItems.length > 0 && (
@@ -304,17 +351,17 @@ export default function ShoppingListView({
             </div>
             <div>
               <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-                Lista de Compras Organizada por Departamentos
+                Tu lista del súper
               </h2>
               <p className="text-xs text-gray-400 mt-0.5">
-                Diseñada para caminar por los pasillos del súper sin dar vueltas. Toca con un dedo para marcar lo que echas al carrito.
+                Por pasillos, como haces tus compras.
               </p>
             </div>
           </div>
         </div>
 
         {/* Barra de Acciones Ergonómica para el Comprador */}
-        <div className="flex items-center gap-2 w-full lg:w-auto relative">
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto relative">
           
           {/* 1. Modo Súper Táctil */}
           <button
@@ -331,7 +378,7 @@ export default function ShoppingListView({
             title="Activar vista táctil gigante para caminar en el supermercado"
           >
             <span className="text-base leading-none">👟</span>
-            <span>{isWalkingMode ? 'Saliendo de Tienda' : 'Modo Súper'}</span>
+            <span>{isWalkingMode ? 'Salir del modo súper' : 'Modo Súper'}</span>
           </button>
 
           {/* 2. Escanear Códigos o Tickets de Compra */}
@@ -602,6 +649,11 @@ export default function ShoppingListView({
         </div>
       </div>
 
+      <div className="shopping-filters">
+        <label className="shopping-search"><Search size={18} /><input aria-label="Buscar en la lista" placeholder="Buscar un producto…" value={search} onChange={(e) => setSearch(e.target.value)} /></label>
+        <label className="shopping-store"><Store size={18} /><select aria-label="Filtrar por tienda" value={selectedStore} onChange={(e) => setSelectedStore(e.target.value)}>{stores.map((name) => <option key={name} value={name}>{name === 'ALL' ? 'Todas las tiendas' : name}</option>)}</select></label>
+      </div>
+      {enrichedList.length > 0 && !Object.entries(groupedByDepartment).some(([id, rows]) => rows.length && (selectedDept === 'ALL' || selectedDept === id)) && <div className="shopping-empty"><Search size={28} /><h3>No hay productos con estos filtros</h3><button onClick={() => { setSearch(''); setSelectedStore('ALL'); setSelectedDept('ALL'); setHideChecked(false); }}>Mostrar toda mi lista</button></div>}
       {/* 4. Selector de Pasillos / Departamentos del Supermercado */}
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -773,6 +825,7 @@ export default function ShoppingListView({
                       <div className="flex items-center gap-3.5 min-w-0">
                         <button
                           type="button"
+                          role="checkbox" aria-checked={Boolean(item.checked)} aria-label={`Marcar ${item.name}`}
                           className={`w-7 h-7 rounded-xl flex items-center justify-center border transition-all shrink-0 ${
                             item.checked
                               ? 'bg-emerald-500 border-emerald-500 text-white shadow-md'
@@ -798,7 +851,7 @@ export default function ShoppingListView({
                                 onClick={() => {
                                   audio.click();
                                   if (onUpdateItemQuantity) {
-                                    const next = Math.max(0.5, parseFloat(((parseFloat(item.quantity) || 1) - 1).toFixed(2)));
+                                    const next = Math.max(0.01, parseFloat(((parseFloat(item.quantity) || 1) - (['kg', 'l', 'litros'].includes(item.unit) ? 0.25 : 1)).toFixed(2)));
                                     onUpdateItemQuantity(item.id, next);
                                   }
                                 }}
@@ -813,7 +866,7 @@ export default function ShoppingListView({
                                 onClick={() => {
                                   audio.click();
                                   if (onUpdateItemQuantity) {
-                                    const next = parseFloat(((parseFloat(item.quantity) || 1) + 1).toFixed(2));
+                                    const next = parseFloat(((parseFloat(item.quantity) || 1) + (['kg', 'l', 'litros'].includes(item.unit) ? 0.25 : 1)).toFixed(2));
                                     onUpdateItemQuantity(item.id, next);
                                   }
                                 }}
@@ -838,7 +891,7 @@ export default function ShoppingListView({
                         {item.estimatedPriceMxn > 0 && (
                           <div className="text-right font-mono text-xs">
                             <span className="text-emerald-300 font-bold block">
-                              ${((item.estimatedPriceMxn || 0) * (item.quantity || 1)).toFixed(2)}
+                              {money((item.estimatedPriceMxn || 0) * (item.quantity || 1))}
                             </span>
                             <span className="text-[10px] text-gray-500">MXN</span>
                           </div>
@@ -860,7 +913,7 @@ export default function ShoppingListView({
                           onClick={(e) => {
                             e.stopPropagation();
                             audio.delete();
-                            onRemoveItem(item.id);
+                            removeItem(item);
                           }}
                           className="p-2 text-gray-500 hover:text-rose-400 rounded-xl hover:bg-rose-500/10 transition-colors"
                           title="Quitar de la lista"
@@ -879,14 +932,14 @@ export default function ShoppingListView({
 
       {/* 6. Botón Flotante Gigante al Finalizar para Guardar en Casa */}
       {metrics.inCartCount > 0 && (
-        <div className="sticky bottom-6 z-30">
+        <div className="sticky bottom-24 md:bottom-6 z-30">
           <div className="max-w-xl mx-auto p-2 bg-[#090D14]/90 backdrop-blur-xl rounded-2xl border border-emerald-500/40 shadow-2xl">
             <button
               onClick={handleFinishPurchase}
               className="w-full py-4 px-6 rounded-xl text-sm font-extrabold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 transition-all flex items-center justify-center gap-3 shadow-lg shadow-emerald-950/60"
             >
               <Warehouse className="w-5 h-5" />
-              <span>✅ YA COMPRÉ TODO: GUARDAR {metrics.inCartCount} ARTÍCULOS EN LA DESPENSA</span>
+              <span>Guardar {metrics.inCartCount} artículos comprados en casa</span>
             </button>
           </div>
         </div>
@@ -894,8 +947,8 @@ export default function ShoppingListView({
 
       {/* Modal: Agregar Artículo Manual a la Lista */}
       {isManualAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full max-w-md rounded-3xl bg-[#0F172A] border border-white/10 shadow-2xl p-6 space-y-4">
+        <div role="dialog" aria-modal="true" aria-label="Agregar artículo" onKeyDown={(e) => { if (e.key === 'Escape') setIsManualAddOpen(false); }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+          <div className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-3xl bg-[#0F172A] border border-white/10 shadow-2xl p-6 space-y-4">
             <h3 className="text-base font-bold text-white">
               Agregar Artículo a la Lista de Compras
             </h3>
@@ -938,8 +991,8 @@ export default function ShoppingListView({
                   </label>
                   <input
                     type="number"
-                    step="any"
-                    min="0.1"
+                    step="0.01"
+                    min="0.01"
                     required
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
@@ -1038,55 +1091,60 @@ export default function ShoppingListView({
       )}
 
       {/* Modal: Etiqueta QR del Artículo */}
-      <ItemQrModal
+      {selectedQrItem && <Suspense fallback={<div role="status" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center text-white">Abriendo herramienta…</div>}><ItemQrModal
         isOpen={!!selectedQrItem}
         onClose={() => setSelectedQrItem(null)}
         item={selectedQrItem}
         activeHouse={activeHouse}
       />
+      </Suspense>}
 
       {/* Modal: Ticket QR de Orden Maestro */}
-      <ShoppingListQrTicketModal
+      {isOrderTicketQrOpen && <Suspense fallback={<div role="status" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center text-white">Abriendo herramienta…</div>}><ShoppingListQrTicketModal
         isOpen={isOrderTicketQrOpen}
         onClose={() => setIsOrderTicketQrOpen(false)}
         shoppingList={enrichedList}
         activeHouse={activeHouse}
         totalEstimatedMxn={metrics.totalEstimatedMxn}
       />
+      </Suspense>}
 
       {/* Modal: Librito de Códigos QR para Personal de Servicio */}
-      <PantryQrBookletModal
+      {isQrBookletOpen && <Suspense fallback={<div role="status" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center text-white">Abriendo herramienta…</div>}><PantryQrBookletModal
         isOpen={isQrBookletOpen}
         onClose={() => setIsQrBookletOpen(false)}
         products={products}
         activeHouse={activeHouse}
         onQuickAddToShoppingList={onAddItem}
       />
+      </Suspense>}
 
       {/* Modal: ¿Qué Falta en Casa? (Apuntar Rápido) */}
-      <QuickStaffShoppingModal
+      {isQuickStaffOpen && <Suspense fallback={<div role="status" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center text-white">Abriendo herramienta…</div>}><QuickStaffShoppingModal
         isOpen={isQuickStaffOpen}
         onClose={() => setIsQuickStaffOpen(false)}
         onAddItem={onAddItem}
       />
+      </Suspense>}
 
       {/* Modal Editorial: Lista de Compras Imprimible / Exportar PDF */}
-      <PrintableShoppingListModal
+      {isPrintModalOpen && <Suspense fallback={<div role="status" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center text-white">Abriendo herramienta…</div>}><PrintableShoppingListModal
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}
         shoppingList={enrichedList}
         activeHouse={activeHouse}
         totalEstimatedMxn={metrics.totalEstimatedMxn}
       />
+      </Suspense>}
 
       {/* Modal: Importador Bidireccional Inteligente & OCR */}
-      <SmartListImportModal
+      {isSmartImportOpen && <Suspense fallback={<div role="status" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center text-white">Abriendo herramienta…</div>}><SmartListImportModal
         isOpen={isSmartImportOpen}
         onClose={() => setIsSmartImportOpen(false)}
         onImportItems={handleBatchImportItems}
         onImportDirectToPantry={(items) => {
           if (onCompletePurchaseToPantry) {
-            onCompletePurchaseToPantry(items);
+            return onCompletePurchaseToPantry(items);
           } else {
             items.forEach((it) => onAddItem(it));
           }
@@ -1095,9 +1153,11 @@ export default function ShoppingListView({
         zones={zones}
         activeHouse={activeHouse}
       />
+      </Suspense>}
 
       {/* Modal: Reconciliación de Ticket y Costo Real de Compra */}
-      <ReceiptReconciliationModal
+      {isReconciliationOpen && <Suspense fallback={<div role="status" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center text-white">Abriendo herramienta…</div>}><ReceiptReconciliationModal
+        currency={currency}
         isOpen={isReconciliationOpen}
         onClose={() => setIsReconciliationOpen(false)}
         checkedItems={enrichedList.filter((i) => i.checked)}
@@ -1105,9 +1165,10 @@ export default function ShoppingListView({
           onCompletePurchaseToPantry(purchasePayload);
         }}
       />
+      </Suspense>}
 
       {/* Modal: Canasta Básica Semanal del Hogar */}
-      <WeeklyStaplesModal
+      {isWeeklyStaplesOpen && <Suspense fallback={<div role="status" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center text-white">Abriendo herramienta…</div>}><WeeklyStaplesModal
         isOpen={isWeeklyStaplesOpen}
         onClose={() => setIsWeeklyStaplesOpen(false)}
         shoppingList={shoppingList}
@@ -1116,14 +1177,16 @@ export default function ShoppingListView({
           items.forEach((it) => onAddItem(it));
         }}
       />
+      </Suspense>}
 
       {/* Modal: Comparador de Precios Multitienda & Ahorro */}
-      <PriceComparisonModal
+      {isPriceComparisonOpen && <Suspense fallback={<div role="status" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center text-white">Abriendo herramienta…</div>}><PriceComparisonModal
         isOpen={isPriceComparisonOpen}
         onClose={() => setIsPriceComparisonOpen(false)}
         shoppingList={enrichedList}
         onAddShoppingItem={onAddItem}
       />
+      </Suspense>}
 
 
       {/* Botón Flotante Permanente: Modo Súper (Fase 8.5) */}
@@ -1133,7 +1196,7 @@ export default function ShoppingListView({
             audio.superCheck();
             setIsWalkingMode(true);
           }}
-          className="fixed bottom-6 right-6 z-30 flex items-center gap-2.5 px-5 py-3.5 rounded-full bg-gradient-to-r from-[#C8542A] to-[#E5724A] text-white font-bold text-sm shadow-xl shadow-[#C8542A]/40 hover:scale-105 active:scale-95 transition-all border border-white/20"
+          className="fixed bottom-24 md:bottom-6 right-6 z-30 flex items-center gap-2.5 px-5 py-3.5 rounded-full bg-gradient-to-r from-[#C8542A] to-[#E5724A] text-white font-bold text-sm shadow-xl shadow-[#C8542A]/40 hover:scale-105 active:scale-95 transition-all border border-white/20"
           title="Abrir modo táctil caminando por el súper"
         >
           <span className="text-lg">👟</span>

@@ -1,6 +1,7 @@
 // Servicio de Pre-procesamiento de Imagen y Reconocimiento Óptico de Caracteres (OCR)
 // Optimizado para fotos tomadas con móvil a notas manuscritas, hojas de libreta y tickets de supermercado (España & México).
 
+import { pdfTextLines } from '../utils/pdfTextLines';
 import { createWorker } from 'tesseract.js';
 import { parseRawShoppingText } from './smartListParser';
 
@@ -22,7 +23,7 @@ export async function preprocessImageForOcr(imageSource) {
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
         let { width, height } = img;
-        const maxDim = 2200;
+        const maxDim = 4200;
         if (width > maxDim || height > maxDim) {
           if (width > height) {
             height = Math.round((height * maxDim) / width);
@@ -150,6 +151,7 @@ export async function extractShoppingListFromImage(imageFile, onProgress = () =>
     // Si la descarga de 'spa' falla, intenta fallback a 'eng'.
     try {
       worker = await createWorker('spa', 1, {
+        workerPath: '/ocr/worker.min.js', corePath: '/ocr', langPath: '/ocr',
         logger: (m) => {
           if (m.status === 'recognizing text') {
             const pct = 35 + Math.round((m.progress || 0) * 50);
@@ -161,19 +163,7 @@ export async function extractShoppingListFromImage(imageFile, onProgress = () =>
         },
       });
     } catch (langErr) {
-      console.warn('Error inicializando idioma "spa", probando fallback "eng":', langErr);
-      onProgress({ status: 'Descargando modelo de reconocimiento alterno...', progress: 32 });
-      worker = await createWorker('eng', 1, {
-        logger: (m) => {
-          if (m.status === 'recognizing text') {
-            const pct = 35 + Math.round((m.progress || 0) * 50);
-            onProgress({ 
-              status: `Leyendo texto... (${Math.round((m.progress || 0) * 100)}%)`, 
-              progress: pct 
-            });
-          }
-        },
-      });
+      throw new Error('No se pudo cargar el motor local de tickets. Abre ALACENA con conexión una vez para completar la preparación sin internet. ' + (langErr.message || ''));
     }
 
     onProgress({ status: 'Extrayendo caracteres, importes y columnas...', progress: 75 });
@@ -274,49 +264,26 @@ export async function extractTextFromFile(file, existingProducts = [], onProgres
 
           const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
           const doc = await loadingTask.promise;
-          const page = await doc.getPage(1);
-
-          // Revisar si el PDF ya contiene texto vectorial seleccionable
-          const textContent = await page.getTextContent();
-          const textItems = textContent.items.map((i) => i.str).filter(Boolean);
-
-          if (textItems.length > 8) {
-            const extractedText = textItems.join('\n');
-            const items = parseRawShoppingText(extractedText, existingProducts);
-            if (items.length > 0) {
-              resolve({
-                rawText: extractedText,
-                items,
-                note: `📄 Se extrajeron ${items.length} artículos del texto digital del PDF.`
-              });
-              return;
+          if (doc.numPages > 10) { await doc.destroy(); resolve({ rawText: '', items: [], note: 'Este PDF tiene más de 10 páginas. Divide el ticket en archivos más pequeños.' }); return; }
+          const pages = [];
+          for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
+            const page = await doc.getPage(pageNumber);
+            const content = await page.getTextContent();
+            const text = pdfTextLines(content.items);
+            if (content.items.length > 8 && parseRawShoppingText(text, existingProducts).length) pages.push(text);
+            else {
+              const viewport = page.getViewport({ scale: 2 });
+              const canvas = document.createElement('canvas');
+              canvas.width = viewport.width; canvas.height = viewport.height;
+              await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+              const result = await extractShoppingListFromImage(canvas.toDataURL('image/png'), onProgress || (() => {}), existingProducts);
+              pages.push(result.rawText);
             }
+            page.cleanup();
           }
-
-          // Si el PDF es un escaneo (sin texto digital), renderizar a Canvas de alta resolución y ejecutar OCR
-          const viewport = page.getViewport({ scale: 2.0 });
-          const canvas = document.createElement('canvas');
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-          await page.render({ canvasContext: ctx, viewport }).promise;
-          const renderedDataUrl = canvas.toDataURL('image/png');
-
-          const ocrRes = await extractShoppingListFromImage(
-            renderedDataUrl,
-            onProgress || (() => {}),
-            existingProducts
-          );
-
-          resolve({
-            rawText: ocrRes.rawText,
-            items: ocrRes.items,
-            confidence: ocrRes.confidence,
-            note: ocrRes.items.length > 0
-              ? `📄 Se escaneó la página del PDF mediante OCR (${ocrRes.items.length} artículos detectados).`
-              : null,
-          });
+          await doc.destroy();
+          const rawText = pages.join('\n');
+          resolve({ rawText, items: parseRawShoppingText(rawText, existingProducts), note: 'PDF revisado: ' + pages.length + ' páginas.' });
           return;
         } catch (pdfjsErr) {
           console.warn('Fallo en motor pdfjs, aplicando fallback directo:', pdfjsErr);
