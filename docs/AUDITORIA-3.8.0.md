@@ -24,6 +24,8 @@ Las reglas se comprueban con un emulador separado, proyecto `demo-alacena-audit`
 
 En navegador local se revisaron agregar, marcar, comprar, comprador/notas, historial, consumo fraccionario, lectura de una imagen QR y ticket de demostración con diferencia revisada. Ancho móvil 390 px sin desbordamiento general. No se hicieron compras de prueba en producción.
 
+Se comprobó además recarga de la aplicación con el servidor local apagado. Se corrigió la coincidencia de caché de archivos propios frente a cabeceras Vary del servidor. Firebase Hosting y reglas Firestore publicados; ambos dominios respondieron con la misma revisión y el acceso REST anónimo a productos devolvió 403. Storage no está provisionado: no se publicaron sus reglas ni se crearon servicios de pago.
+
 ## Uso sin internet
 
 Abrir una vez con internet y esperar «Lista, escáner y OCR disponibles sin conexión». Iniciar sesión y cargar la casa antes de ir al supermercado. El lector y OCR funcionan con archivos del dispositivo; los productos ya conocidos se reconocen localmente. Un código nuevo no puede consultar internet sin conexión: escribir el nombre y revisar sus datos. No borrar los datos del navegador mientras haya cambios pendientes. La sincronización requiere recuperar conexión y conservar acceso autorizado.

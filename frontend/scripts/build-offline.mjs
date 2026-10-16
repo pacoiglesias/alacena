@@ -38,7 +38,7 @@ self.addEventListener('fetch', event => {
     })());
     return;
   }
-  if (ASSETS.includes(url.pathname)) event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request)));
+  if (ASSETS.includes(url.pathname)) event.respondWith(caches.match(event.request, { ignoreVary: true }).then(cached => cached || fetch(event.request)));
 });
 `);
 console.log(`Offline package: ${files.length} files, version ${APP_VERSION}, revision ${revision}`);
