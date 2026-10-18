@@ -137,6 +137,19 @@ export default function App() {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  // iOS exige que el permiso de cámara se solicite directamente desde el gesto
+  // del usuario (sin setTimeout). Lo pedimos aquí al tocar el botón y abrimos el modal.
+  const handleOpenScanner = async () => {
+    try {
+      if (navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach((t) => t.stop());
+      }
+    } catch {
+      // Si el usuario deniega o no hay cámara, el modal muestra el mensaje correspondiente.
+    }
+    setIsScannerOpen(true);
+  };
   const [isCommandCenterOpen, setIsCommandCenterOpen] = useState(false);
   const [isAddWineOpen, setIsAddWineOpen] = useState(false);
   const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
@@ -1001,7 +1014,7 @@ export default function App() {
         onOpenHouseModal={() => setIsHouseModalOpen(true)}
         onOpenChangelog={() => setIsChangelogOpen(true)}
         onResetDemoData={handleResetDemoData}
-        onOpenScanner={() => setIsScannerOpen(true)}
+        onOpenScanner={handleOpenScanner}
         onOpenCommandCenter={() => setIsCommandCenterOpen(true)}
         onOpenQrBooklet={() => setIsQrBookletOpen(true)}
         shoppingCount={shoppingList.filter((i) => !i.checked && belongsToHouse(i, activeHouse.id)).length}
@@ -1052,7 +1065,7 @@ export default function App() {
             recipes={recipes}
             auditLogs={auditLogs.filter((r) => belongsToHouse(r, activeHouse.id))}
             activeHouse={activeHouse}
-            onOpenScanner={() => setIsScannerOpen(true)}
+            onOpenScanner={handleOpenScanner}
           />
         )}
 
@@ -1069,7 +1082,7 @@ export default function App() {
             onUpdateItemQuantity={handleUpdateShoppingItemQuantity}
             onAutoGenerateFromPantry={handleAutoGenerateShoppingList}
             onCompletePurchaseToPantry={handleCompletePurchaseToPantry}
-            onOpenScanner={() => setIsScannerOpen(true)}
+            onOpenScanner={handleOpenScanner}
             onDeduplicateList={handleDeduplicateShoppingList}
             onClearChecked={handleClearCheckedShoppingItems}
             onClearAll={handleClearAllShoppingItems}
@@ -1150,7 +1163,7 @@ export default function App() {
           setIsManualModalOpen(true);
         }}
         onOpenAddWine={() => setIsAddWineOpen(true)}
-        onOpenScanner={() => setIsScannerOpen(true)}
+        onOpenScanner={handleOpenScanner}
         onAutoGenerateShopping={handleAutoGenerateShoppingList}
         onOpenShoppingTab={() => setActiveTab('shopping')}
         onOpenInventoryTab={() => setActiveTab('inventory')}
@@ -1254,7 +1267,7 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         shoppingCount={shoppingList.filter((i) => !i.checked && belongsToHouse(i, activeHouse.id)).length}
-        onOpenScanner={() => setIsScannerOpen(true)}
+        onOpenScanner={handleOpenScanner}
         onOpenCommandCenter={() => setIsCommandCenterOpen(true)}
       />
       <NoticeHost />
