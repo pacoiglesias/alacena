@@ -1,1 +1,38 @@
-Ly8gU2VydmljaW8gZGUgYXZpc29zIG5vIGJsb3F1ZWFudGVzIOKAlCByZWVtcGxhem8gZGUgYWxlcnQoKS9jb25maXJtKCkgbmF0aXZvcy4KLy8gICBub3RpZnkoJ21lbnNhamUnKSAgICAgICAgICAgICDihpIgdG9hc3QgaW5mZXJpb3IgcXVlIHNlIGNpZXJyYSBzb2xvCi8vICAgYXdhaXQgY29uZmlybURpYWxvZygnwr8uLi4/JykgIOKGkiBQcm9taXNlPGJvb2xlYW4+IGNvbiBtb2RhbCBwcm9waW8KLy8gRWwgY29tcG9uZW50ZSA8Tm90aWNlSG9zdC8+IChjb21wb25lbnRzL2NvbW1vbi9Ob3RpY2VIb3N0LmpzeCkgZGViZSBlc3RhcgovLyBtb250YWRvIHVuYSB2ZXogZW4gZWwgw6FyYm9sIHBhcmEgcmVuZGVyaXphciBsb3MgYXZpc29zLgoKY29uc3QgbGlzdGVuZXJzID0gbmV3IFNldCgpOwpsZXQgdG9hc3RTZXEgPSAwOwpsZXQgY29uZmlybVJlcSA9IG51bGw7CgpmdW5jdGlvbiBlbWl0KHN0YXRlKSB7CiAgbGlzdGVuZXJzLmZvckVhY2goKGZuKSA9PiBmbihzdGF0ZSkpOwp9CgpleHBvcnQgZnVuY3Rpb24gc3Vic2NyaWJlTm90aWNlKGZuKSB7CiAgbGlzdGVuZXJzLmFkZChmbik7CiAgcmV0dXJuICgpID0+IGxpc3RlbmVycy5kZWxldGUoZm4pOwp9CgpleHBvcnQgZnVuY3Rpb24gbm90aWZ5KG1lc3NhZ2UsIG1zID0gNDIwMCkgewogIGNvbnN0IGlkID0gKyt0b2FzdFNlcTsKICBlbWl0KHsgdG9hc3Q6IHsgaWQsIG1lc3NhZ2UgfSB9KTsKICBzZXRUaW1lb3V0KCgpID0+IGVtaXQoeyB0b2FzdDogbnVsbCwgdG9hc3RJZDogaWQgfSksIG1zKTsKfQoKZXhwb3J0IGZ1bmN0aW9uIGNvbmZpcm1EaWFsb2cobWVzc2FnZSwgeyBva0xhYmVsID0gJ1PDrSwgY29udGludWFyJywgY2FuY2VsTGFiZWwgPSAnQ2FuY2VsYXInLCBkYW5nZXIgPSB0cnVlIH0gPSB7fSkgewogIHJldHVybiBuZXcgUHJvbWlzZSgocmVzb2x2ZSkgPT4gewogICAgY29uZmlybVJlcSA9IHsgbWVzc2FnZSwgb2tMYWJlbCwgY2FuY2VsTGFiZWwsIGRhbmdlciwgcmVzb2x2ZSB9OwogICAgZW1pdCh7IGNvbmZpcm06IGNvbmZpcm1SZXEgfSk7CiAgfSk7Cn0KCmV4cG9ydCBmdW5jdGlvbiBzZXR0bGVDb25maXJtKHZhbHVlKSB7CiAgY29uc3QgcmVxID0gY29uZmlybVJlcTsKICBjb25maXJtUmVxID0gbnVsbDsKICBlbWl0KHsgY29uZmlybTogbnVsbCB9KTsKICBpZiAocmVxKSByZXEucmVzb2x2ZSh2YWx1ZSk7Cn0K
+// Servicio de avisos no bloqueantes — reemplazo de alert()/confirm() nativos.
+//   notify('mensaje')             → toast inferior que se cierra solo
+//   await confirmDialog('¿...?')  → Promise<boolean> con modal propio
+// El componente <NoticeHost/> (components/common/NoticeHost.jsx) debe estar
+// montado una vez en el árbol para renderizar los avisos.
+
+const listeners = new Set();
+let toastSeq = 0;
+let confirmReq = null;
+
+function emit(state) {
+  listeners.forEach((fn) => fn(state));
+}
+
+export function subscribeNotice(fn) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+export function notify(message, ms = 4200) {
+  const id = ++toastSeq;
+  emit({ toast: { id, message } });
+  setTimeout(() => emit({ toast: null, toastId: id }), ms);
+}
+
+export function confirmDialog(message, { okLabel = 'Sí, continuar', cancelLabel = 'Cancelar', danger = true } = {}) {
+  return new Promise((resolve) => {
+    confirmReq = { message, okLabel, cancelLabel, danger, resolve };
+    emit({ confirm: confirmReq });
+  });
+}
+
+export function settleConfirm(value) {
+  const req = confirmReq;
+  confirmReq = null;
+  emit({ confirm: null });
+  if (req) req.resolve(value);
+}

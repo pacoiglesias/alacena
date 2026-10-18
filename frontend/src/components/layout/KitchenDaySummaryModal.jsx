@@ -88,10 +88,10 @@ export default function KitchenDaySummaryModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-xl bg-[#1C1814] border border-[#3D3630] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header Modal */}
-        <div className="p-6 border-b border-[#2A2521] bg-gradient-to-r from-[#1C1814] via-[#261E14] to-[#1C1814] flex items-center justify-between">
+        <div className="p-6 border-b border-[var(--border-soft)] bg-gradient-to-r from-[var(--bg-elevated)] via-[var(--bg-elevated)] to-[var(--bg-elevated)] flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
               <Sun className="w-6 h-6 animate-spin-slow" />
@@ -100,7 +100,7 @@ export default function KitchenDaySummaryModal({
               <h3 className="font-display text-xl font-bold text-white tracking-tight">
                 ☀️ Resumen Diario de Cocina & Hogar
               </h3>
-              <p className="text-xs text-[#B8AFA3] mt-0.5">
+              <p className="text-xs text-[var(--ink-secondary)] mt-0.5">
                 Estado matutino de caducidades, insumos críticos y sugerencias del chef
               </p>
             </div>
@@ -208,7 +208,7 @@ export default function KitchenDaySummaryModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-6 border-t border-[#2A2521] bg-[#12100E] flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="p-6 border-t border-[var(--border-soft)] bg-[var(--bg-base)] flex flex-col sm:flex-row items-center justify-between gap-3">
           <button
             onClick={handleShareDaySummary}
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 shadow-md shadow-emerald-950/50 transition-all hover:scale-[1.02] active:scale-[0.98]"

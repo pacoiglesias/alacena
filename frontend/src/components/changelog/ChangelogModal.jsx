@@ -30,12 +30,12 @@ export default function ChangelogModal({ isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col rounded-3xl bg-[#1C1916] border border-[#3D3630] shadow-2xl">
+      <div className="relative w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col rounded-3xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] shadow-2xl">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[#2A2521] bg-[#12100E]">
+        <div className="flex items-center justify-between p-6 border-b border-[var(--border-soft)] bg-[var(--bg-base)]">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-[#6B1F2E]/30 border border-[#A83A50]/40 text-[#E0B441]">
+            <div className="p-2.5 rounded-2xl bg-[var(--wine)]/30 border border-[var(--wine-bright)]/40 text-[var(--gold)]">
               <Sparkles className="w-6 h-6" />
             </div>
             <div>
@@ -76,7 +76,7 @@ export default function ChangelogModal({ isOpen, onClose }) {
         </div>
 
         {/* Navigation Tabs inside modal */}
-        <div className="flex items-center gap-2 px-6 pt-4 border-b border-[#2A2521] bg-[#1C1916]">
+        <div className="flex items-center gap-2 px-6 pt-4 border-b border-[var(--border-soft)] bg-[var(--bg-elevated)]">
           <button
             onClick={() => {
               audio.click();
@@ -108,7 +108,7 @@ export default function ChangelogModal({ isOpen, onClose }) {
         </div>
 
         {/* Audio Test Bench (Always accessible) */}
-        <div className="p-3 mx-6 mt-4 rounded-2xl bg-[#12100E] border border-[#A83A50]/30">
+        <div className="p-3 mx-6 mt-4 rounded-2xl bg-[var(--bg-base)] border border-[var(--wine-bright)]/30">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-[11px] font-bold text-gray-300 tracking-wider">
               <Terminal className="w-3.5 h-3.5 text-amber-400" />
@@ -161,7 +161,7 @@ export default function ChangelogModal({ isOpen, onClose }) {
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             
             {/* Release v3.7.0-Enterprise-Luxe */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-emerald-500 shadow-xl">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
@@ -195,10 +195,10 @@ export default function ChangelogModal({ isOpen, onClose }) {
             </div>
 
             {/* Release v3.5.4-Enterprise-Luxe */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-[#2A2521] shadow-xl">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-[var(--border-soft)] shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-[#E0B441] bg-[#E0B441]/20 border border-[#E0B441]/40 rounded-lg font-mono">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-[var(--gold)] bg-[var(--gold)]/20 border border-[var(--gold)]/40 rounded-lg font-mono">
                     v3.5.4-Enterprise-Luxe
                   </span>
                   <span className="text-xs font-semibold text-gray-400">ANTERIOR</span>
@@ -229,10 +229,10 @@ export default function ChangelogModal({ isOpen, onClose }) {
             </div>
 
             {/* Release v3.5.3-Enterprise-Luxe */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-[#2A2521] shadow-xl">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-[var(--border-soft)] shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-[#E0B441] bg-[#E0B441]/20 border border-[#E0B441]/40 rounded-lg font-mono">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-[var(--gold)] bg-[var(--gold)]/20 border border-[var(--gold)]/40 rounded-lg font-mono">
                     v3.5.3-Enterprise-Luxe
                   </span>
                   <span className="text-xs font-semibold text-gray-400">ANTERIOR</span>
@@ -244,22 +244,22 @@ export default function ChangelogModal({ isOpen, onClose }) {
               </h4>
               <ul className="space-y-1.5 text-xs text-gray-300">
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Edición y Alta Completa de Catálogos:</strong> Interfaz responsiva que permite crear y modificar en línea tiendas, personal que registra, categorías y unidades de medida con selector de emojis.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Resolución de Hojas QR en Blanco:</strong> Corrección de interpolación en el motor HTML y dimensionamiento de iframe (900x1200px) para impresión física 100% nítida y fiel.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Diseño Web-Responsive Total:</strong> Optimización en teléfonos móviles (iPhone / Android) y tabletas con tap-targets de mínimo 44px y navegación sin recortes.</span>
                 </li>
               </ul>
             </div>
 
             {/* Release v3.5.2-Enterprise-Luxe */}
-            <div className="p-5 rounded-2xl bg-[#171412] border border-[#2A2521] shadow-md">
+            <div className="p-5 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)] shadow-md">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-gray-300 bg-white/5 border border-white/10 rounded-lg font-mono">
@@ -273,22 +273,22 @@ export default function ChangelogModal({ isOpen, onClose }) {
               </h4>
               <ul className="space-y-1.5 text-xs text-gray-300">
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Motor de Deduplicación Fonética y Ortográfica (`deduplication.js`):</strong> Normalización de acentos, plurales (`tomates` vs `tomate`) y raíces compuestas. Se evitan duplicados en despensa, lista de compras y recetas.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Steppers Táctiles Directos en Lista de Compra:</strong> Botones rápidos `+` y `-` integrados en cada tarjeta para alterar cantidades en un solo toque sin abrir formularios modales.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Impresión Física QR sin Páginas en Blanco:</strong> Generación a través de iframe aislado invisible que renderiza HTML puro blanco con códigos QR en base64 de alto contraste para impresión física infalible.</span>
                 </li>
               </ul>
             </div>
 
             {/* Release v3.5.1-Enterprise-Luxe */}
-            <div className="p-5 rounded-2xl bg-[#171412] border border-[#2A2521] shadow-md">
+            <div className="p-5 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)] shadow-md">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-gray-300 bg-white/5 border border-white/10 rounded-lg font-mono">
@@ -302,22 +302,22 @@ export default function ChangelogModal({ isOpen, onClose }) {
               </h4>
               <ul className="space-y-1.5 text-xs text-gray-300">
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Corrección de Hook Ordering en Modal QR:</strong> Eliminación de condición temprana que rompía la ejecución de React (#310), asegurando apertura instantánea sin pantallas blancas.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Aislamiento CSS @media print:</strong> Desbloqueo de contenedores con scroll para que la impresión física (`window.print()`) pagine limpiamente en papel blanco con tinta negra de máximo contraste.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Motor Vectorial de QR con qrcode:</strong> Generación de matrices QR reales en los 4 formatos (Stickers para frascos, Tablero maestro de cocina, Collarines de cava y Catálogo) para escaneo 100% certero con teléfonos móviles.</span>
                 </li>
               </ul>
             </div>
 
             {/* Release v3.5.0-Enterprise-Luxe */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1C1916] to-[#12100E] border border-white/10 opacity-80">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-white/10 opacity-80">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-gray-400 bg-white/5 border border-white/10 rounded-lg font-mono">
@@ -332,37 +332,37 @@ export default function ChangelogModal({ isOpen, onClose }) {
               </h4>
               <ul className="space-y-1.5 text-xs text-gray-300">
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Personalización de Temas & Paletas:</strong> 6 temas de lujo (Luxe Noir, Cava Forest, Borgoña Gran Reserva, Zafiro Presidencial, Espresso Cobrizo y Modo Claro Luxe Cream) con inyección dinámica de CSS variables y guardado local.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Centro de Catálogos & Opciones Desplegables:</strong> Gestión centralizada y menús interactivos para Tiendas Habituales (Costco, City Market, etc.) y Personal que Registra (María, Chef, Chofer, Patrón) con chips de 1 toque y adición instantánea en formularios.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Motor de Desduplicación y Consolidación de Compras:</strong> Fusión estricta de insumos repetidos con suma de cantidades en vez de duplicar filas, más botón "🧹 Desduplicar" y "🗑️ Limpiar Marcados".</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Historial de Compras & Devoluciones:</strong> Registro de órdenes de compra con capacidad de eliminar o revertir artículos ingresados por error descontándolos automáticamente de la despensa.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Eliminación Directa en Inventario:</strong> Botón de borrado con confirmación en tarjetas de alacena, cava, tabla y modal de edición.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Ecosistema QR Vectorial:</strong> Generador de stickers con líneas de envasado/caducidad para botes/sobres, collarines de cava y tablero maestro de pedidos para puertas.</span>
                 </li>
               </ul>
             </div>
 
             {/* Release v3.4.0-Master */}
-            <div className="p-5 rounded-2xl bg-[#1C1916]/80 border border-[#2A2521] hover:border-[#3D3630] transition-all">
+            <div className="p-5 rounded-2xl bg-[var(--bg-elevated)]/80 border border-[var(--border-soft)] hover:border-[var(--border-strong)] transition-all">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-[#B8AFA3] bg-white/5 border border-white/10 rounded-lg font-mono">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-[var(--ink-secondary)] bg-white/5 border border-white/10 rounded-lg font-mono">
                     v3.4.0-Master
                   </span>
                 </div>
@@ -373,30 +373,30 @@ export default function ChangelogModal({ isOpen, onClose }) {
               </h4>
               <ul className="space-y-1.5 text-xs text-gray-300">
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Importador Bidireccional & OCR:</strong> Extracción visual con visión artificial Tesseract.js de libretas y tickets con pre-procesamiento de contraste, además de soporte para WhatsApp y archivos PDF/TXT.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Auditoría & Test Suite Aprobada:</strong> 100% de éxito en pruebas automatizadas de extracción de datos, filtrado de saludos y normalización de fracciones (1/2 kg).</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Menú Dinámico (Ocultar & Agregar Pestañas):</strong> Posibilidad de apagar visibilidad de secciones que no se utilicen, renombrar cualquiera y agregar nuevas pestañas personalizadas vinculadas a zonas del hogar.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Manual e Instructivo Integral en Pantalla:</strong> Guía interactiva de 9 secciones con buscador y opción de impresión/PDF para la carpeta del personal.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#E0B441] font-bold">✓</span>
+                  <span className="text-[var(--gold)] font-bold">✓</span>
                   <span><strong>Web NFC & Códigos ALC-XXXX:</strong> Grabación de chips adhesivos con 1 toque y auto-generación de códigos permanentes.</span>
                 </li>
               </ul>
             </div>
 
             {/* Release v3.3.0-Perfection */}
-            <div className="p-5 rounded-2xl bg-[#1C1916] border border-[#3D3630] transition-all">
+            <div className="p-5 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] transition-all">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
@@ -434,10 +434,10 @@ export default function ChangelogModal({ isOpen, onClose }) {
             </div>
 
             {/* Release v3.1.0-Luxe */}
-            <div className="p-5 rounded-2xl bg-[#1C1916] border border-[#3D3630] transition-all">
+            <div className="p-5 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] transition-all">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-[#E0B441] bg-[#E0B441]/20 border border-[#E0B441]/40 rounded-lg">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-[var(--gold)] bg-[var(--gold)]/20 border border-[var(--gold)]/40 rounded-lg">
                     v3.1.0-Luxe
                   </span>
                   <span className="text-xs font-semibold text-gray-400">ANTERIOR</span>
@@ -480,7 +480,7 @@ export default function ChangelogModal({ isOpen, onClose }) {
             </div>
 
             {/* Release v2.5.0 */}
-            <div className="p-5 rounded-2xl bg-white/[0.04] border border-[#2A2521] hover:border-[#3D3630] transition-all">
+            <div className="p-5 rounded-2xl bg-white/[0.04] border border-[var(--border-soft)] hover:border-[var(--border-strong)] transition-all">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg">
@@ -723,7 +723,7 @@ export default function ChangelogModal({ isOpen, onClose }) {
         )}
 
         {/* Footer */}
-        <div className="p-4 border-t border-white/10 bg-[#131C31] flex items-center justify-between">
+        <div className="p-4 border-t border-white/10 bg-[var(--bg-elevated)] flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span>Documentado en AUDITORIA_Y_PLAN_30_MEJORAS.md</span>

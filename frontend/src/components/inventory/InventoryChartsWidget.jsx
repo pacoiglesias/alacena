@@ -95,7 +95,7 @@ export default function InventoryChartsWidget({
   }, [products]);
 
   return (
-    <div className="rounded-2xl bg-[#121622] border border-[#1E2638] overflow-hidden shadow-sm transition-all">
+    <div className="rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-soft)] overflow-hidden shadow-sm transition-all">
       {/* Header interactivo: en móvil se muestra resumen compacto y botón expandir */}
       <button
         type="button"
@@ -118,7 +118,7 @@ export default function InventoryChartsWidget({
                 En Vivo
               </span>
             </div>
-            <p className="text-[11px] text-[#94A3B8] truncate mt-0.5">
+            <p className="text-[11px] text-[var(--ink-secondary)] truncate mt-0.5">
               Semáforo FEFO ({expiryStats.critical} urgentes) • {zoneStats.list.length} Zonas activas
             </p>
           </div>
@@ -128,15 +128,15 @@ export default function InventoryChartsWidget({
           <span className="text-[11px] font-medium text-emerald-400 hidden sm:inline">
             {isExpanded ? 'Ocultar Gráficos' : 'Ver Gráficos Detallados'}
           </span>
-          <div className="w-7 h-7 rounded-lg bg-[#1A2030] border border-[#252E42] flex items-center justify-center text-[#94A3B8]">
+          <div className="w-7 h-7 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-strong)] flex items-center justify-center text-[var(--ink-secondary)]">
             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </div>
         </div>
       </button>
 
       {/* Mini Semáforo Rápido visible siempre (incluso cuando está colapsado) */}
-      <div className="px-3.5 sm:px-4 pb-3.5 pt-1 border-t border-[#1E2638]/60">
-        <div className="flex items-center justify-between text-[11px] text-[#94A3B8] mb-1.5 font-medium">
+      <div className="px-3.5 sm:px-4 pb-3.5 pt-1 border-t border-[var(--border-soft)]/60">
+        <div className="flex items-center justify-between text-[11px] text-[var(--ink-secondary)] mb-1.5 font-medium">
           <span className="text-emerald-400 font-bold">Salud del Inventario (FEFO)</span>
           <span className="font-mono text-[10px]">
             {expiryStats.pctOptimal + expiryStats.pctWarning}% Óptimo / Estable
@@ -144,7 +144,7 @@ export default function InventoryChartsWidget({
         </div>
 
         {/* Barra Segmentada Responsiva SVG / CSS */}
-        <div className="w-full h-3 rounded-full bg-[#1A2030] overflow-hidden flex border border-[#252E42] p-0.5 gap-0.5">
+        <div className="w-full h-3 rounded-full bg-[var(--bg-elevated)] overflow-hidden flex border border-[var(--border-strong)] p-0.5 gap-0.5">
           {expiryStats.optimal > 0 && (
             <div 
               style={{ width: `${expiryStats.pctOptimal}%` }}
@@ -169,7 +169,7 @@ export default function InventoryChartsWidget({
           {expiryStats.noDate > 0 && (
             <div 
               style={{ width: `${expiryStats.pctNoDate}%` }}
-              className="h-full bg-[#334155] rounded-sm transition-all"
+              className="h-full bg-[var(--ink-tertiary)] rounded-sm transition-all"
               title={`Sin fecha: ${expiryStats.noDate} insumos (${expiryStats.pctNoDate}%)`}
             />
           )}
@@ -186,7 +186,7 @@ export default function InventoryChartsWidget({
             className={`p-1.5 rounded-lg border text-center transition-all ${
               statusFilter === 'OPTIMAL'
                 ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 font-bold'
-                : 'bg-[#161B26] border-[#1E2638] text-[#94A3B8] hover:text-white'
+                : 'bg-[var(--bg-elevated)] border-[var(--border-soft)] text-[var(--ink-secondary)] hover:text-white'
             }`}
           >
             <span className="block text-emerald-400 font-bold">{expiryStats.optimal}</span>
@@ -202,7 +202,7 @@ export default function InventoryChartsWidget({
             className={`p-1.5 rounded-lg border text-center transition-all ${
               statusFilter === 'EXPIRING'
                 ? 'bg-amber-500/20 border-amber-500 text-amber-300 font-bold'
-                : 'bg-[#161B26] border-[#1E2638] text-[#94A3B8] hover:text-white'
+                : 'bg-[var(--bg-elevated)] border-[var(--border-soft)] text-[var(--ink-secondary)] hover:text-white'
             }`}
           >
             <span className="block text-amber-400 font-bold">{expiryStats.warning}</span>
@@ -218,7 +218,7 @@ export default function InventoryChartsWidget({
             className={`p-1.5 rounded-lg border text-center transition-all ${
               statusFilter === 'LOW'
                 ? 'bg-rose-500/20 border-rose-500 text-rose-300 font-bold'
-                : 'bg-[#161B26] border-[#1E2638] text-[#94A3B8] hover:text-white'
+                : 'bg-[var(--bg-elevated)] border-[var(--border-soft)] text-[var(--ink-secondary)] hover:text-white'
             }`}
           >
             <span className="block text-rose-400 font-bold">{expiryStats.critical}</span>
@@ -229,7 +229,7 @@ export default function InventoryChartsWidget({
 
       {/* Contenido Extendido al Abrir el Desplegable */}
       {isExpanded && (
-        <div className="p-3.5 sm:p-5 border-t border-[#1E2638] space-y-5 bg-[#0D111A]/60 animate-fade-in">
+        <div className="p-3.5 sm:p-5 border-t border-[var(--border-soft)] space-y-5 bg-[var(--bg-elevated)]/60 animate-fade-in">
           
           {/* Gráfico 2: Distribución Patrimonial por Zona */}
           <div>
@@ -238,7 +238,7 @@ export default function InventoryChartsWidget({
                 <Warehouse className="w-3.5 h-3.5 text-sky-400" />
                 Inversión por Zona del Hogar
               </span>
-              <span className="text-[11px] font-mono text-[#94A3B8]">
+              <span className="text-[11px] font-mono text-[var(--ink-secondary)]">
                 Total: {currencySymbol}{Math.round(zoneStats.grandTotalValuation).toLocaleString('es-MX')} {currencyCode}
               </span>
             </div>
@@ -261,16 +261,16 @@ export default function InventoryChartsWidget({
                     className={`w-full p-2.5 rounded-xl border text-left transition-all ${
                       isSelected
                         ? 'bg-sky-500/15 border-sky-500/50 shadow-sm'
-                        : 'bg-[#121622] border-[#1E2638] hover:border-[#2A364E]'
+                        : 'bg-[var(--bg-elevated)] border-[var(--border-soft)] hover:border-[var(--border-strong)]'
                     }`}
                   >
                     <div className="flex items-center justify-between text-xs mb-1">
                       <div className="flex items-center gap-1.5 truncate">
                         <span className="font-bold text-white truncate">{z.name}</span>
-                        <span className="text-[10px] text-[#94A3B8] font-mono">({z.count} arts)</span>
+                        <span className="text-[10px] text-[var(--ink-secondary)] font-mono">({z.count} arts)</span>
                       </div>
                       <div className="flex items-center gap-2 font-mono text-[11px] shrink-0 ml-2">
-                        <span className="text-[#94A3B8]">{pct}%</span>
+                        <span className="text-[var(--ink-secondary)]">{pct}%</span>
                         <span className="font-bold text-emerald-400">
                           {currencySymbol}{Math.round(z.valuation).toLocaleString('es-MX')}
                         </span>
@@ -278,7 +278,7 @@ export default function InventoryChartsWidget({
                     </div>
 
                     {/* Barra de Progreso */}
-                    <div className="w-full h-1.5 rounded-full bg-[#1A2030] overflow-hidden">
+                    <div className="w-full h-1.5 rounded-full bg-[var(--bg-elevated)] overflow-hidden">
                       <div 
                         className={`h-full rounded-full transition-all ${
                           isSelected ? 'bg-sky-400' : 'bg-gradient-to-r from-emerald-500 to-sky-400'
@@ -301,12 +301,12 @@ export default function InventoryChartsWidget({
               {categoryStats.map((c) => (
                 <div 
                   key={c.name}
-                  className="p-2.5 rounded-xl bg-[#121622] border border-[#1E2638] text-center"
+                  className="p-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-soft)] text-center"
                 >
                   <span className="text-base font-black text-white font-mono block">
                     {c.count}
                   </span>
-                  <span className="text-[10px] text-[#94A3B8] truncate block mt-0.5">
+                  <span className="text-[10px] text-[var(--ink-secondary)] truncate block mt-0.5">
                     {c.name}
                   </span>
                 </div>

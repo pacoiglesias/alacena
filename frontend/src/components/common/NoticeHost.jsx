@@ -1,1 +1,85 @@
-aW1wb3J0IFJlYWN0LCB7IHVzZVN0YXRlLCB1c2VFZmZlY3QsIHVzZUNhbGxiYWNrIH0gZnJvbSAncmVhY3QnOwppbXBvcnQgeyBBbGVydFRyaWFuZ2xlLCBYIH0gZnJvbSAnbHVjaWRlLXJlYWN0JzsKaW1wb3J0IHsgc3Vic2NyaWJlTm90aWNlLCBzZXR0bGVDb25maXJtIH0gZnJvbSAnLi4vLi4vc2VydmljZXMvbm90aWNlJzsKCi8qKiBIb3N0IGdsb2JhbCBkZSBhdmlzb3M6IG1vbnRhcmxvIHVuYSB2ZXogZW4gQXBwLiBSZW5kZXJpemEgdG9hc3RzIHkgZWwgbW9kYWwgZGUgY29uZmlybWFjacOzbi4gKi8KZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gTm90aWNlSG9zdCgpIHsKICBjb25zdCBbdG9hc3QsIHNldFRvYXN0XSA9IHVzZVN0YXRlKG51bGwpOwogIGNvbnN0IFtjb25maXJtLCBzZXRDb25maXJtXSA9IHVzZVN0YXRlKG51bGwpOwoKICB1c2VFZmZlY3QoKCkgPT4gc3Vic2NyaWJlTm90aWNlKChzdGF0ZSkgPT4gewogICAgaWYgKHN0YXRlLnRvYXN0ICE9PSB1bmRlZmluZWQpIHNldFRvYXN0KHN0YXRlLnRvYXN0KTsKICAgIGlmIChzdGF0ZS5jb25maXJtICE9PSB1bmRlZmluZWQpIHNldENvbmZpcm0oc3RhdGUuY29uZmlybSk7CiAgfSksIFtdKTsKCiAgY29uc3QgY2xvc2VUb2FzdCA9IHVzZUNhbGxiYWNrKCgpID0+IHNldFRvYXN0KG51bGwpLCBbXSk7CgogIHJldHVybiAoCiAgICA8PgogICAgICB7dG9hc3QgJiYgKAogICAgICAgIDxkaXYKICAgICAgICAgIHJvbGU9InN0YXR1cyIKICAgICAgICAgIGNsYXNzTmFtZT0iZml4ZWQgYm90dG9tLTI0IGxlZnQtMS8yIC10cmFuc2xhdGUteC0xLzIgei1bMTIwXSBtYXgtdy1bOTJ2d10gYW5pbWF0ZS1tb2RhbC1pbiIKICAgICAgICA+CiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0iZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTMgYmctWyMxQzE5MTZdLzk1IGJhY2tkcm9wLWJsdXIgYm9yZGVyIGJvcmRlci1bIzNEMzYzMF0gdGV4dC1bI0YyRURFNF0gdGV4dC1zbSBmb250LW1lZGl1bSByb3VuZGVkLTJ4bCBweC00IHB5LTMgc2hhZG93LTJ4bCI+CiAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT0iZmxleC0xIj57dG9hc3QubWVzc2FnZX08L3NwYW4+CiAgICAgICAgICAgIDxidXR0b24KICAgICAgICAgICAgICB0eXBlPSJidXR0b24iCiAgICAgICAgICAgICAgb25DbGljaz17Y2xvc2VUb2FzdH0KICAgICAgICAgICAgICBhcmlhLWxhYmVsPSJDZXJyYXIgYXZpc28iCiAgICAgICAgICAgICAgY2xhc3NOYW1lPSJzaHJpbmstMCB3LTggaC04IHJvdW5kZWQteGwgYmctd2hpdGUvNSBob3ZlcjpiZy13aGl0ZS8xMCBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciIKICAgICAgICAgICAgPgogICAgICAgICAgICAgIDxYIGNsYXNzTmFtZT0idy00IGgtNCIgLz4KICAgICAgICAgICAgPC9idXR0b24+CiAgICAgICAgICA8L2Rpdj4KICAgICAgICA8L2Rpdj4KICAgICAgKX0KCiAgICAgIHtjb25maXJtICYmICgKICAgICAgICA8ZGl2CiAgICAgICAgICBjbGFzc05hbWU9ImZpeGVkIGluc2V0LTAgei1bMTMwXSBiZy1ibGFjay83MCBiYWNrZHJvcC1ibHVyLXNtIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIHAtNCBhbmltYXRlLW1vZGFsLWluIgogICAgICAgICAgb25DbGljaz17KCkgPT4gc2V0dGxlQ29uZmlybShmYWxzZSl9CiAgICAgICAgPgogICAgICAgICAgPGRpdgogICAgICAgICAgICByb2xlPSJhbGVydGRpYWxvZyIKICAgICAgICAgICAgYXJpYS1tb2RhbD0idHJ1ZSIKICAgICAgICAgICAgY2xhc3NOYW1lPSJ3LWZ1bGwgbWF4LXctc20gYmctWyMxNDEyMTBdIGJvcmRlciBib3JkZXItWyMzRDM2MzBdIHJvdW5kZWQtM3hsIHAtNiBzaGFkb3ctMnhsIgogICAgICAgICAgICBvbkNsaWNrPXsoZSkgPT4gZS5zdG9wUHJvcGFnYXRpb24oKX0KICAgICAgICAgID4KICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9ImZsZXggaXRlbXMtc3RhcnQgZ2FwLTMiPgogICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPXtgdy0xMSBoLTExIHJvdW5kZWQtMnhsIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIHNocmluay0wICR7CiAgICAgICAgICAgICAgICBjb25maXJtLmRhbmdlciA/ICdiZy1yZWQtNTAwLzE1IHRleHQtcmVkLTQwMCcgOiAnYmctYW1iZXItNTAwLzE1IHRleHQtYW1iZXItNDAwJwogICAgICAgICAgICAgIH1gfT4KICAgICAgICAgICAgICAgIDxBbGVydFRyaWFuZ2xlIGNsYXNzTmFtZT0idy02IGgtNiIgLz4KICAgICAgICAgICAgICA8L2Rpdj4KICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9InRleHQtWyNGMkVERTRdIHRleHQtYmFzZSBmb250LW1lZGl1bSBsZWFkaW5nLXNudWcgcHQtMSI+CiAgICAgICAgICAgICAgICB7Y29uZmlybS5tZXNzYWdlfQogICAgICAgICAgICAgIDwvcD4KICAgICAgICAgICAgPC9kaXY+CiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJmbGV4IGdhcC0zIG10LTYiPgogICAgICAgICAgICAgIDxidXR0b24KICAgICAgICAgICAgICAgIHR5cGU9ImJ1dHRvbiIKICAgICAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+IHNldHRsZUNvbmZpcm0oZmFsc2UpfQogICAgICAgICAgICAgICAgY2xhc3NOYW1lPSJmbGV4LTEgcHktMyByb3VuZGVkLTJ4bCBmb250LWJvbGQgdGV4dC1zbSBiZy13aGl0ZS81IGhvdmVyOmJnLXdoaXRlLzEwIHRleHQtZ3JheS0zMDAgYm9yZGVyIGJvcmRlci13aGl0ZS8xMCBtaW4taC1bNDhweF0iCiAgICAgICAgICAgICAgPgogICAgICAgICAgICAgICAge2NvbmZpcm0uY2FuY2VsTGFiZWx9CiAgICAgICAgICAgICAgPC9idXR0b24+CiAgICAgICAgICAgICAgPGJ1dHRvbgogICAgICAgICAgICAgICAgdHlwZT0iYnV0dG9uIgogICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gc2V0dGxlQ29uZmlybSh0cnVlKX0KICAgICAgICAgICAgICAgIGF1dG9Gb2N1cwogICAgICAgICAgICAgICAgY2xhc3NOYW1lPXtgZmxleC0xIHB5LTMgcm91bmRlZC0yeGwgZm9udC1ib2xkIHRleHQtc20gdGV4dC13aGl0ZSBtaW4taC1bNDhweF0gJHsKICAgICAgICAgICAgICAgICAgY29uZmlybS5kYW5nZXIKICAgICAgICAgICAgICAgICAgICA/ICdiZy1yZWQtNjAwIGhvdmVyOmJnLXJlZC01MDAnCiAgICAgICAgICAgICAgICAgICAgOiAnYmctZW1lcmFsZC02MDAgaG92ZXI6YmctZW1lcmFsZC01MDAnCiAgICAgICAgICAgICAgICB9YH0KICAgICAgICAgICAgICA+CiAgICAgICAgICAgICAgICB7Y29uZmlybS5va0xhYmVsfQogICAgICAgICAgICAgIDwvYnV0dG9uPgogICAgICAgICAgICA8L2Rpdj4KICAgICAgICAgIDwvZGl2PgogICAgICAgIDwvZGl2PgogICAgICApfQogICAgPC8+CiAgKTsKfQo=
+import React, { useState, useEffect, useCallback } from 'react';
+import { AlertTriangle, X } from 'lucide-react';
+import { subscribeNotice, settleConfirm } from '../../services/notice';
+
+/** Host global de avisos: montarlo una vez en App. Renderiza toasts y el modal de confirmación. */
+export default function NoticeHost() {
+  const [toast, setToast] = useState(null);
+  const [confirm, setConfirm] = useState(null);
+
+  useEffect(() => subscribeNotice((state) => {
+    if (state.toast !== undefined) setToast(state.toast);
+    if (state.confirm !== undefined) setConfirm(state.confirm);
+  }), []);
+
+  const closeToast = useCallback(() => setToast(null), []);
+
+  return (
+    <>
+      {toast && (
+        <div
+          role="status"
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[120] max-w-[92vw] animate-modal-in"
+        >
+          <div className="flex items-center gap-3 bg-[var(--bg-elevated)]/95 backdrop-blur border border-[var(--border-strong)] text-[var(--ink-primary)] text-sm font-medium rounded-2xl px-4 py-3 shadow-2xl">
+            <span className="flex-1">{toast.message}</span>
+            <button
+              type="button"
+              onClick={closeToast}
+              aria-label="Cerrar aviso"
+              className="shrink-0 w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {confirm && (
+        <div
+          className="fixed inset-0 z-[130] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-modal-in"
+          onClick={() => settleConfirm(false)}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            className="w-full max-w-sm bg-[var(--bg-sunken)] border border-[var(--border-strong)] rounded-3xl p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
+                confirm.danger ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'
+              }`}>
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <p className="text-[var(--ink-primary)] text-base font-medium leading-snug pt-1">
+                {confirm.message}
+              </p>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => settleConfirm(false)}
+                className="flex-1 py-3 rounded-2xl font-bold text-sm bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 min-h-[48px]"
+              >
+                {confirm.cancelLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => settleConfirm(true)}
+                autoFocus
+                className={`flex-1 py-3 rounded-2xl font-bold text-sm text-white min-h-[48px] ${
+                  confirm.danger
+                    ? 'bg-red-600 hover:bg-red-500'
+                    : 'bg-emerald-600 hover:bg-emerald-500'
+                }`}
+              >
+                {confirm.okLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

@@ -105,17 +105,17 @@ export default function AuditTrailView({ logs = [] }) {
     <div className="space-y-6">
       
       {/* 1. Header con Banner de Integridad Criptográfica SHA-256 */}
-      <div className="card-luxe p-6 border border-[#2A2521] bg-[#1C1916] space-y-4">
+      <div className="card-luxe p-6 border border-[var(--border-soft)] bg-[var(--bg-elevated)] space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-[#5C8894]/15 border border-[#5C8894]/30 flex items-center justify-center text-[#5C8894] shadow-md">
+            <div className="w-12 h-12 rounded-2xl bg-[var(--accent-audit)]/15 border border-[var(--accent-audit)]/30 flex items-center justify-center text-[var(--accent-audit)] shadow-md">
               <History className="w-6 h-6" />
             </div>
             <div>
               <h2 className="font-display text-2xl font-bold text-white tracking-tight">
                 Bitácora Forense Patrimonial
               </h2>
-              <p className="text-xs text-[#8B8378] mt-0.5">
+              <p className="text-xs text-[var(--ink-tertiary)] mt-0.5">
                 Cadena inmutable de movimientos, consumos y descorches con integridad SHA-256.
               </p>
             </div>
@@ -127,7 +127,7 @@ export default function AuditTrailView({ logs = [] }) {
               <select
                 value={filterStaff}
                 onChange={(e) => setFilterStaff(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-[#12100E] border border-[#2A2521] text-white text-xs font-semibold focus:outline-none focus:border-[#5C8894]"
+                className="px-3 py-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white text-xs font-semibold focus:outline-none focus:border-[var(--accent-audit)]"
               >
                 <option value="ALL">Todo el Personal</option>
                 {staffNames.map((name, i) => (
@@ -141,45 +141,45 @@ export default function AuditTrailView({ logs = [] }) {
             {/* Exportar PDF con Documento y Firmante */}
             <button
               onClick={handleExportPdf}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#12100E] hover:bg-[#2A2521] border border-[#3D3630] text-xs font-bold text-[#F2EDE4] transition-all"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--bg-base)] hover:bg-[var(--border-soft)] border border-[var(--border-strong)] text-xs font-bold text-[var(--ink-primary)] transition-all"
               title="Exportar reporte de auditoría firmado"
             >
-              <FileText className="w-4 h-4 text-[#5C8894]" />
+              <FileText className="w-4 h-4 text-[var(--accent-audit)]" />
               <span className="hidden sm:inline">Exportar PDF</span>
             </button>
           </div>
         </div>
 
         {/* Banner de Verificación de Integridad */}
-        <div className="p-3.5 rounded-2xl bg-[#2F7D5C]/15 border border-[#2F7D5C]/35 flex items-center justify-between gap-3 text-xs">
+        <div className="p-3.5 rounded-2xl bg-[var(--success)]/15 border border-[var(--success)]/35 flex items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2.5">
-            <ShieldCheck className="w-4 h-4 text-[#2F7D5C] shrink-0" />
-            <span className="text-[#F2EDE4] font-medium">
+            <ShieldCheck className="w-4 h-4 text-[var(--success)] shrink-0" />
+            <span className="text-[var(--ink-primary)] font-medium">
               <strong>Cadena SHA-256 Verificada:</strong> Todos los registros conservan sincronía cronológica y hashes intactos.
             </span>
           </div>
-          <span className="px-2.5 py-0.5 rounded-full bg-[#2F7D5C]/25 text-[#2F7D5C] font-mono text-[10px] font-bold uppercase tracking-wider shrink-0">
+          <span className="px-2.5 py-0.5 rounded-full bg-[var(--success)]/25 text-[var(--success)] font-mono text-[10px] font-bold uppercase tracking-wider shrink-0">
             Cadena Íntegra
           </span>
         </div>
       </div>
 
       {/* 2. Timeline Visual (NO Tabla - Fase 8.8) */}
-      <div className="card-luxe p-6 border border-[#2A2521] bg-[#1C1916]">
+      <div className="card-luxe p-6 border border-[var(--border-soft)] bg-[var(--bg-elevated)]">
         {filteredLogs.length === 0 ? (
-          <div className="text-center py-16 border border-dashed border-[#3D3630] rounded-3xl bg-[#12100E]/40 p-6">
-            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-[#5C8894]/15 border border-[#5C8894]/30 flex items-center justify-center text-[#5C8894]">
+          <div className="text-center py-16 border border-dashed border-[var(--border-strong)] rounded-3xl bg-[var(--bg-base)]/40 p-6">
+            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-[var(--accent-audit)]/15 border border-[var(--accent-audit)]/30 flex items-center justify-center text-[var(--accent-audit)]">
               <History className="w-8 h-8" />
             </div>
             <h4 className="font-display text-xl font-bold text-white">
               📖 La historia comienza con tu primera acción.
             </h4>
-            <p className="text-xs text-[#8B8378] mt-1.5 max-w-sm mx-auto">
+            <p className="text-xs text-[var(--ink-tertiary)] mt-1.5 max-w-sm mx-auto">
               Cada consumo, ingreso de compra, cocción o descorche registrará automáticamente un bloque firmado aquí.
             </p>
           </div>
         ) : (
-          <div className="relative pl-6 sm:pl-8 space-y-6 before:absolute before:left-3 sm:before:left-4 before:top-3 before:bottom-3 before:w-0.5 before:bg-[#2A2521]">
+          <div className="relative pl-6 sm:pl-8 space-y-6 before:absolute before:left-3 sm:before:left-4 before:top-3 before:bottom-3 before:w-0.5 before:bg-[var(--border-soft)]">
             {filteredLogs.map((log) => {
               const date = new Date(log.timestamp);
               const relativeTime = getRelativeTime(log.timestamp);
@@ -204,7 +204,7 @@ export default function AuditTrailView({ logs = [] }) {
                   </div>
 
                   {/* Tarjeta de Entrada de la Bitácora */}
-                  <div className="rounded-2xl bg-[#12100E] border border-[#2A2521] hover:border-[#3D3630] p-4 transition-all space-y-2">
+                  <div className="rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)] hover:border-[var(--border-strong)] p-4 transition-all space-y-2">
                     
                     {/* Encabezado: Fecha relativa + Actor + Hash SHA-256 */}
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -226,24 +226,24 @@ export default function AuditTrailView({ logs = [] }) {
 
                       <div className="flex items-center gap-2">
                         {/* Hash chip de 8 caracteres con icono candado */}
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#1C1916] border border-[#2A2521] text-[10px] font-mono text-[#8B8378]">
-                          <Lock className="w-2.5 h-2.5 text-[#5C8894]" />
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-soft)] text-[10px] font-mono text-[var(--ink-tertiary)]">
+                          <Lock className="w-2.5 h-2.5 text-[var(--accent-audit)]" />
                           <span>#{shortHash}</span>
                         </span>
-                        <span className="text-xs text-[#8B8378] font-mono">
+                        <span className="text-xs text-[var(--ink-tertiary)] font-mono">
                           {relativeTime}
                         </span>
                       </div>
                     </div>
 
                     {/* Descripción Principal */}
-                    <p className="text-xs text-[#F2EDE4] font-medium leading-relaxed">
+                    <p className="text-xs text-[var(--ink-primary)] font-medium leading-relaxed">
                       {log.description}
                     </p>
 
                     {/* Detalle o Notas */}
                     {log.details && (
-                      <p className="text-[11px] text-[#B8AFA3] bg-[#1C1916] p-2.5 rounded-xl border border-[#2A2521] font-mono">
+                      <p className="text-[11px] text-[var(--ink-secondary)] bg-[var(--bg-elevated)] p-2.5 rounded-xl border border-[var(--border-soft)] font-mono">
                         {log.details}
                       </p>
                     )}
@@ -252,14 +252,14 @@ export default function AuditTrailView({ logs = [] }) {
                     <div className="pt-1">
                       <button
                         onClick={() => toggleExpand(log.id)}
-                        className="text-[10px] font-mono text-[#5C8894] hover:text-[#7ba9b6] flex items-center gap-1 transition-colors"
+                        className="text-[10px] font-mono text-[var(--accent-audit)] hover:text-[var(--accent-audit)] flex items-center gap-1 transition-colors"
                       >
                         {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                         <span>{isExpanded ? 'Ocultar delta técnico' : 'Ver delta JSON'}</span>
                       </button>
 
                       {isExpanded && (
-                        <div className="mt-2 p-3 rounded-xl bg-[#0A0908] border border-[#2A2521] text-[10px] font-mono text-[#B8AFA3] overflow-x-auto">
+                        <div className="mt-2 p-3 rounded-xl bg-[var(--bg-sunken)] border border-[var(--border-soft)] text-[10px] font-mono text-[var(--ink-secondary)] overflow-x-auto">
                           <pre>{JSON.stringify({
                             id: log.id,
                             timestamp: log.timestamp,

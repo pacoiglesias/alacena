@@ -1,1 +1,467 @@
-aW1wb3J0IFJlYWN0LCB7IHVzZVN0YXRlLCB1c2VSZWYgfSBmcm9tICdyZWFjdCc7CmltcG9ydCB7IFFSQ29kZVNWRyB9IGZyb20gJ3FyY29kZS5yZWFjdCc7CmltcG9ydCBRUkNvZGUgZnJvbSAncXJjb2RlJzsKaW1wb3J0IHsgCiAgWCwgUHJpbnRlciwgQ2hlY2ssIE1hcFBpbiwgQ2FsZW5kYXIsIFRhZywgU3RvcmUsIFFyQ29kZSwgCiAgUmFkaW8sIFNwYXJrbGVzLCBTY2lzc29ycywgRG93bmxvYWQsIExheWVycywgV2luZQp9IGZyb20gJ2x1Y2lkZS1yZWFjdCc7CmltcG9ydCB7IGF1ZGlvIH0gZnJvbSAnLi4vLi4vc2VydmljZXMvYXVkaW9TZXJ2aWNlJzsKaW1wb3J0IHsgZ2V0SXRlbVNjYW5VcmwgfSBmcm9tICcuLi8uLi9zZXJ2aWNlcy9xclBkZlNlcnZpY2UnOwppbXBvcnQgeyBub3RpZnkgfSBmcm9tICcuLi8uLi9zZXJ2aWNlcy9ub3RpY2UnOwoKZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gSXRlbVFyTW9kYWwoeyBpc09wZW4sIG9uQ2xvc2UsIGl0ZW0sIGFjdGl2ZUhvdXNlLCBvblVwZGF0ZVByb2R1Y3QgfSkgewogIGNvbnN0IFtuZmNXcml0aW5nLCBzZXROZmNXcml0aW5nXSA9IHVzZVN0YXRlKGZhbHNlKTsKICBjb25zdCBbbmZjU3VjY2Vzcywgc2V0TmZjU3VjY2Vzc10gPSB1c2VTdGF0ZShmYWxzZSk7CiAgY29uc3QgW25mY01lc3NhZ2UsIHNldE5mY01lc3NhZ2VdID0gdXNlU3RhdGUoJycpOwogIGNvbnN0IFtjb3BpZWRMaW5rLCBzZXRDb3BpZWRMaW5rXSA9IHVzZVN0YXRlKGZhbHNlKTsKICBjb25zdCBbbGFiZWxTaXplLCBzZXRMYWJlbFNpemVdID0gdXNlU3RhdGUoJ1NUQU5EQVJEJyk7IC8vICdTVEFOREFSRCcgKDUweDUwKSB8ICdNSU5JJyAoMzB4MzApIHwgJ1dJTkVfQ09MTEFSJwogIGNvbnN0IHFyU3ZnUmVmID0gdXNlUmVmKG51bGwpOwoKICBpZiAoIWlzT3BlbiB8fCAhaXRlbSkgcmV0dXJuIG51bGw7CgogIC8vIEPDs2RpZ28gZGUgYmFycmFzIG8gY2xhdmUgw7puaWNhIHBlcnNpc3RlbnRlIGRlbCBwcm9kdWN0bwogIGNvbnN0IGFjdGl2ZUJhcmNvZGUgPSBpdGVtLmJhcmNvZGUgfHwgYEFMQy0keyhpdGVtLmlkIHx8ICcnKS5yZXBsYWNlKCdwcm9kLScsICcnKS50b1VwcGVyQ2FzZSgpIHx8IERhdGUubm93KCkudG9TdHJpbmcoMzYpLnRvVXBwZXJDYXNlKCl9YDsKCiAgLy8gVVJMIGRlIGVzY2FuZW8gZGlyZWN0byBpbnRlcmFjdGl2byAoYWJyZSBBTEFDRU5BIGFsIGluc3RhbnRlIGFsIGVzY2FuZWFyIGNvbiBjw6FtYXJhIG5hdGl2YSBvIE5GQykKICBjb25zdCBzY2FuVXJsID0gZ2V0SXRlbVNjYW5VcmwoaXRlbSk7CiAgY29uc3QgY29tcGFjdFFyVmFsdWUgPSBzY2FuVXJsOwoKICAvLyBJbXByaW1pciBjb24gYWlzbGFtaWVudG8gZW4gaWZyYW1lIGxpbXBpbyBzaW4gcMOhZ2luYXMgZW4gYmxhbmNvCiAgY29uc3QgaGFuZGxlUHJpbnQgPSBhc3luYyAoKSA9PiB7CiAgICBhdWRpby5jbGljaygpOwogICAgdHJ5IHsKICAgICAgbGV0IHFySW1nID0gJyc7CiAgICAgIHRyeSB7CiAgICAgICAgcXJJbWcgPSBhd2FpdCBRUkNvZGUudG9EYXRhVVJMKGNvbXBhY3RRclZhbHVlLCB7CiAgICAgICAgICB3aWR0aDogMzAwLAogICAgICAgICAgbWFyZ2luOiAxLAogICAgICAgICAgY29sb3I6IHsgZGFyazogJyMwMDAwMDAnLCBsaWdodDogJyNGRkZGRkYnIH0sCiAgICAgICAgICBlcnJvckNvcnJlY3Rpb25MZXZlbDogJ00nLAogICAgICAgIH0pOwogICAgICB9IGNhdGNoIChlKSB7CiAgICAgICAgY29uc3Qgc3ZnRWxlbWVudCA9IHFyU3ZnUmVmLmN1cnJlbnQ/LnF1ZXJ5U2VsZWN0b3IoJ3N2ZycpOwogICAgICAgIGlmIChzdmdFbGVtZW50KSB7CiAgICAgICAgICBjb25zdCBzdmdEYXRhID0gbmV3IFhNTFNlcmlhbGl6ZXIoKS5zZXJpYWxpemVUb1N0cmluZyhzdmdFbGVtZW50KTsKICAgICAgICAgIHFySW1nID0gJ2RhdGE6aW1hZ2Uvc3ZnK3htbDtiYXNlNjQsJyArIGJ0b2EodW5lc2NhcGUoZW5jb2RlVVJJQ29tcG9uZW50KHN2Z0RhdGEpKSk7CiAgICAgICAgfQogICAgICB9CgogICAgICBjb25zdCBwcmludEh0bWwgPSBgPCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImVzLU1YIj4KPGhlYWQ+CiAgPG1ldGEgY2hhcnNldD0iVVRGLTgiPgogIDx0aXRsZT5FdGlxdWV0YSAke2FjdGl2ZUJhcmNvZGV9PC90aXRsZT4KICA8c3R5bGU+CiAgICBAcGFnZSB7IHNpemU6IGxldHRlciBwb3J0cmFpdDsgbWFyZ2luOiAxMG1tOyB9CiAgICAqIHsgYm94LXNpemluZzogYm9yZGVyLWJveDsgLXdlYmtpdC1wcmludC1jb2xvci1hZGp1c3Q6IGV4YWN0ICFpbXBvcnRhbnQ7IHByaW50LWNvbG9yLWFkanVzdDogZXhhY3QgIWltcG9ydGFudDsgfQogICAgYm9keSB7IGZvbnQtZmFtaWx5OiAtYXBwbGUtc3lzdGVtLCBCbGlua01hY1N5c3RlbUZvbnQsICdTZWdvZSBVSScsIFJvYm90bywgc2Fucy1zZXJpZjsgYmFja2dyb3VuZDogI2ZmZiAhaW1wb3J0YW50OyBjb2xvcjogIzAwMCAhaW1wb3J0YW50OyBtYXJnaW46IDA7IHBhZGRpbmc6IDIwcHg7IH0KICAgIC5sYWJlbC13cmFwcGVyIHsgbWF4LXdpZHRoOiAzMjBweDsgYm9yZGVyOiAycHggZGFzaGVkICMzMzM7IGJvcmRlci1yYWRpdXM6IDEycHg7IHBhZGRpbmc6IDE2cHg7IHRleHQtYWxpZ246IGNlbnRlcjsgbWFyZ2luOiAwIGF1dG87IHBhZ2UtYnJlYWstaW5zaWRlOiBhdm9pZDsgfQogICAgLmhlYWRlci10YWcgeyBmb250LXNpemU6IDhweDsgZm9udC13ZWlnaHQ6IDkwMDsgbGV0dGVyLXNwYWNpbmc6IDEuNXB4OyBjb2xvcjogIzg4NTUwMDsgdGV4dC10cmFuc2Zvcm06IHVwcGVyY2FzZTsgbWFyZ2luLWJvdHRvbTogNHB4OyB9CiAgICAucHJvZC1uYW1lIHsgZm9udC1zaXplOiAxNXB4OyBmb250LXdlaWdodDogODAwOyBsaW5lLWhlaWdodDogMS4yOyBtYXJnaW4tYm90dG9tOiA0cHg7IH0KICAgIC5wcm9kLW1ldGEgeyBmb250LXNpemU6IDEwcHg7IGNvbG9yOiAjNTU1OyBtYXJnaW4tYm90dG9tOiA4cHg7IH0KICAgIC5xci1ib3ggeyBkaXNwbGF5OiBmbGV4OyBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjsgbWFyZ2luOiAxMHB4IDA7IH0KICAgIC5xci1pbWcgeyB3aWR0aDogMTQwcHg7IGhlaWdodDogMTQwcHg7IH0KICAgIC5jb2RlLWJhZGdlIHsgZm9udC1mYW1pbHk6IG1vbm9zcGFjZTsgZm9udC1zaXplOiAxMnB4OyBmb250LXdlaWdodDogOTAwOyBiYWNrZ3JvdW5kOiAjZjBmMGYwOyBib3JkZXI6IDFweCBzb2xpZCAjY2NjOyBwYWRkaW5nOiAzcHggOHB4OyBib3JkZXItcmFkaXVzOiA2cHg7IGRpc3BsYXk6IGlubGluZS1ibG9jazsgfQogICAgLmluc3RydWN0IHsgZm9udC1zaXplOiA4cHg7IGNvbG9yOiAjNzc3OyBtYXJnaW4tdG9wOiA4cHg7IH0KICA8L3N0eWxlPgo8L2hlYWQ+Cjxib2R5PgogIDxkaXYgY2xhc3M9ImxhYmVsLXdyYXBwZXIiPgogICAgPGRpdiBjbGFzcz0iaGVhZGVyLXRhZyI+QUxBQ0VOQSBFTlRFUlBSSVNFIOKAoiBFVElRVUVUQSBERSBDT05UUk9MPC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJwcm9kLW5hbWUiPiR7aXRlbS5uYW1lfTwvZGl2PgogICAgPGRpdiBjbGFzcz0icHJvZC1tZXRhIj5VYmljYWNpw7NuOiA8c3Ryb25nPiR7aXRlbS56b25lIHx8IGl0ZW0udGFyZ2V0Wm9uZSB8fCAnQWxhY2VuYSd9PC9zdHJvbmc+IOKAoiBUaWVuZGE6IDxzdHJvbmc+JHtpdGVtLnN0b3JlIHx8ICdTdXBlcm1lcmNhZG8nfTwvc3Ryb25nPjwvZGl2PgogICAgPGRpdiBjbGFzcz0icXItYm94Ij4KICAgICAgPGltZyBzcmM9IiR7cXJJbWd9IiBjbGFzcz0icXItaW1nIiBhbHQ9IlFSIiAvPgogICAgPC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJjb2RlLWJhZGdlIj4ke2FjdGl2ZUJhcmNvZGV9PC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJpbnN0cnVjdCI+RXNjYW5lYXIgcGFyYSBjb25zdWx0YXIgc3RvY2ssIHJlZ2lzdHJhciBjb25zdW1vIG8gcGVkaXIgZW4gbGEgbGlzdGE8L2Rpdj4KICA8L2Rpdj4KPC9ib2R5Pgo8L2h0bWw+YDsKCiAgICAgIGxldCBpZnJhbWUgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnYWxhY2VuYS1zaW5nbGUtcXItcHJpbnQtZnJhbWUnKTsKICAgICAgaWYgKCFpZnJhbWUpIHsKICAgICAgICBpZnJhbWUgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCdpZnJhbWUnKTsKICAgICAgICBpZnJhbWUuaWQgPSAnYWxhY2VuYS1zaW5nbGUtcXItcHJpbnQtZnJhbWUnOwogICAgICAgIGlmcmFtZS5zdHlsZS5wb3NpdGlvbiA9ICdmaXhlZCc7CiAgICAgICAgaWZyYW1lLnN0eWxlLnRvcCA9ICctMTAwMDBweCc7CiAgICAgICAgaWZyYW1lLnN0eWxlLmxlZnQgPSAnLTEwMDAwcHgnOwogICAgICAgIGlmcmFtZS5zdHlsZS53aWR0aCA9ICc4MDBweCc7CiAgICAgICAgaWZyYW1lLnN0eWxlLmhlaWdodCA9ICcxMDAwcHgnOwogICAgICAgIGlmcmFtZS5zdHlsZS5ib3JkZXIgPSAnMCc7CiAgICAgICAgaWZyYW1lLnN0eWxlLm9wYWNpdHkgPSAnMCc7CiAgICAgICAgaWZyYW1lLnN0eWxlLnBvaW50ZXJFdmVudHMgPSAnbm9uZSc7CiAgICAgICAgaWZyYW1lLnN0eWxlLnpJbmRleCA9ICctOTk5OSc7CiAgICAgICAgZG9jdW1lbnQuYm9keS5hcHBlbmRDaGlsZChpZnJhbWUpOwogICAgICB9CgogICAgICBjb25zdCBmcmFtZURvYyA9IGlmcmFtZS5jb250ZW50RG9jdW1lbnQgfHwgaWZyYW1lLmNvbnRlbnRXaW5kb3cuZG9jdW1lbnQ7CiAgICAgIGZyYW1lRG9jLm9wZW4oKTsKICAgICAgZnJhbWVEb2Mud3JpdGUocHJpbnRIdG1sKTsKICAgICAgZnJhbWVEb2MuY2xvc2UoKTsKCiAgICAgIHNldFRpbWVvdXQoKCkgPT4gewogICAgICAgIHRyeSB7CiAgICAgICAgICBpZnJhbWUuY29udGVudFdpbmRvdy5mb2N1cygpOwogICAgICAgICAgaWZyYW1lLmNvbnRlbnRXaW5kb3cucHJpbnQoKTsKICAgICAgICB9IGNhdGNoIChlKSB7CiAgICAgICAgICBjb25zb2xlLndhcm4oJ0lmcmFtZSBwcmludCBmYWxsYmFjazonLCBlKTsKICAgICAgICAgIHdpbmRvdy5wcmludCgpOwogICAgICAgIH0KICAgICAgfSwgNTAwKTsKICAgIH0gY2F0Y2ggKGVycikgewogICAgICBjb25zb2xlLmVycm9yKCdFcnJvciBpbiBoYW5kbGVQcmludDonLCBlcnIpOwogICAgICB3aW5kb3cucHJpbnQoKTsKICAgIH0KICB9OwoKICAvLyBEZXNjYXJnYXIgaW1hZ2VuIFBORyBwYXJhIG1hbmRhciBkaXJlY3RvIGEgcm90dWxhZG9yYXMgdMOpcm1pY2FzIEJsdWV0b290aCAoTmlpbWJvdCwgQnJvdGhlciwgUGhvbWVtbykKICBjb25zdCBoYW5kbGVEb3dubG9hZFBuZyA9ICgpID0+IHsKICAgIGF1ZGlvLmNsaWNrKCk7CiAgICB0cnkgewogICAgICBjb25zdCBzdmdFbGVtZW50ID0gcXJTdmdSZWYuY3VycmVudD8ucXVlcnlTZWxlY3Rvcignc3ZnJyk7CiAgICAgIGlmICghc3ZnRWxlbWVudCkgcmV0dXJuOwoKICAgICAgY29uc3Qgc3ZnRGF0YSA9IG5ldyBYTUxTZXJpYWxpemVyKCkuc2VyaWFsaXplVG9TdHJpbmcoc3ZnRWxlbWVudCk7CiAgICAgIGNvbnN0IGNhbnZhcyA9IGRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2NhbnZhcycpOwogICAgICBjb25zdCBjdHggPSBjYW52YXMuZ2V0Q29udGV4dCgnMmQnKTsKICAgICAgY29uc3QgaW1nID0gbmV3IEltYWdlKCk7CgogICAgICBjYW52YXMud2lkdGggPSA0MDA7CiAgICAgIGNhbnZhcy5oZWlnaHQgPSA0MDA7CgogICAgICBpbWcub25sb2FkID0gKCkgPT4gewogICAgICAgIC8vIEZvbmRvIGJsYW5jbwogICAgICAgIGN0eC5maWxsU3R5bGUgPSAnI0ZGRkZGRic7CiAgICAgICAgY3R4LmZpbGxSZWN0KDAsIDAsIGNhbnZhcy53aWR0aCwgY2FudmFzLmhlaWdodCk7CiAgICAgICAgLy8gRGlidWphciBRUiBjZW50cmFkbwogICAgICAgIGN0eC5kcmF3SW1hZ2UoaW1nLCA0MCwgNDAsIDMyMCwgMzIwKTsKICAgICAgICAKICAgICAgICAvLyBBZ3JlZ2FyIHRleHRvIGluZmVyaW9yIHBhcmEgcm90dWxhZG9yYQogICAgICAgIGN0eC5maWxsU3R5bGUgPSAnIzAwMDAwMCc7CiAgICAgICAgY3R4LmZvbnQgPSAnYm9sZCAyMHB4IHNhbnMtc2VyaWYnOwogICAgICAgIGN0eC50ZXh0QWxpZ24gPSAnY2VudGVyJzsKICAgICAgICBjdHguZmlsbFRleHQoaXRlbS5uYW1lLnN1YnN0cmluZygwLCAyNCksIDIwMCwgMzg1KTsKCiAgICAgICAgY29uc3QgYSA9IGRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2EnKTsKICAgICAgICBhLmRvd25sb2FkID0gYGV0aXF1ZXRhLSR7YWN0aXZlQmFyY29kZX0tJHtpdGVtLm5hbWUucmVwbGFjZSgvXHMrL2csICdfJyl9LnBuZ2A7CiAgICAgICAgYS5ocmVmID0gY2FudmFzLnRvRGF0YVVSTCgnaW1hZ2UvcG5nJyk7CiAgICAgICAgYS5jbGljaygpOwogICAgICAgIGF1ZGlvLnN1Y2Nlc3MoKTsKICAgICAgfTsKCiAgICAgIGltZy5zcmMgPSAnZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCwnICsgYnRvYSh1bmVzY2FwZShlbmNvZGVVUklDb21wb25lbnQoc3ZnRGF0YSkpKTsKICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgY29uc29sZS53YXJuKCdFcnJvciBhbCBleHBvcnRhciBQTkc6JywgZSk7CiAgICAgIG5vdGlmeSgnU2UgZGVzY2FyZ2Fyw6EgZW4gZm9ybWF0byBTVkcgdmVjdG9yaWFsLicpOwogICAgICBjb25zdCBzdmdEYXRhID0gbmV3IFhNTFNlcmlhbGl6ZXIoKS5zZXJpYWxpemVUb1N0cmluZyhxclN2Z1JlZi5jdXJyZW50LnF1ZXJ5U2VsZWN0b3IoJ3N2ZycpKTsKICAgICAgY29uc3QgYmxvYiA9IG5ldyBCbG9iKFtzdmdEYXRhXSwgeyB0eXBlOiAnaW1hZ2Uvc3ZnK3htbCcgfSk7CiAgICAgIGNvbnN0IHVybCA9IFVSTC5jcmVhdGVPYmplY3RVUkwoYmxvYik7CiAgICAgIGNvbnN0IGEgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCdhJyk7CiAgICAgIGEuZG93bmxvYWQgPSBgZXRpcXVldGEtJHthY3RpdmVCYXJjb2RlfS5zdmdgOwogICAgICBhLmhyZWYgPSB1cmw7CiAgICAgIGEuY2xpY2soKTsKICAgIH0KICB9OwoKICAvLyBHcmFiYXIgZGlyZWN0YW1lbnRlIGVuIFN0aWNrZXIgTkZDIGbDrXNpY28KICBjb25zdCBoYW5kbGVXcml0ZU5mYyA9IGFzeW5jICgpID0+IHsKICAgIGlmICghKCdOREVGUmVhZGVyJyBpbiB3aW5kb3cpKSB7CiAgICAgIG5vdGlmeSgnTGEgZ3JhYmFjacOzbiBORkMgZGlyZWN0YSByZXF1aWVyZSBHb29nbGUgQ2hyb21lIGVuIEFuZHJvaWQuIEVuIGlQaG9uZSwgcHVlZGVzIGNvcGlhciBlbCBsaW5rIHkgdXNhciBsYSBhcHAgQXRham9zIG8gTkZDIFRvb2xzLicpOwogICAgICByZXR1cm47CiAgICB9CgogICAgdHJ5IHsKICAgICAgYXVkaW8uY2xpY2soKTsKICAgICAgc2V0TmZjV3JpdGluZyh0cnVlKTsKICAgICAgc2V0TmZjTWVzc2FnZSgn8J+TtiBBY2VyY2EgZWwgc3RpY2tlciBvIGxsYXZlcm8gTkZDIGEgbGEgcGFydGUgdHJhc2VyYSBkZSB0dSB0ZWzDqWZvbm8uLi4nKTsKICAgICAgCiAgICAgIGNvbnN0IG5kZWYgPSBuZXcgd2luZG93Lk5ERUZSZWFkZXIoKTsKICAgICAgYXdhaXQgbmRlZi53cml0ZSh7CiAgICAgICAgcmVjb3JkczogWwogICAgICAgICAgewogICAgICAgICAgICByZWNvcmRUeXBlOiAndXJsJywKICAgICAgICAgICAgZGF0YTogc2NhblVybCwKICAgICAgICAgIH0sCiAgICAgICAgXSwKICAgICAgfSk7CgogICAgICBhdWRpby5zdWNjZXNzKCk7CiAgICAgIHNldE5mY1dyaXRpbmcoZmFsc2UpOwogICAgICBzZXROZmNTdWNjZXNzKHRydWUpOwogICAgICBzZXROZmNNZXNzYWdlKGDinJMgwqFUYWcgTkZDIGdyYWJhZG8hIEFsIHRvY2FybG8gY29uIGN1YWxxdWllciBjZWx1bGFyIGFicmlyw6EgQUxBQ0VOQSB5IG1vc3RyYXLDoSAiJHtpdGVtLm5hbWV9Ii5gKTsKICAgICAgc2V0VGltZW91dCgoKSA9PiBzZXROZmNTdWNjZXNzKGZhbHNlKSwgNTAwMCk7CiAgICB9IGNhdGNoIChlcnIpIHsKICAgICAgY29uc29sZS53YXJuKCdFcnJvciBncmFiYW5kbyBORkM6JywgZXJyKTsKICAgICAgc2V0TmZjV3JpdGluZyhmYWxzZSk7CiAgICAgIHNldE5mY01lc3NhZ2UoYOKaoO+4jyBObyBzZSBwdWRvIGdyYWJhcjogJHtlcnIubWVzc2FnZSB8fCAnSW50ZW50YSBkZSBudWV2byd9YCk7CiAgICB9CiAgfTsKCiAgY29uc3QgaGFuZGxlQ29weUxpbmsgPSAoKSA9PiB7CiAgICBhdWRpby5jbGljaygpOwogICAgbmF2aWdhdG9yLmNsaXBib2FyZC53cml0ZVRleHQoc2NhblVybCk7CiAgICBzZXRDb3BpZWRMaW5rKHRydWUpOwogICAgc2V0VGltZW91dCgoKSA9PiBzZXRDb3BpZWRMaW5rKGZhbHNlKSwgMzAwMCk7CiAgfTsKCiAgcmV0dXJuICgKICAgIDxkaXYgY2xhc3NOYW1lPSJmaXhlZCBpbnNldC0wIHotNTAgZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgcC0zIHNtOnAtNSBiZy1ibGFjay84NSBiYWNrZHJvcC1ibHVyLW1kIGFuaW1hdGUtZmFkZS1pbiBwcmludDpiZy13aGl0ZSBwcmludDpwLTAgcHJpbnQ6c3RhdGljIHByaW50OnotMCI+CiAgICAgIAogICAgICB7LyogRXN0aWxvcyBkZSBJbXByZXNpw7NuIEFpc2xhZG9zIDEwMCUgZW4gQmxhbmNvIFB1cm8gcGFyYSBFdGlxdWV0YXMgSW5kaXZpZHVhbGVzICovfQogICAgICA8c3R5bGU+e2AKICAgICAgICBAbWVkaWEgcHJpbnQgewogICAgICAgICAgYm9keSAqIHsKICAgICAgICAgICAgdmlzaWJpbGl0eTogaGlkZGVuICFpbXBvcnRhbnQ7CiAgICAgICAgICB9CiAgICAgICAgICAjcHJpbnRhYmxlLXNpbmdsZS1zdGlja2VyLCAjcHJpbnRhYmxlLXNpbmdsZS1zdGlja2VyICogewogICAgICAgICAgICB2aXNpYmlsaXR5OiB2aXNpYmxlICFpbXBvcnRhbnQ7CiAgICAgICAgICB9CiAgICAgICAgICAjcHJpbnRhYmxlLXNpbmdsZS1zdGlja2VyIHsKICAgICAgICAgICAgcG9zaXRpb246IGFic29sdXRlICFpbXBvcnRhbnQ7CiAgICAgICAgICAgIGxlZnQ6IDUwJSAhaW1wb3J0YW50OwogICAgICAgICAgICB0b3A6IDIwbW0gIWltcG9ydGFudDsKICAgICAgICAgICAgdHJhbnNmb3JtOiB0cmFuc2xhdGVYKC01MCUpICFpbXBvcnRhbnQ7CiAgICAgICAgICAgIHdpZHRoOiAke2xhYmVsU2l6ZSA9PT0gJ01JTkknID8gJzUwbW0nIDogbGFiZWxTaXplID09PSAnV0lORV9DT0xMQVInID8gJzY1bW0nIDogJzc1bW0nfSAhaW1wb3J0YW50OwogICAgICAgICAgICBtYXJnaW46IDAgIWltcG9ydGFudDsKICAgICAgICAgICAgcGFkZGluZzogNG1tICFpbXBvcnRhbnQ7CiAgICAgICAgICAgIGJhY2tncm91bmQ6ICNmZmZmZmYgIWltcG9ydGFudDsKICAgICAgICAgICAgY29sb3I6ICMwMDAwMDAgIWltcG9ydGFudDsKICAgICAgICAgICAgYm9yZGVyOiAycHggZGFzaGVkICMzMzMzMzMgIWltcG9ydGFudDsKICAgICAgICAgICAgYm9yZGVyLXJhZGl1czogOHB4ICFpbXBvcnRhbnQ7CiAgICAgICAgICAgIGJveC1zaGFkb3c6IG5vbmUgIWltcG9ydGFudDsKICAgICAgICAgIH0KICAgICAgICAgIC5uby1wcmludCB7CiAgICAgICAgICAgIGRpc3BsYXk6IG5vbmUgIWltcG9ydGFudDsKICAgICAgICAgIH0KICAgICAgICAgIEBwYWdlIHsKICAgICAgICAgICAgc2l6ZTogYXV0bzsKICAgICAgICAgICAgbWFyZ2luOiAxMG1tOwogICAgICAgICAgfQogICAgICAgIH0KICAgICAgYH08L3N0eWxlPgoKICAgICAgPGRpdiBjbGFzc05hbWU9InJlbGF0aXZlIHctZnVsbCBtYXgtdy1tZCBtYXgtaC1bOTR2aF0gb3ZlcmZsb3ctaGlkZGVuIGZsZXggZmxleC1jb2wgcm91bmRlZC0zeGwgYmctWyMxNDExMEZdIGJvcmRlciBib3JkZXItWyNFMEI0NDFdLzM1IHNoYWRvdy0yeGwgcC00IHNtOnAtNiBzcGFjZS15LTQgcHJpbnQ6Ym9yZGVyLW5vbmUgcHJpbnQ6c2hhZG93LW5vbmUgcHJpbnQ6cC0wIHByaW50OmJnLXdoaXRlIj4KICAgICAgICAKICAgICAgICB7LyogSGVhZGVyIChIaWRkZW4gaW4gcHJpbnQpICovfQogICAgICAgIDxkaXYgY2xhc3NOYW1lPSJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gYm9yZGVyLWIgYm9yZGVyLVsjMkEyNTIxXSBwYi0zIHByaW50OmhpZGRlbiBuby1wcmludCI+CiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0iZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTIuNSI+CiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJwLTIgcm91bmRlZC14bCBiZy1bI0UwQjQ0MV0vMTUgdGV4dC1bI0UwQjQ0MV0gYm9yZGVyIGJvcmRlci1bI0UwQjQ0MV0vMzAiPgogICAgICAgICAgICAgIDxRckNvZGUgY2xhc3NOYW1lPSJ3LTUgaC01IiAvPgogICAgICAgICAgICA8L2Rpdj4KICAgICAgICAgICAgPGRpdj4KICAgICAgICAgICAgICA8aDMgY2xhc3NOYW1lPSJ0ZXh0LXNtIHNtOnRleHQtYmFzZSBmb250LWJvbGQgdGV4dC13aGl0ZSBmb250LWRpc3BsYXkiPgogICAgICAgICAgICAgICAgRXRpcXVldGEgUVIgJiBTdGlja2VyIGRlbCBIb2dhcgogICAgICAgICAgICAgIDwvaDM+CiAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPSJ0ZXh0LVsxMHB4XSB0ZXh0LVsjQjhBRkEzXSI+CiAgICAgICAgICAgICAgICBDw7NkaWdvIG9wdGltaXphZG86IDxzdHJvbmcgY2xhc3NOYW1lPSJ0ZXh0LVsjRTBCNDQxXSBmb250LW1vbm8iPnthY3RpdmVCYXJjb2RlfTwvc3Ryb25nPgogICAgICAgICAgICAgIDwvc3Bhbj4KICAgICAgICAgICAgPC9kaXY+CiAgICAgICAgICA8L2Rpdj4KICAgICAgICAgIDxidXR0b24KICAgICAgICAgICAgb25DbGljaz17KCkgPT4gewogICAgICAgICAgICAgIGF1ZGlvLmNsaWNrKCk7CiAgICAgICAgICAgICAgb25DbG9zZSgpOwogICAgICAgICAgICB9fQogICAgICAgICAgICBjbGFzc05hbWU9InAtMS41IHRleHQtZ3JheS00MDAgaG92ZXI6dGV4dC13aGl0ZSByb3VuZGVkLXhsIGhvdmVyOmJnLXdoaXRlLzEwIHRyYW5zaXRpb24tY29sb3JzIgogICAgICAgICAgPgogICAgICAgICAgICA8WCBjbGFzc05hbWU9InctNSBoLTUiIC8+CiAgICAgICAgICA8L2J1dHRvbj4KICAgICAgICA8L2Rpdj4KCiAgICAgICAgey8qIFNlbGVjdG9yIGRlIEZvcm1hdG8gZGUgRXRpcXVldGEgKFBhbnRhbGxhKSAqL30KICAgICAgICA8ZGl2IGNsYXNzTmFtZT0iZ3JpZCBncmlkLWNvbHMtMiBzbTpncmlkLWNvbHMtNCBnYXAtMSBwLTEgcm91bmRlZC0yeGwgYmctWyMxQzE4MTRdIGJvcmRlciBib3JkZXItWyMyQTI1MjFdIHByaW50OmhpZGRlbiBuby1wcmludCI+CiAgICAgICAgICA8YnV0dG9uCiAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+IHsgYXVkaW8uY2xpY2soKTsgc2V0TGFiZWxTaXplKCdTVEFOREFSRCcpOyB9fQogICAgICAgICAgICBjbGFzc05hbWU9e2BweS0xLjUgcHgtMiByb3VuZGVkLXhsIHRleHQteHMgZm9udC1zZW1pYm9sZCB0cmFuc2l0aW9uLWFsbCB0ZXh0LWNlbnRlciAkewogICAgICAgICAgICAgIGxhYmVsU2l6ZSA9PT0gJ1NUQU5EQVJEJwogICAgICAgICAgICAgICAgPyAnYmctWyNFMEI0NDFdIHRleHQtWyMxMjEwMEVdIGZvbnQtYm9sZCBzaGFkb3ctc20nCiAgICAgICAgICAgICAgICA6ICd0ZXh0LVsjQjhBRkEzXSBob3Zlcjp0ZXh0LXdoaXRlJwogICAgICAgICAgICB9YH0KICAgICAgICAgID4KICAgICAgICAgICAg8J+Pt++4jyBFc3TDoW5kYXIKICAgICAgICAgIDwvYnV0dG9uPgogICAgICAgICAgPGJ1dHRvbgogICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiB7IGF1ZGlvLmNsaWNrKCk7IHNldExhYmVsU2l6ZSgnSkFSX1BPVUNIJyk7IH19CiAgICAgICAgICAgIGNsYXNzTmFtZT17YHB5LTEuNSBweC0yIHJvdW5kZWQteGwgdGV4dC14cyBmb250LXNlbWlib2xkIHRyYW5zaXRpb24tYWxsIHRleHQtY2VudGVyICR7CiAgICAgICAgICAgICAgbGFiZWxTaXplID09PSAnSkFSX1BPVUNIJwogICAgICAgICAgICAgICAgPyAnYmctWyNFNTcyNEFdIHRleHQtd2hpdGUgZm9udC1ib2xkIHNoYWRvdy1zbScKICAgICAgICAgICAgICAgIDogJ3RleHQtWyNCOEFGQTNdIGhvdmVyOnRleHQtd2hpdGUnCiAgICAgICAgICAgIH1gfQogICAgICAgICAgPgogICAgICAgICAgICDwn5OmIEJvdGUgLyBTb2JyZQogICAgICAgICAgPC9idXR0b24+CiAgICAgICAgICA8YnV0dG9uCiAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+IHsgYXVkaW8uY2xpY2soKTsgc2V0TGFiZWxTaXplKCdNSU5JJyk7IH19CiAgICAgICAgICAgIGNsYXNzTmFtZT17YHB5LTEuNSBweC0yIHJvdW5kZWQteGwgdGV4dC14cyBmb250LXNlbWlib2xkIHRyYW5zaXRpb24tYWxsIHRleHQtY2VudGVyICR7CiAgICAgICAgICAgICAgbGFiZWxTaXplID09PSAnTUlOSScKICAgICAgICAgICAgICAgID8gJ2JnLVsjRTBCNDQxXSB0ZXh0LVsjMTIxMDBFXSBmb250LWJvbGQgc2hhZG93LXNtJwogICAgICAgICAgICAgICAgOiAndGV4dC1bI0I4QUZBM10gaG92ZXI6dGV4dC13aGl0ZScKICAgICAgICAgICAgfWB9CiAgICAgICAgICA+CiAgICAgICAgICAgIPCfp4IgRXNwZWNpZXJvCiAgICAgICAgICA8L2J1dHRvbj4KICAgICAgICAgIDxidXR0b24KICAgICAgICAgICAgb25DbGljaz17KCkgPT4geyBhdWRpby5jbGljaygpOyBzZXRMYWJlbFNpemUoJ1dJTkVfQ09MTEFSJyk7IH19CiAgICAgICAgICAgIGNsYXNzTmFtZT17YHB5LTEuNSBweC0yIHJvdW5kZWQteGwgdGV4dC14cyBmb250LXNlbWlib2xkIHRyYW5zaXRpb24tYWxsIHRleHQtY2VudGVyICR7CiAgICAgICAgICAgICAgbGFiZWxTaXplID09PSAnV0lORV9DT0xMQVInCiAgICAgICAgICAgICAgICA/ICdiZy1bI0E4M0E1MF0gdGV4dC13aGl0ZSBmb250LWJvbGQgc2hhZG93LXNtJwogICAgICAgICAgICAgICAgOiAndGV4dC1bI0I4QUZBM10gaG92ZXI6dGV4dC13aGl0ZScKICAgICAgICAgICAgfWB9CiAgICAgICAgICA+CiAgICAgICAgICAgIPCfjbcgQ29sbGFyIENhdmEKICAgICAgICAgIDwvYnV0dG9uPgogICAgICAgIDwvZGl2PgoKICAgICAgICB7Lyog4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQCiAgICAgICAgICAgIMOBUkVBIERFIElNUFJFU0nDk04gQUlTTEFEQSAoI3ByaW50YWJsZS1zaW5nbGUtc3RpY2tlcikKICAgICAgICAgICDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAgKi99CiAgICAgICAgPGRpdiAKICAgICAgICAgIGlkPSJwcmludGFibGUtc2luZ2xlLXN0aWNrZXIiIAogICAgICAgICAgY2xhc3NOYW1lPXtgcC00IHNtOnAtNSByb3VuZGVkLTJ4bCBiZy13aGl0ZSB0ZXh0LWdyYXktOTAwIGJvcmRlci0yIGJvcmRlci1kYXNoZWQgYm9yZGVyLWdyYXktNDAwIHNwYWNlLXktMyBzaGFkb3ctaW5uZXIgcmVsYXRpdmUgJHsKICAgICAgICAgICAgbGFiZWxTaXplID09PSAnV0lORV9DT0xMQVInID8gJ21heC13LXhzIG14LWF1dG8gcHQtNicgOiAnJwogICAgICAgICAgfWB9CiAgICAgICAgPgogICAgICAgICAgey8qIEd1w61hIGRlIGNvcnRlIOKcgu+4jyAqL30KICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJhYnNvbHV0ZSAtdG9wLTIuNSByaWdodC0zIGJnLXdoaXRlIHB4LTEuNSB0ZXh0LVs5cHhdIHRleHQtZ3JheS01MDAgZm9udC1tb25vIGZsZXggaXRlbXMtY2VudGVyIGdhcC0xIGJvcmRlciBib3JkZXItZ3JheS0zMDAgcm91bmRlZCI+CiAgICAgICAgICAgIDxTY2lzc29ycyBjbGFzc05hbWU9InctMyBoLTMgdGV4dC1ncmF5LTYwMCIgLz4KICAgICAgICAgICAgPHNwYW4+R3XDrWEgZGUgY29ydGU8L3NwYW4+CiAgICAgICAgICA8L2Rpdj4KCiAgICAgICAgICB7LyogVHJvcXVlbCBzdXBlcmlvciBwYXJhIGN1ZWxsbyBkZSBib3RlbGxhIHNpIGVzIFdJTkVfQ09MTEFSICovfQogICAgICAgICAge2xhYmVsU2l6ZSA9PT0gJ1dJTkVfQ09MTEFSJyAmJiAoCiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJmbGV4IGZsZXgtY29sIGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBwYi0yIGJvcmRlci1iLTIgYm9yZGVyLWRhc2hlZCBib3JkZXItZ3JheS0zMDAiPgogICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJ3LTEyIGgtMTIgcm91bmRlZC1mdWxsIGJvcmRlci0yIGJvcmRlci1kYXNoZWQgYm9yZGVyLXJvc2UtNTAwIGJnLXJvc2UtNTAgZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgdGV4dC1bOXB4XSBmb250LWJvbGQgdGV4dC1yb3NlLTcwMCB0ZXh0LWNlbnRlciBweC0xIj4KICAgICAgICAgICAgICAgIOKcgu+4jyBDb3J0YXIgY8OtcmN1bG8gcGFyYSBjdWVsbG8KICAgICAgICAgICAgICA8L2Rpdj4KICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9InRleHQtWzhweF0gdGV4dC1ncmF5LTQwMCBtdC0xIHVwcGVyY2FzZSBmb250LXNlbWlib2xkIj4KICAgICAgICAgICAgICAgIERlc2xpemFyIGVuIGN1ZWxsbyBkZSBib3RlbGxhCiAgICAgICAgICAgICAgPC9zcGFuPgogICAgICAgICAgICA8L2Rpdj4KICAgICAgICAgICl9CgogICAgICAgICAgey8qIEhlYWRlciBkZSBsYSBldGlxdWV0YSAqL30KICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJ0ZXh0LWNlbnRlciBib3JkZXItYiBib3JkZXItZ3JheS0yMDAgcGItMiI+CiAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT0idGV4dC1bOHB4XSBmb250LWJsYWNrIHVwcGVyY2FzZSB0cmFja2luZy13aWRlc3QgdGV4dC1bIzZCMUYyRV0gYmxvY2siPgogICAgICAgICAgICAgIEFMQUNFTkEg4oCiIHtpdGVtLnpvbmUgfHwgaXRlbS50YXJnZXRab25lIHx8ICdERVNQRU5TQSd9CiAgICAgICAgICAgIDwvc3Bhbj4KICAgICAgICAgICAgPGg0IGNsYXNzTmFtZT0idGV4dC1iYXNlIGZvbnQtZXh0cmFib2xkIHRleHQtZ3JheS05MDAgbGVhZGluZy10aWdodCBtdC0wLjUiPgogICAgICAgICAgICAgIHtpdGVtLm5hbWV9CiAgICAgICAgICAgIDwvaDQ+CiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJ0ZXh0LVsxMXB4XSBmb250LWJvbGQgdGV4dC1ncmF5LTYwMCBtdC0wLjUiPgogICAgICAgICAgICAgIHtpdGVtLnF1YW50aXR5fSB7aXRlbS51bml0fSDigKIge2l0ZW0uY2F0ZWdvcnkgfHwgJ0luc3Vtbyd9CiAgICAgICAgICAgIDwvZGl2PgogICAgICAgICAgPC9kaXY+CgogICAgICAgICAgey8qIEPDs2RpZ28gUVIgTsOtdGlkbyB5IGRlIEFsdGEgVmVsb2NpZGFkIChNw7NkdWxvcyBncmFuZGVzKSAqL30KICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJmbGV4IGp1c3RpZnktY2VudGVyIHB5LTEiIHJlZj17cXJTdmdSZWZ9PgogICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0icC0yLjUgYmctd2hpdGUgcm91bmRlZC14bCBzaGFkb3ctc20gYm9yZGVyIGJvcmRlci1ncmF5LTIwMCBpbmxpbmUtYmxvY2siPgogICAgICAgICAgICAgIDxRUkNvZGVTVkcKICAgICAgICAgICAgICAgIHZhbHVlPXtjb21wYWN0UXJWYWx1ZX0KICAgICAgICAgICAgICAgIHNpemU9e2xhYmVsU2l6ZSA9PT0gJ01JTkknID8gMTAwIDogbGFiZWxTaXplID09PSAnV0lORV9DT0xMQVInID8gMTIwIDogMTM1fQogICAgICAgICAgICAgICAgbGV2ZWw9Ik0iCiAgICAgICAgICAgICAgICBpbmNsdWRlTWFyZ2luPXtmYWxzZX0KICAgICAgICAgICAgICAvPgogICAgICAgICAgICA8L2Rpdj4KICAgICAgICAgIDwvZGl2PgoKICAgICAgICAgIHsvKiBDbGF2ZSBhbGZhbnVtw6lyaWNhIHkgbW9kbyBkZSB1c28gKi99CiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0idGV4dC1jZW50ZXIiPgogICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9ImZvbnQtbW9ubyB0ZXh0LXhzIGZvbnQtYmxhY2sgdGV4dC1ncmF5LTkwMCB0cmFja2luZy13aWRlciBibG9jayBiZy1ncmF5LTEwMCBweS0wLjUgcHgtMiByb3VuZGVkIGJvcmRlciBib3JkZXItZ3JheS0yMDAiPgogICAgICAgICAgICAgIHthY3RpdmVCYXJjb2RlfQogICAgICAgICAgICA8L3NwYW4+CiAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT0idGV4dC1bOHB4XSBmb250LWJvbGQgdGV4dC1ncmF5LTUwMCBibG9jayBtdC0xIj4KICAgICAgICAgICAgICBFc2NhbmVhIHBhcmE6IOKelSBFbnRyYWRhIOKAoiDinpYgQ29uc3VtbyDigKIg8J+bkiBNYW5kYXIgYWwgU8O6cGVyCiAgICAgICAgICAgIDwvc3Bhbj4KICAgICAgICAgIDwvZGl2PgoKICAgICAgICAgIHsvKiBFc3BhY2lvIHBhcmEgZXNjcmliaXIgYSBtYW5vIEZlY2hhIGRlIEVudmFzYWRvIC8gQ2FkdWNpZGFkIHBhcmEgYm90ZXMgbyBzb2JyZXMgKi99CiAgICAgICAgICB7bGFiZWxTaXplID09PSAnSkFSX1BPVUNIJyAmJiAoCiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJib3JkZXIgYm9yZGVyLWdyYXktMzAwIHJvdW5kZWQtbGcgcC0xLjUgYmctZ3JheS01MCB0ZXh0LVs5cHhdIGZvbnQtbW9ubyBzcGFjZS15LTEiPgogICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJmbGV4IGp1c3RpZnktYmV0d2VlbiBib3JkZXItYiBib3JkZXItZ3JheS0yMDAgcGItMC41Ij4KICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT0idGV4dC1ncmF5LTcwMCBmb250LWJvbGQiPkVudmFzYWRvIC8gQWJpZXJ0bzo8L3NwYW4+CiAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9InRleHQtZ3JheS00MDAiPl9fXyAvIF9fXyAvIDIwMl9fXzwvc3Bhbj4KICAgICAgICAgICAgICA8L2Rpdj4KICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0iZmxleCBqdXN0aWZ5LWJldHdlZW4iPgogICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPSJ0ZXh0LWdyYXktNzAwIGZvbnQtYm9sZCI+Q29uc3VtaXIgYW50ZXMgZGU6PC9zcGFuPgogICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPSJ0ZXh0LWdyYXktNDAwIj5fX18gLyBfX18gLyAyMDJfX188L3NwYW4+CiAgICAgICAgICAgICAgPC9kaXY+CiAgICAgICAgICAgIDwvZGl2PgogICAgICAgICAgKX0KCiAgICAgICAgICB7LyogRGV0YWxsZXMgZGUgcmVzaWRlbmNpYSB5IHRpZW5kYSAqL30KICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJ0ZXh0LVs5cHhdIHNwYWNlLXktMC41IHRleHQtZ3JheS03MDAgZm9udC1tZWRpdW0gYm9yZGVyLXQgYm9yZGVyLWdyYXktMjAwIHB0LTEuNSBmbGV4IGp1c3RpZnktYmV0d2VlbiI+CiAgICAgICAgICAgIDxzcGFuPlViaWNhY2nDs246IDxzdHJvbmc+e2l0ZW0uem9uZSB8fCBpdGVtLnRhcmdldFpvbmUgfHwgJ0FsYWNlbmEnfTwvc3Ryb25nPjwvc3Bhbj4KICAgICAgICAgICAgPHNwYW4+VGllbmRhOiA8c3Ryb25nPntpdGVtLnN0b3JlIHx8ICdTdXBlcm1lcmNhZG8nfTwvc3Ryb25nPjwvc3Bhbj4KICAgICAgICAgIDwvZGl2PgogICAgICAgIDwvZGl2PgoKICAgICAgICB7LyogRmVlZGJhY2sgZGUgTkZDICovfQogICAgICAgIHtuZmNNZXNzYWdlICYmICgKICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPXtgcC0yLjUgcm91bmRlZC14bCB0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWNlbnRlciBib3JkZXIgYW5pbWF0ZS1mYWRlLWluIHByaW50OmhpZGRlbiBuby1wcmludCAkewogICAgICAgICAgICBuZmNTdWNjZXNzIAogICAgICAgICAgICAgID8gJ2JnLWVtZXJhbGQtNTAwLzIwIHRleHQtZW1lcmFsZC0zMDAgYm9yZGVyLWVtZXJhbGQtNTAwLzQwJyAKICAgICAgICAgICAgICA6ICdiZy1ibHVlLTUwMC8yMCB0ZXh0LWJsdWUtMzAwIGJvcmRlci1ibHVlLTUwMC80MCcKICAgICAgICAgIH1gfT4KICAgICAgICAgICAge25mY01lc3NhZ2V9CiAgICAgICAgICA8L2Rpdj4KICAgICAgICApfQoKICAgICAgICB7LyogQWN0aW9uIGJ1dHRvbnMgKEhpZGRlbiBpbiBwcmludCkgKi99CiAgICAgICAgPGRpdiBjbGFzc05hbWU9ImZsZXggZmxleC1jb2wgZ2FwLTIgcHQtMiBib3JkZXItdCBib3JkZXItWyMyQTI1MjFdIHByaW50OmhpZGRlbiBuby1wcmludCI+CiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0iZ3JpZCBncmlkLWNvbHMtMyBnYXAtMiI+CiAgICAgICAgICAgIHsvKiAxLiBHcmFiYXIgTkZDICovfQogICAgICAgICAgICA8YnV0dG9uCiAgICAgICAgICAgICAgb25DbGljaz17aGFuZGxlV3JpdGVOZmN9CiAgICAgICAgICAgICAgZGlzYWJsZWQ9e25mY1dyaXRpbmd9CiAgICAgICAgICAgICAgY2xhc3NOYW1lPSJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBnYXAtMSBweS0yIHB4LTIgdGV4dC1bMTFweF0gZm9udC1ib2xkIHRleHQtd2hpdGUgYmctYmx1ZS02MDAgaG92ZXI6YmctYmx1ZS01MDAgcm91bmRlZC14bCB0cmFuc2l0aW9uLWFsbCBzaGFkb3ctbWQgYWN0aXZlOnNjYWxlLTk1IGRpc2FibGVkOm9wYWNpdHktNTAiCiAgICAgICAgICAgICAgdGl0bGU9IkdyYWJhciBlbiBzdGlja2VyIE5GQyBwYXJhIGZyYXNjb3MgbyBib3RlbGxhcyIKICAgICAgICAgICAgPgogICAgICAgICAgICAgIDxSYWRpbyBjbGFzc05hbWU9InctMy41IGgtMy41IiAvPgogICAgICAgICAgICAgIDxzcGFuPntuZmNXcml0aW5nID8gJ0dyYWJhbmRvLi4uJyA6ICfwn5O2IE5GQyd9PC9zcGFuPgogICAgICAgICAgICA8L2J1dHRvbj4KCiAgICAgICAgICAgIHsvKiAyLiBEZXNjYXJnYXIgUE5HIHBhcmEgUm90dWxhZG9yYSBUw6lybWljYSBCbHVldG9vdGggKi99CiAgICAgICAgICAgIDxidXR0b24KICAgICAgICAgICAgICBvbkNsaWNrPXtoYW5kbGVEb3dubG9hZFBuZ30KICAgICAgICAgICAgICBjbGFzc05hbWU9ImZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIGdhcC0xIHB5LTIgcHgtMiB0ZXh0LVsxMXB4XSBmb250LWJvbGQgdGV4dC1bI0UwQjQ0MV0gYmctWyNFMEI0NDFdLzE1IGhvdmVyOmJnLVsjRTBCNDQxXS8yNSBib3JkZXIgYm9yZGVyLVsjRTBCNDQxXS8zNSByb3VuZGVkLXhsIHRyYW5zaXRpb24tYWxsIHNoYWRvdy1tZCBhY3RpdmU6c2NhbGUtOTUiCiAgICAgICAgICAgICAgdGl0bGU9IkRlc2NhcmdhciBpbWFnZW4gbGlzdGEgcGFyYSByb3R1bGFkb3JhcyBOaWltYm90LCBCcm90aGVyIG8gRHltbyIKICAgICAgICAgICAgPgogICAgICAgICAgICAgIDxEb3dubG9hZCBjbGFzc05hbWU9InctMy41IGgtMy41IiAvPgogICAgICAgICAgICAgIDxzcGFuPvCfk7IgUm90dWxhZG9yYTwvc3Bhbj4KICAgICAgICAgICAgPC9idXR0b24+CgogICAgICAgICAgICB7LyogMy4gSW1wcmltaXIgRXRpcXVldGEgTGltcGlhICovfQogICAgICAgICAgICA8YnV0dG9uCiAgICAgICAgICAgICAgb25DbGljaz17aGFuZGxlUHJpbnR9CiAgICAgICAgICAgICAgY2xhc3NOYW1lPSJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBnYXAtMSBweS0yIHB4LTIgdGV4dC1bMTFweF0gZm9udC1ib2xkIHRleHQtd2hpdGUgYmctZ3JhZGllbnQtdG8tciBmcm9tLVsjQzg1NDJBXSB0by1bI0UwQjQ0MV0gaG92ZXI6YnJpZ2h0bmVzcy0xMTAgcm91bmRlZC14bCB0cmFuc2l0aW9uLWFsbCBzaGFkb3ctbWQgYWN0aXZlOnNjYWxlLTk1IgogICAgICAgICAgICAgIHRpdGxlPSJNYW5kYXIgYSBpbXByaW1pciBob2phIGNvbiBndcOtYSBkZSBjb3J0ZSBsaW1waWEiCiAgICAgICAgICAgID4KICAgICAgICAgICAgICA8UHJpbnRlciBjbGFzc05hbWU9InctMy41IGgtMy41IiAvPgogICAgICAgICAgICAgIDxzcGFuPvCflqjvuI8gSW1wcmltaXI8L3NwYW4+CiAgICAgICAgICAgIDwvYnV0dG9uPgogICAgICAgICAgPC9kaXY+CgogICAgICAgICAgey8qIEJvdMOzbiBwYXJhIENvcGlhciBFbmxhY2UgRGlyZWN0byAoUGFyYSBpUGhvbmUgLyBBdGFqb3MgLyBORkMgVG9vbHMpICovfQogICAgICAgICAgPGJ1dHRvbgogICAgICAgICAgICBvbkNsaWNrPXtoYW5kbGVDb3B5TGlua30KICAgICAgICAgICAgY2xhc3NOYW1lPSJ3LWZ1bGwgcHktMiBweC0zIHJvdW5kZWQteGwgYmctWyMxQTIwMzBdIGhvdmVyOmJnLVsjMjUyRTQyXSBib3JkZXIgYm9yZGVyLVsjMjUyRTQyXSB0ZXh0LXhzIGZvbnQtc2VtaWJvbGQgdGV4dC1bIzk0QTNCOF0gaG92ZXI6dGV4dC13aGl0ZSBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBnYXAtMiB0cmFuc2l0aW9uLWFsbCBjdXJzb3ItcG9pbnRlciIKICAgICAgICAgID4KICAgICAgICAgICAgPHNwYW4+e2NvcGllZExpbmsgPyAn4pyTIMKhRW5sYWNlIGNvcGlhZG8gYWwgcG9ydGFwYXBlbGVzIScgOiAn8J+UlyBDb3BpYXIgRW5sYWNlIGRlIEVzY2FuZW8gRGlyZWN0byAoaVBob25lIC8gQXRham9zKSd9PC9zcGFuPgogICAgICAgICAgPC9idXR0b24+CgogICAgICAgICAgPGJ1dHRvbgogICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiB7CiAgICAgICAgICAgICAgYXVkaW8uY2xpY2soKTsKICAgICAgICAgICAgICBvbkNsb3NlKCk7CiAgICAgICAgICAgIH19CiAgICAgICAgICAgIGNsYXNzTmFtZT0idy1mdWxsIHB5LTEuNSB0ZXh0LXhzIGZvbnQtc2VtaWJvbGQgdGV4dC1bI0I4QUZBM10gaG92ZXI6dGV4dC13aGl0ZSB0cmFuc2l0aW9uLWFsbCB0ZXh0LWNlbnRlciIKICAgICAgICAgID4KICAgICAgICAgICAgQ2VycmFyCiAgICAgICAgICA8L2J1dHRvbj4KICAgICAgICA8L2Rpdj4KCiAgICAgIDwvZGl2PgogICAgPC9kaXY+CiAgKTsKfQo=
+import React, { useState, useRef } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import QRCode from 'qrcode';
+import { 
+  X, Printer, Check, MapPin, Calendar, Tag, Store, QrCode, 
+  Radio, Sparkles, Scissors, Download, Layers, Wine
+} from 'lucide-react';
+import { audio } from '../../services/audioService';
+import { getItemScanUrl } from '../../services/qrPdfService';
+import { notify } from '../../services/notice';
+
+export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpdateProduct }) {
+  const [nfcWriting, setNfcWriting] = useState(false);
+  const [nfcSuccess, setNfcSuccess] = useState(false);
+  const [nfcMessage, setNfcMessage] = useState('');
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [labelSize, setLabelSize] = useState('STANDARD'); // 'STANDARD' (50x50) | 'MINI' (30x30) | 'WINE_COLLAR'
+  const qrSvgRef = useRef(null);
+
+  if (!isOpen || !item) return null;
+
+  // Código de barras o clave única persistente del producto
+  const activeBarcode = item.barcode || `ALC-${(item.id || '').replace('prod-', '').toUpperCase() || Date.now().toString(36).toUpperCase()}`;
+
+  // URL de escaneo directo interactivo (abre ALACENA al instante al escanear con cámara nativa o NFC)
+  const scanUrl = getItemScanUrl(item);
+  const compactQrValue = scanUrl;
+
+  // Imprimir con aislamiento en iframe limpio sin páginas en blanco
+  const handlePrint = async () => {
+    audio.click();
+    try {
+      let qrImg = '';
+      try {
+        qrImg = await QRCode.toDataURL(compactQrValue, {
+          width: 300,
+          margin: 1,
+          color: { dark: '#000000', light: '#FFFFFF' },
+          errorCorrectionLevel: 'M',
+        });
+      } catch (e) {
+        const svgElement = qrSvgRef.current?.querySelector('svg');
+        if (svgElement) {
+          const svgData = new XMLSerializer().serializeToString(svgElement);
+          qrImg = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+        }
+      }
+
+      const printHtml = `<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+  <meta charset="UTF-8">
+  <title>Etiqueta ${activeBarcode}</title>
+  <style>
+    @page { size: letter portrait; margin: 10mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fff !important; color: #000 !important; margin: 0; padding: 20px; }
+    .label-wrapper { max-width: 320px; border: 2px dashed #333; border-radius: 12px; padding: 16px; text-align: center; margin: 0 auto; page-break-inside: avoid; }
+    .header-tag { font-size: 8px; font-weight: 900; letter-spacing: 1.5px; color: #885500; text-transform: uppercase; margin-bottom: 4px; }
+    .prod-name { font-size: 15px; font-weight: 800; line-height: 1.2; margin-bottom: 4px; }
+    .prod-meta { font-size: 10px; color: #555; margin-bottom: 8px; }
+    .qr-box { display: flex; justify-content: center; margin: 10px 0; }
+    .qr-img { width: 140px; height: 140px; }
+    .code-badge { font-family: monospace; font-size: 12px; font-weight: 900; background: #f0f0f0; border: 1px solid #ccc; padding: 3px 8px; border-radius: 6px; display: inline-block; }
+    .instruct { font-size: 8px; color: #777; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="label-wrapper">
+    <div class="header-tag">ALACENA ENTERPRISE • ETIQUETA DE CONTROL</div>
+    <div class="prod-name">${item.name}</div>
+    <div class="prod-meta">Ubicación: <strong>${item.zone || item.targetZone || 'Alacena'}</strong> • Tienda: <strong>${item.store || 'Supermercado'}</strong></div>
+    <div class="qr-box">
+      <img src="${qrImg}" class="qr-img" alt="QR" />
+    </div>
+    <div class="code-badge">${activeBarcode}</div>
+    <div class="instruct">Escanear para consultar stock, registrar consumo o pedir en la lista</div>
+  </div>
+</body>
+</html>`;
+
+      let iframe = document.getElementById('alacena-single-qr-print-frame');
+      if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'alacena-single-qr-print-frame';
+        iframe.style.position = 'fixed';
+        iframe.style.top = '-10000px';
+        iframe.style.left = '-10000px';
+        iframe.style.width = '800px';
+        iframe.style.height = '1000px';
+        iframe.style.border = '0';
+        iframe.style.opacity = '0';
+        iframe.style.pointerEvents = 'none';
+        iframe.style.zIndex = '-9999';
+        document.body.appendChild(iframe);
+      }
+
+      const frameDoc = iframe.contentDocument || iframe.contentWindow.document;
+      frameDoc.open();
+      frameDoc.write(printHtml);
+      frameDoc.close();
+
+      setTimeout(() => {
+        try {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+        } catch (e) {
+          console.warn('Iframe print fallback:', e);
+          window.print();
+        }
+      }, 500);
+    } catch (err) {
+      console.error('Error in handlePrint:', err);
+      window.print();
+    }
+  };
+
+  // Descargar imagen PNG para mandar directo a rotuladoras térmicas Bluetooth (Niimbot, Brother, Phomemo)
+  const handleDownloadPng = () => {
+    audio.click();
+    try {
+      const svgElement = qrSvgRef.current?.querySelector('svg');
+      if (!svgElement) return;
+
+      const svgData = new XMLSerializer().serializeToString(svgElement);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+
+      canvas.width = 400;
+      canvas.height = 400;
+
+      img.onload = () => {
+        // Fondo blanco
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Dibujar QR centrado
+        ctx.drawImage(img, 40, 40, 320, 320);
+        
+        // Agregar texto inferior para rotuladora
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(item.name.substring(0, 24), 200, 385);
+
+        const a = document.createElement('a');
+        a.download = `etiqueta-${activeBarcode}-${item.name.replace(/\s+/g, '_')}.png`;
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+        audio.success();
+      };
+
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    } catch (e) {
+      console.warn('Error al exportar PNG:', e);
+      notify('Se descargará en formato SVG vectorial.');
+      const svgData = new XMLSerializer().serializeToString(qrSvgRef.current.querySelector('svg'));
+      const blob = new Blob([svgData], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.download = `etiqueta-${activeBarcode}.svg`;
+      a.href = url;
+      a.click();
+    }
+  };
+
+  // Grabar directamente en Sticker NFC físico
+  const handleWriteNfc = async () => {
+    if (!('NDEFReader' in window)) {
+      notify('La grabación NFC directa requiere Google Chrome en Android. En iPhone, puedes copiar el link y usar la app Atajos o NFC Tools.');
+      return;
+    }
+
+    try {
+      audio.click();
+      setNfcWriting(true);
+      setNfcMessage('📶 Acerca el sticker o llavero NFC a la parte trasera de tu teléfono...');
+      
+      const ndef = new window.NDEFReader();
+      await ndef.write({
+        records: [
+          {
+            recordType: 'url',
+            data: scanUrl,
+          },
+        ],
+      });
+
+      audio.success();
+      setNfcWriting(false);
+      setNfcSuccess(true);
+      setNfcMessage(`✓ ¡Tag NFC grabado! Al tocarlo con cualquier celular abrirá ALACENA y mostrará "${item.name}".`);
+      setTimeout(() => setNfcSuccess(false), 5000);
+    } catch (err) {
+      console.warn('Error grabando NFC:', err);
+      setNfcWriting(false);
+      setNfcMessage(`⚠️ No se pudo grabar: ${err.message || 'Intenta de nuevo'}`);
+    }
+  };
+
+  const handleCopyLink = () => {
+    audio.click();
+    navigator.clipboard.writeText(scanUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 3000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fade-in print:bg-white print:p-0 print:static print:z-0">
+      
+      {/* Estilos de Impresión Aislados 100% en Blanco Puro para Etiquetas Individuales */}
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          #printable-single-sticker, #printable-single-sticker * {
+            visibility: visible !important;
+          }
+          #printable-single-sticker {
+            position: absolute !important;
+            left: 50% !important;
+            top: 20mm !important;
+            transform: translateX(-50%) !important;
+            width: ${labelSize === 'MINI' ? '50mm' : labelSize === 'WINE_COLLAR' ? '65mm' : '75mm'} !important;
+            margin: 0 !important;
+            padding: 4mm !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            border: 2px dashed #333333 !important;
+            border-radius: 8px !important;
+            box-shadow: none !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+          @page {
+            size: auto;
+            margin: 10mm;
+          }
+        }
+      `}</style>
+
+      <div className="relative w-full max-w-md max-h-[94vh] overflow-hidden flex flex-col rounded-3xl bg-[var(--bg-base)] border border-[var(--gold)]/35 shadow-2xl p-4 sm:p-6 space-y-4 print:border-none print:shadow-none print:p-0 print:bg-white">
+        
+        {/* Header (Hidden in print) */}
+        <div className="flex items-center justify-between border-b border-[var(--border-soft)] pb-3 print:hidden no-print">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-[var(--gold)]/15 text-[var(--gold)] border border-[var(--gold)]/30">
+              <QrCode className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-white font-display">
+                Etiqueta QR & Sticker del Hogar
+              </h3>
+              <span className="text-[10px] text-[var(--ink-secondary)]">
+                Código optimizado: <strong className="text-[var(--gold)] font-mono">{activeBarcode}</strong>
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              audio.click();
+              onClose();
+            }}
+            className="p-1.5 text-gray-400 hover:text-white rounded-xl hover:bg-white/10 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Selector de Formato de Etiqueta (Pantalla) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-soft)] print:hidden no-print">
+          <button
+            onClick={() => { audio.click(); setLabelSize('STANDARD'); }}
+            className={`py-1.5 px-2 rounded-xl text-xs font-semibold transition-all text-center ${
+              labelSize === 'STANDARD'
+                ? 'bg-[var(--gold)] text-[var(--on-gold)] font-bold shadow-sm'
+                : 'text-[var(--ink-secondary)] hover:text-white'
+            }`}
+          >
+            🏷️ Estándar
+          </button>
+          <button
+            onClick={() => { audio.click(); setLabelSize('JAR_POUCH'); }}
+            className={`py-1.5 px-2 rounded-xl text-xs font-semibold transition-all text-center ${
+              labelSize === 'JAR_POUCH'
+                ? 'bg-[var(--ember)] text-white font-bold shadow-sm'
+                : 'text-[var(--ink-secondary)] hover:text-white'
+            }`}
+          >
+            📦 Bote / Sobre
+          </button>
+          <button
+            onClick={() => { audio.click(); setLabelSize('MINI'); }}
+            className={`py-1.5 px-2 rounded-xl text-xs font-semibold transition-all text-center ${
+              labelSize === 'MINI'
+                ? 'bg-[var(--gold)] text-[var(--on-gold)] font-bold shadow-sm'
+                : 'text-[var(--ink-secondary)] hover:text-white'
+            }`}
+          >
+            🧂 Especiero
+          </button>
+          <button
+            onClick={() => { audio.click(); setLabelSize('WINE_COLLAR'); }}
+            className={`py-1.5 px-2 rounded-xl text-xs font-semibold transition-all text-center ${
+              labelSize === 'WINE_COLLAR'
+                ? 'bg-[var(--wine-bright)] text-white font-bold shadow-sm'
+                : 'text-[var(--ink-secondary)] hover:text-white'
+            }`}
+          >
+            🍷 Collar Cava
+          </button>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════
+            ÁREA DE IMPRESIÓN AISLADA (#printable-single-sticker)
+           ═══════════════════════════════════════════════════════════════ */}
+        <div 
+          id="printable-single-sticker" 
+          className={`p-4 sm:p-5 rounded-2xl bg-white text-gray-900 border-2 border-dashed border-gray-400 space-y-3 shadow-inner relative ${
+            labelSize === 'WINE_COLLAR' ? 'max-w-xs mx-auto pt-6' : ''
+          }`}
+        >
+          {/* Guía de corte ✂️ */}
+          <div className="absolute -top-2.5 right-3 bg-white px-1.5 text-[9px] text-gray-500 font-mono flex items-center gap-1 border border-gray-300 rounded">
+            <Scissors className="w-3 h-3 text-gray-600" />
+            <span>Guía de corte</span>
+          </div>
+
+          {/* Troquel superior para cuello de botella si es WINE_COLLAR */}
+          {labelSize === 'WINE_COLLAR' && (
+            <div className="flex flex-col items-center justify-center pb-2 border-b-2 border-dashed border-gray-300">
+              <div className="w-12 h-12 rounded-full border-2 border-dashed border-rose-500 bg-rose-50 flex items-center justify-center text-[9px] font-bold text-rose-700 text-center px-1">
+                ✂️ Cortar círculo para cuello
+              </div>
+              <span className="text-[8px] text-gray-400 mt-1 uppercase font-semibold">
+                Deslizar en cuello de botella
+              </span>
+            </div>
+          )}
+
+          {/* Header de la etiqueta */}
+          <div className="text-center border-b border-gray-200 pb-2">
+            <span className="text-[8px] font-black uppercase tracking-widest text-[var(--wine)] block">
+              ALACENA • {item.zone || item.targetZone || 'DESPENSA'}
+            </span>
+            <h4 className="text-base font-extrabold text-gray-900 leading-tight mt-0.5">
+              {item.name}
+            </h4>
+            <div className="text-[11px] font-bold text-gray-600 mt-0.5">
+              {item.quantity} {item.unit} • {item.category || 'Insumo'}
+            </div>
+          </div>
+
+          {/* Código QR Nítido y de Alta Velocidad (Módulos grandes) */}
+          <div className="flex justify-center py-1" ref={qrSvgRef}>
+            <div className="p-2.5 bg-white rounded-xl shadow-sm border border-gray-200 inline-block">
+              <QRCodeSVG
+                value={compactQrValue}
+                size={labelSize === 'MINI' ? 100 : labelSize === 'WINE_COLLAR' ? 120 : 135}
+                level="M"
+                includeMargin={false}
+              />
+            </div>
+          </div>
+
+          {/* Clave alfanumérica y modo de uso */}
+          <div className="text-center">
+            <span className="font-mono text-xs font-black text-gray-900 tracking-wider block bg-gray-100 py-0.5 px-2 rounded border border-gray-200">
+              {activeBarcode}
+            </span>
+            <span className="text-[8px] font-bold text-gray-500 block mt-1">
+              Escanea para: ➕ Entrada • ➖ Consumo • 🛒 Mandar al Súper
+            </span>
+          </div>
+
+          {/* Espacio para escribir a mano Fecha de Envasado / Caducidad para botes o sobres */}
+          {labelSize === 'JAR_POUCH' && (
+            <div className="border border-gray-300 rounded-lg p-1.5 bg-gray-50 text-[9px] font-mono space-y-1">
+              <div className="flex justify-between border-b border-gray-200 pb-0.5">
+                <span className="text-gray-700 font-bold">Envasado / Abierto:</span>
+                <span className="text-gray-400">___ / ___ / 202___</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-700 font-bold">Consumir antes de:</span>
+                <span className="text-gray-400">___ / ___ / 202___</span>
+              </div>
+            </div>
+          )}
+
+          {/* Detalles de residencia y tienda */}
+          <div className="text-[9px] space-y-0.5 text-gray-700 font-medium border-t border-gray-200 pt-1.5 flex justify-between">
+            <span>Ubicación: <strong>{item.zone || item.targetZone || 'Alacena'}</strong></span>
+            <span>Tienda: <strong>{item.store || 'Supermercado'}</strong></span>
+          </div>
+        </div>
+
+        {/* Feedback de NFC */}
+        {nfcMessage && (
+          <div className={`p-2.5 rounded-xl text-xs font-bold text-center border animate-fade-in print:hidden no-print ${
+            nfcSuccess 
+              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' 
+              : 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+          }`}>
+            {nfcMessage}
+          </div>
+        )}
+
+        {/* Action buttons (Hidden in print) */}
+        <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border-soft)] print:hidden no-print">
+          <div className="grid grid-cols-3 gap-2">
+            {/* 1. Grabar NFC */}
+            <button
+              onClick={handleWriteNfc}
+              disabled={nfcWriting}
+              className="flex items-center justify-center gap-1 py-2 px-2 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50"
+              title="Grabar en sticker NFC para frascos o botellas"
+            >
+              <Radio className="w-3.5 h-3.5" />
+              <span>{nfcWriting ? 'Grabando...' : '📶 NFC'}</span>
+            </button>
+
+            {/* 2. Descargar PNG para Rotuladora Térmica Bluetooth */}
+            <button
+              onClick={handleDownloadPng}
+              className="flex items-center justify-center gap-1 py-2 px-2 text-[11px] font-bold text-[var(--gold)] bg-[var(--gold)]/15 hover:bg-[var(--gold)]/25 border border-[var(--gold)]/35 rounded-xl transition-all shadow-md active:scale-95"
+              title="Descargar imagen lista para rotuladoras Niimbot, Brother o Dymo"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>📲 Rotuladora</span>
+            </button>
+
+            {/* 3. Imprimir Etiqueta Limpia */}
+            <button
+              onClick={handlePrint}
+              className="flex items-center justify-center gap-1 py-2 px-2 text-[11px] font-bold text-white bg-gradient-to-r from-[var(--terracotta)] to-[var(--gold)] hover:brightness-110 rounded-xl transition-all shadow-md active:scale-95"
+              title="Mandar a imprimir hoja con guía de corte limpia"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>🖨️ Imprimir</span>
+            </button>
+          </div>
+
+          {/* Botón para Copiar Enlace Directo (Para iPhone / Atajos / NFC Tools) */}
+          <button
+            onClick={handleCopyLink}
+            className="w-full py-2 px-3 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-xs font-semibold text-[var(--ink-secondary)] hover:text-white flex items-center justify-center gap-2 transition-all cursor-pointer"
+          >
+            <span>{copiedLink ? '✓ ¡Enlace copiado al portapapeles!' : '🔗 Copiar Enlace de Escaneo Directo (iPhone / Atajos)'}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              audio.click();
+              onClose();
+            }}
+            className="w-full py-1.5 text-xs font-semibold text-[var(--ink-secondary)] hover:text-white transition-all text-center"
+          >
+            Cerrar
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
