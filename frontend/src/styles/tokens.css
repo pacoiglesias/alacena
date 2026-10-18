@@ -76,18 +76,19 @@
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
-/* PALETA MODO OSCURO (Nordic Obsidian & Modern Slate) */
+/* PALETA MODO OSCURO — Luxe Warm (paleta de facto de la app)
+   Marrones cálidos + oro champagne. Es el tema principal. */
 html.dark,
 :root.dark,
 [data-theme="dark"] {
-  --bg-base: #090B0E;
-  --bg-elevated: #121622;
-  --bg-sunken: #060709;
-  --ink-primary: #F8FAFC;
-  --ink-secondary: #94A3B8;
-  --ink-tertiary: #64748B;
-  --border-soft: #1E2638;
-  --border-strong: #2A364E;
+  --bg-base: #12100E;
+  --bg-elevated: #1C1814;
+  --bg-sunken: #0A0908;
+  --ink-primary: #F2EDE4;
+  --ink-secondary: #B8AFA3;
+  --ink-tertiary: #8B8378;
+  --border-soft: #2A2521;
+  --border-strong: #3D3630;
 
   /* Acentos vibrantes y modernos */
   --accent-super: #F59E0B;
@@ -96,12 +97,34 @@ html.dark,
   --accent-audit: #38BDF8;
   --accent-qr: #10B981;
 
+  /* Constantes de marca (no cambian con el tema elegido por el usuario) */
+  --gold: #E0B441;
+  --gold-deep: #C08A1E;
+  --ember: #E5724A;
+  --terracotta: #C8542A;
+  --wine: #6B1F2E;
+  --wine-bright: #A83A50;
+  --on-gold: #1A1614;      /* texto oscuro sobre fondos oro */
+  --success-bright: #3D8B6E;
+
   /* Sombras limpias y profundas */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.45);
   --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.7), 0 8px 16px rgba(0, 0, 0, 0.5);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Constantes de marca también disponibles en modo claro */
+:root {
+  --gold: #B8860B;
+  --gold-deep: #8A6414;
+  --ember: #C8542A;
+  --terracotta: #C8542A;
+  --wine: #6B1F2E;
+  --wine-bright: #A83A50;
+  --on-gold: #1A1614;
+  --success-bright: #2F7D5C;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -200,6 +223,37 @@ html.dark,
 
 .animate-modal-in {
   animation: modal-spring-in var(--dur-base) var(--ease-spring) forwards;
+}
+
+/* Pop al marcar un artículo (check) */
+@keyframes luxe-check-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-check-pop {
+  animation: luxe-check-pop var(--dur-base) var(--ease-spring) both;
+  transform-origin: center;
+}
+
+/* Fade-in para apariciones suaves */
+@keyframes luxe-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: luxe-fade-in var(--dur-base) var(--ease-out) both;
+}
+
+/* Ocultar scrollbar manteniendo scroll */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Respeto a preferencia de movimiento reducido */

@@ -31,7 +31,7 @@ export default function HouseholdsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-md rounded-3xl bg-[#0F172A] border border-white/10 shadow-2xl p-6 space-y-5">
+      <div className="relative w-full max-w-md rounded-3xl bg-[var(--bg-sunken)] border border-white/10 shadow-2xl p-6 space-y-5">
         
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 pb-4">

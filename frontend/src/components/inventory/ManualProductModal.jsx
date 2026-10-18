@@ -8,6 +8,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { audio } from '../../services/audioService';
 import { getCatalogs, addCustomStore, addCustomStaff } from '../../services/catalogsService';
 import { isCavaZone } from '../../utils/cavaGuard';
+import { confirmDialog } from '../../services/notice';
 
 export default function ManualProductModal({ 
   isOpen, 
@@ -165,19 +166,19 @@ export default function ManualProductModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-2xl rounded-3xl bg-[#14110F] border border-[#2A2521] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="relative w-full max-w-2xl rounded-3xl bg-[var(--bg-base)] border border-[var(--border-soft)] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-[#2A2521] bg-[#1C1814]">
+        <div className="flex items-center justify-between p-5 border-b border-[var(--border-soft)] bg-[var(--bg-elevated)]">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-gradient-to-br from-[#C8542A]/20 to-[#E0B441]/20 text-[#E0B441] border border-[#E0B441]/30">
+            <div className="p-2.5 rounded-2xl bg-gradient-to-br from-[var(--terracotta)]/20 to-[var(--gold)]/20 text-[var(--gold)] border border-[var(--gold)]/30">
               <Box className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-display font-bold text-[#F2EDE4]">
+              <h2 className="text-base sm:text-lg font-display font-bold text-[var(--ink-primary)]">
                 {initialProduct ? 'Editar Insumo de la Alacena' : 'Registrar Nuevo Insumo'}
               </h2>
-              <p className="text-xs text-[#B8AFA3] mt-0.5">
+              <p className="text-xs text-[var(--ink-secondary)] mt-0.5">
                 {initialProduct ? 'Modifica detalles, existencias, tienda o elimina' : 'Genera un nuevo artículo con código QR único para botes, sobres o latas'}
               </p>
             </div>
@@ -187,7 +188,7 @@ export default function ManualProductModal({
               audio.click();
               onClose();
             }}
-            className="p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/10 transition-colors"
+            className="p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/10 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -198,7 +199,7 @@ export default function ManualProductModal({
           
           {/* Nombre y Código de Barra */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-[#B8AFA3] uppercase tracking-wider">
+            <label className="block text-xs font-bold text-[var(--ink-secondary)] uppercase tracking-wider">
               Nombre del Insumo / Producto *
             </label>
             <input
@@ -207,15 +208,15 @@ export default function ManualProductModal({
               placeholder="Ej. Arroz Basmati de la India, Leche Entera, Sal de Mar..."
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-[#12100E] border border-[#2A2521] text-white text-sm focus:outline-none focus:border-[#E0B441]"
+              className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white text-sm focus:outline-none focus:border-[var(--gold)]"
             />
           </div>
 
           {/* Zona y Categoría */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="flex items-center gap-1.5 text-xs font-bold text-[#B8AFA3] uppercase tracking-wider mb-1.5">
-                <MapPin className="w-3.5 h-3.5 text-[#E0B441]" />
+              <label className="flex items-center gap-1.5 text-xs font-bold text-[var(--ink-secondary)] uppercase tracking-wider mb-1.5">
+                <MapPin className="w-3.5 h-3.5 text-[var(--gold)]" />
                 <span>Zona / Almacén Físico</span>
               </label>
               <select
@@ -228,7 +229,7 @@ export default function ManualProductModal({
                     setCategory('Vinos & Licores');
                   }
                 }}
-                className="w-full px-4 py-2.5 rounded-xl bg-[#12100E] border border-[#2A2521] text-white text-sm focus:outline-none focus:border-[#E0B441]"
+                className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white text-sm focus:outline-none focus:border-[var(--gold)]"
               >
                 {zones.map((z) => (
                   <option key={z.id} value={z.name}>
@@ -239,16 +240,16 @@ export default function ManualProductModal({
             </div>
 
             <div>
-              <label className="flex items-center justify-between text-xs font-bold text-[#B8AFA3] uppercase tracking-wider mb-1.5">
+              <label className="flex items-center justify-between text-xs font-bold text-[var(--ink-secondary)] uppercase tracking-wider mb-1.5">
                 <span className="flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5 text-[#E0B441]" />
+                  <Tag className="w-3.5 h-3.5 text-[var(--gold)]" />
                   <span>Categoría</span>
                 </span>
                 {onOpenCatalogs && (
                   <button
                     type="button"
                     onClick={() => { audio.click(); onOpenCatalogs(); }}
-                    className="text-[10px] text-[#E0B441] hover:underline flex items-center gap-1 font-mono"
+                    className="text-[10px] text-[var(--gold)] hover:underline flex items-center gap-1 font-mono"
                   >
                     <Settings className="w-2.5 h-2.5" />
                     <span>Gestionar</span>
@@ -261,8 +262,8 @@ export default function ManualProductModal({
                 disabled={isCavaZone(zone, zones)}
                 className={`w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none ${
                   isCavaZone(zone, zones)
-                    ? 'bg-[#1C1814] border-[#6B1F2E] text-amber-200 cursor-not-allowed'
-                    : 'bg-[#12100E] border-[#2A2521] text-white focus:border-[#E0B441]'
+                    ? 'bg-[var(--bg-elevated)] border-[var(--wine)] text-amber-200 cursor-not-allowed'
+                    : 'bg-[var(--bg-base)] border-[var(--border-soft)] text-white focus:border-[var(--gold)]'
                 }`}
               >
                 {effectiveCategories.map((c) => (
@@ -277,7 +278,7 @@ export default function ManualProductModal({
           {/* Existencia Actual y Unidad */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-[#B8AFA3] uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-[var(--ink-secondary)] uppercase tracking-wider mb-1.5">
                 Existencia Actual en Casa *
               </label>
               <input
@@ -287,21 +288,21 @@ export default function ManualProductModal({
                 required
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-[#12100E] border border-[#2A2521] text-white font-mono text-sm focus:outline-none focus:border-[#E0B441]"
+                className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white font-mono text-sm focus:outline-none focus:border-[var(--gold)]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#B8AFA3] uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-[var(--ink-secondary)] uppercase tracking-wider mb-1.5">
                 Unidad de Medida
               </label>
               {isCavaZone(zone, zones) ? (
                 <div>
-                  <div className="w-full px-4 py-2.5 rounded-xl bg-[#1C1814] border border-[#E0B441]/50 text-[#E0B441] font-bold text-sm flex items-center justify-between">
+                  <div className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--gold)]/50 text-[var(--gold)] font-bold text-sm flex items-center justify-between">
                     <span>🍷 Botellas (Exclusivo Cava)</span>
-                    <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-[#E0B441]/20">Regla Cava</span>
+                    <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-[var(--gold)]/20">Regla Cava</span>
                   </div>
-                  <span className="text-[11px] text-[#E0B441] mt-1 block">
+                  <span className="text-[11px] text-[var(--gold)] mt-1 block">
                     ✓ En la Cava sólo se admiten botellas de vinos o licores.
                   </span>
                 </div>
@@ -309,7 +310,7 @@ export default function ManualProductModal({
                 <select
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#12100E] border border-[#2A2521] text-white text-sm focus:outline-none focus:border-[#E0B441]"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white text-sm focus:outline-none focus:border-[var(--gold)]"
                 >
                   {effectiveUnits.map((u) => (
                     <option key={u.id} value={u.id}>
@@ -324,7 +325,7 @@ export default function ManualProductModal({
           {/* Mínimo, Máximo y Precio */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-bold text-[#B8AFA3] uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-[var(--ink-secondary)] uppercase tracking-wider mb-1.5">
                 Stock Mínimo (Alerta)
               </label>
               <input
@@ -333,12 +334,12 @@ export default function ManualProductModal({
                 min="0"
                 value={minStock}
                 onChange={(e) => setMinStock(e.target.value)}
-                className="w-full px-4 py-2 rounded-xl bg-[#12100E] border border-[#2A2521] text-white font-mono text-xs focus:outline-none focus:border-[#E0B441]"
+                className="w-full px-4 py-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white font-mono text-xs focus:outline-none focus:border-[var(--gold)]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#B8AFA3] uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-[var(--ink-secondary)] uppercase tracking-wider mb-1.5">
                 Capacidad Máxima
               </label>
               <input
@@ -347,16 +348,16 @@ export default function ManualProductModal({
                 min="1"
                 value={maxStock}
                 onChange={(e) => setMaxStock(e.target.value)}
-                className="w-full px-4 py-2 rounded-xl bg-[#12100E] border border-[#2A2521] text-white font-mono text-xs focus:outline-none focus:border-[#E0B441]"
+                className="w-full px-4 py-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white font-mono text-xs focus:outline-none focus:border-[var(--gold)]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#B8AFA3] uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-[var(--ink-secondary)] uppercase tracking-wider mb-1.5">
                 Costo Unitario ({activeHouse?.currency === 'EUR' ? '€ EUR' : '$ MXN'})
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-2 text-[#8B8378] text-xs font-mono">
+                <span className="absolute left-3 top-2 text-[var(--ink-tertiary)] text-xs font-mono">
                   {activeHouse?.currency === 'EUR' ? '€' : '$'}
                 </span>
                 <input
@@ -365,7 +366,7 @@ export default function ManualProductModal({
                   min="0"
                   value={unitPriceMxn}
                   onChange={(e) => setUnitPriceMxn(e.target.value)}
-                  className="w-full pl-7 pr-3 py-2 rounded-xl bg-[#12100E] border border-[#2A2521] text-white font-mono text-xs focus:outline-none focus:border-[#E0B441]"
+                  className="w-full pl-7 pr-3 py-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white font-mono text-xs focus:outline-none focus:border-[var(--gold)]"
                 />
               </div>
             </div>
@@ -374,44 +375,44 @@ export default function ManualProductModal({
           {/* Fecha de Caducidad y Código de Barras */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="flex items-center gap-1.5 text-xs font-bold text-[#B8AFA3] uppercase tracking-wider mb-1.5">
-                <Calendar className="w-3.5 h-3.5 text-[#E0B441]" />
+              <label className="flex items-center gap-1.5 text-xs font-bold text-[var(--ink-secondary)] uppercase tracking-wider mb-1.5">
+                <Calendar className="w-3.5 h-3.5 text-[var(--gold)]" />
                 <span>Fecha de Caducidad (FEFO)</span>
               </label>
               <input
                 type="date"
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-[#12100E] border border-[#2A2521] text-white text-sm focus:outline-none focus:border-[#E0B441]"
+                className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white text-sm focus:outline-none focus:border-[var(--gold)]"
               />
             </div>
 
             <div>
-              <label className="flex items-center gap-1.5 text-xs font-bold text-[#B8AFA3] uppercase tracking-wider mb-1.5">
-                <QrCode className="w-3.5 h-3.5 text-[#E0B441]" />
+              <label className="flex items-center gap-1.5 text-xs font-bold text-[var(--ink-secondary)] uppercase tracking-wider mb-1.5">
+                <QrCode className="w-3.5 h-3.5 text-[var(--gold)]" />
                 <span>Código Identificador Único</span>
               </label>
               <input
                 type="text"
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-[#12100E] border border-[#2A2521] text-[#E0B441] font-mono text-xs focus:outline-none focus:border-[#E0B441]"
+                className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-[var(--gold)] font-mono text-xs focus:outline-none focus:border-[var(--gold)]"
               />
             </div>
           </div>
 
           {/* SECCIÓN PROACTIVA: TIENDA DE COMPRA HABITUAL */}
-          <div className="p-3.5 rounded-2xl bg-[#181411] border border-[#2A2521] space-y-2">
+          <div className="p-3.5 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)] space-y-2">
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-1.5 text-xs font-bold text-[#E0B441] uppercase tracking-wider">
-                <Store className="w-3.5 h-3.5 text-[#E0B441]" />
+              <label className="flex items-center gap-1.5 text-xs font-bold text-[var(--gold)] uppercase tracking-wider">
+                <Store className="w-3.5 h-3.5 text-[var(--gold)]" />
                 <span>Tienda de Compra Habitual</span>
               </label>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setIsAddingQuickStore(!isAddingQuickStore)}
-                  className="text-[10px] text-[#E0B441] hover:underline flex items-center gap-1 font-mono font-bold"
+                  className="text-[10px] text-[var(--gold)] hover:underline flex items-center gap-1 font-mono font-bold"
                 >
                   <Plus className="w-3 h-3" />
                   <span>{isAddingQuickStore ? 'Cerrar' : '+ Nueva Tienda'}</span>
@@ -420,7 +421,7 @@ export default function ManualProductModal({
                   <button
                     type="button"
                     onClick={() => { audio.click(); onOpenCatalogs(); }}
-                    className="p-1 rounded text-[#8B8378] hover:text-[#E0B441]"
+                    className="p-1 rounded text-[var(--ink-tertiary)] hover:text-[var(--gold)]"
                     title="Configurar catálogo de tiendas"
                   >
                     <Settings className="w-3 h-3" />
@@ -438,8 +439,8 @@ export default function ManualProductModal({
                   onClick={() => { audio.click(); setStore(st.name); }}
                   className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition-all flex items-center gap-1 ${
                     store === st.name
-                      ? 'bg-[#E0B441] text-[#12100E] font-bold shadow-sm'
-                      : 'bg-[#12100E] text-[#B8AFA3] hover:text-white border border-[#2A2521]'
+                      ? 'bg-[var(--gold)] text-[var(--on-gold)] font-bold shadow-sm'
+                      : 'bg-[var(--bg-base)] text-[var(--ink-secondary)] hover:text-white border border-[var(--border-soft)]'
                   }`}
                 >
                   <span>{st.icon || '🏪'}</span>
@@ -456,7 +457,7 @@ export default function ManualProductModal({
                 placeholder="Escribe o selecciona (ej. Costco, City Market...)"
                 value={store}
                 onChange={(e) => setStore(e.target.value)}
-                className="w-full px-4 py-2 rounded-xl bg-[#12100E] border border-[#2A2521] text-white text-xs sm:text-sm focus:outline-none focus:border-[#E0B441]"
+                className="w-full px-4 py-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white text-xs sm:text-sm focus:outline-none focus:border-[var(--gold)]"
               />
               <datalist id="stores-datalist">
                 {effectiveStores.map((st) => (
@@ -467,19 +468,19 @@ export default function ManualProductModal({
 
             {/* Formulario rápido para agregar nueva tienda si hace clic en + Nueva Tienda */}
             {isAddingQuickStore && (
-              <div className="pt-2 border-t border-[#2A2521] flex gap-2">
+              <div className="pt-2 border-t border-[var(--border-soft)] flex gap-2">
                 <input
                   type="text"
                   autoFocus
                   placeholder="Nombre de la nueva tienda (ej. La Comer, Carnicería Don Pepe)"
                   value={quickStoreInput}
                   onChange={(e) => setQuickStoreInput(e.target.value)}
-                  className="flex-1 px-3 py-1.5 rounded-xl bg-[#12100E] border border-[#E0B441]/40 text-white text-xs"
+                  className="flex-1 px-3 py-1.5 rounded-xl bg-[var(--bg-base)] border border-[var(--gold)]/40 text-white text-xs"
                 />
                 <button
                   type="button"
                   onClick={handleSaveQuickStore}
-                  className="px-3 py-1.5 rounded-xl bg-[#E0B441] text-[#12100E] text-xs font-bold"
+                  className="px-3 py-1.5 rounded-xl bg-[var(--gold)] text-[var(--on-gold)] text-xs font-bold"
                 >
                   Guardar Tienda
                 </button>
@@ -488,17 +489,17 @@ export default function ManualProductModal({
           </div>
 
           {/* SECCIÓN PROACTIVA: REGISTRADO POR */}
-          <div className="p-3.5 rounded-2xl bg-[#181411] border border-[#2A2521] space-y-2">
+          <div className="p-3.5 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)] space-y-2">
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-1.5 text-xs font-bold text-[#E0B441] uppercase tracking-wider">
-                <UserCheck className="w-3.5 h-3.5 text-[#E0B441]" />
+              <label className="flex items-center gap-1.5 text-xs font-bold text-[var(--gold)] uppercase tracking-wider">
+                <UserCheck className="w-3.5 h-3.5 text-[var(--gold)]" />
                 <span>Registrado por</span>
               </label>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setIsAddingQuickStaff(!isAddingQuickStaff)}
-                  className="text-[10px] text-[#E0B441] hover:underline flex items-center gap-1 font-mono font-bold"
+                  className="text-[10px] text-[var(--gold)] hover:underline flex items-center gap-1 font-mono font-bold"
                 >
                   <Plus className="w-3 h-3" />
                   <span>{isAddingQuickStaff ? 'Cerrar' : '+ Agregar Persona'}</span>
@@ -507,7 +508,7 @@ export default function ManualProductModal({
                   <button
                     type="button"
                     onClick={() => { audio.click(); onOpenCatalogs(); }}
-                    className="p-1 rounded text-[#8B8378] hover:text-[#E0B441]"
+                    className="p-1 rounded text-[var(--ink-tertiary)] hover:text-[var(--gold)]"
                     title="Configurar catálogo de personal"
                   >
                     <Settings className="w-3 h-3" />
@@ -525,8 +526,8 @@ export default function ManualProductModal({
                   onClick={() => { audio.click(); setStaff(st.name); }}
                   className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition-all flex items-center gap-1 ${
                     staff === st.name
-                      ? 'bg-[#E0B441] text-[#12100E] font-bold shadow-sm'
-                      : 'bg-[#12100E] text-[#B8AFA3] hover:text-white border border-[#2A2521]'
+                      ? 'bg-[var(--gold)] text-[var(--on-gold)] font-bold shadow-sm'
+                      : 'bg-[var(--bg-base)] text-[var(--ink-secondary)] hover:text-white border border-[var(--border-soft)]'
                   }`}
                 >
                   <span>{st.icon || '👤'}</span>
@@ -538,7 +539,7 @@ export default function ManualProductModal({
             <select
               value={staff}
               onChange={(e) => setStaff(e.target.value)}
-              className="w-full px-4 py-2 rounded-xl bg-[#12100E] border border-[#2A2521] text-white text-xs sm:text-sm focus:outline-none focus:border-[#E0B441]"
+              className="w-full px-4 py-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white text-xs sm:text-sm focus:outline-none focus:border-[var(--gold)]"
             >
               {effectiveStaffList.map((s) => (
                 <option key={s.id} value={s.name}>
@@ -549,19 +550,19 @@ export default function ManualProductModal({
 
             {/* Formulario rápido para agregar nueva persona si hace clic en + Agregar Persona */}
             {isAddingQuickStaff && (
-              <div className="pt-2 border-t border-[#2A2521] flex gap-2">
+              <div className="pt-2 border-t border-[var(--border-soft)] flex gap-2">
                 <input
                   type="text"
                   autoFocus
                   placeholder="Nombre de la persona (ej. Chofer Pedro, Chef Invitado)"
                   value={quickStaffInput}
                   onChange={(e) => setQuickStaffInput(e.target.value)}
-                  className="flex-1 px-3 py-1.5 rounded-xl bg-[#12100E] border border-[#E0B441]/40 text-white text-xs"
+                  className="flex-1 px-3 py-1.5 rounded-xl bg-[var(--bg-base)] border border-[var(--gold)]/40 text-white text-xs"
                 />
                 <button
                   type="button"
                   onClick={handleSaveQuickStaff}
-                  className="px-3 py-1.5 rounded-xl bg-[#E0B441] text-[#12100E] text-xs font-bold"
+                  className="px-3 py-1.5 rounded-xl bg-[var(--gold)] text-[var(--on-gold)] text-xs font-bold"
                 >
                   Guardar Persona
                 </button>
@@ -570,15 +571,15 @@ export default function ManualProductModal({
           </div>
 
           {/* Action buttons */}
-          <div className="pt-4 flex items-center justify-between gap-3 border-t border-[#2A2521]">
+          <div className="pt-4 flex items-center justify-between gap-3 border-t border-[var(--border-soft)]">
             
             {/* BOTÓN ELIMINAR ARTÍCULO (SOLICITADO POR EL USUARIO) */}
             {initialProduct && onDelete ? (
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   audio.click();
-                  if (confirm(`¿Estás seguro de que deseas eliminar permanentemente "${initialProduct.name}" del inventario de la alacena?`)) {
+                  if (await confirmDialog(`¿Estás seguro de que deseas eliminar permanentemente "${initialProduct.name}" del inventario de la alacena?`)) {
                     onDelete(initialProduct.id);
                     onClose();
                   }
@@ -597,13 +598,13 @@ export default function ManualProductModal({
                   audio.click();
                   onClose();
                 }}
-                className="px-4 py-2 text-xs font-bold text-[#B8AFA3] hover:text-white rounded-xl transition-all"
+                className="px-4 py-2 text-xs font-bold text-[var(--ink-secondary)] hover:text-white rounded-xl transition-all"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-[#C8542A] to-[#E0B441] hover:brightness-110 rounded-xl transition-all shadow-md shadow-[#C8542A]/20"
+                className="flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-[var(--terracotta)] to-[var(--gold)] hover:brightness-110 rounded-xl transition-all shadow-md shadow-[var(--terracotta)]/20"
               >
                 <Check className="w-4 h-4" />
                 <span>{initialProduct ? 'Guardar Cambios' : 'Guardar con QR Único'}</span>

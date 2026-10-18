@@ -15,6 +15,7 @@ import { isCavaZone, isAlcoholicOrBeverage, sanitizeCavaProduct } from '../../ut
 import { extractShoppingListFromImage, preprocessImageForOcr, extractTextFromFile } from '../../services/ocrService';
 import { parseRawShoppingText } from '../../services/smartListParser';
 import { analyzeTicketPriceIntelligence, recordPricePoints } from '../../services/priceIntelligenceService';
+import { notify } from '../../services/notice';
 
 export default function CameraScannerModal({ 
   isOpen, 
@@ -622,7 +623,7 @@ TOTAL MXN                    $2,303.00`;
   const handleImportReceiptToShoppingList = () => {
     const selectedItems = extractedReceiptItems.filter(i => selectedReceiptItemIds.has(i.id));
     if (selectedItems.length === 0) {
-      alert('Por favor selecciona al menos un artículo.');
+      notify('Por favor selecciona al menos un artículo.');
       return;
     }
 
@@ -643,7 +644,7 @@ TOTAL MXN                    $2,303.00`;
     });
 
     audio.success();
-    alert(`📥 ¡${selectedItems.length} artículos del ticket agregados a tu Lista del Súper con sus precios registrados!`);
+    notify(`📥 ¡${selectedItems.length} artículos del ticket agregados a tu Lista del Súper con sus precios registrados!`);
     onClose();
   };
 
@@ -651,7 +652,7 @@ TOTAL MXN                    $2,303.00`;
   const handleImportReceiptDirectToPantry = () => {
     const selectedItems = extractedReceiptItems.filter(i => selectedReceiptItemIds.has(i.id));
     if (selectedItems.length === 0) {
-      alert('Por favor selecciona al menos un artículo.');
+      notify('Por favor selecciona al menos un artículo.');
       return;
     }
 
@@ -668,7 +669,7 @@ TOTAL MXN                    $2,303.00`;
     }
 
     audio.success();
-    alert(`✅ ¡${selectedItems.length} artículos ingresados directamente a la Despensa con los precios de tu ticket!`);
+    notify(`✅ ¡${selectedItems.length} artículos ingresados directamente a la Despensa con los precios de tu ticket!`);
     onClose();
   };
 
@@ -678,19 +679,19 @@ TOTAL MXN                    $2,303.00`;
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Escáner QR y códigos de barras" className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-2xl max-h-[96vh] rounded-3xl bg-[#12100E] border border-[#E0B441]/35 shadow-2xl flex flex-col overflow-hidden">
+      <div className="relative w-full max-w-2xl max-h-[96vh] rounded-3xl bg-[var(--bg-base)] border border-[var(--gold)]/35 shadow-2xl flex flex-col overflow-hidden">
         
         {/* Header Superior Limpio */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-[#2A2521] bg-[#1A1613]">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-[var(--border-soft)] bg-[var(--bg-sunken)]">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-[#10B981]/20 to-[#E0B441]/20 border border-[#10B981]/40 text-[#10B981]">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-[var(--accent-cocina)]/20 to-[var(--gold)]/20 border border-[var(--accent-cocina)]/40 text-[var(--accent-cocina)]">
               <Camera className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-base font-bold text-white font-display flex items-center gap-2">
                 Escáner Inteligente ALACENA
               </h3>
-              <p className="text-[11px] text-[#A89F91]">
+              <p className="text-[11px] text-[var(--ink-secondary)]">
                 Códigos de barra EAN/UPC · Códigos QR · Tickets de compra OCR
               </p>
             </div>
@@ -709,7 +710,7 @@ TOTAL MXN                    $2,303.00`;
         </div>
 
         {/* Pestañas de Modo: Códigos de Barra vs Tickets vs Manual */}
-        <div className="flex items-center gap-1.5 px-4 sm:px-6 py-2.5 bg-[#161310] border-b border-[#2A2521]">
+        <div className="flex items-center gap-1.5 px-4 sm:px-6 py-2.5 bg-[var(--bg-sunken)] border-b border-[var(--border-soft)]">
           <button
             type="button"
             onClick={() => {
@@ -719,7 +720,7 @@ TOTAL MXN                    $2,303.00`;
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'BARCODE'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/40'
-                : 'bg-[#1C1814] text-[#A89F91] hover:text-white hover:bg-white/5'
+                : 'bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:text-white hover:bg-white/5'
             }`}
           >
             <ScanLine className="w-4 h-4" />
@@ -734,8 +735,8 @@ TOTAL MXN                    $2,303.00`;
             }}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'RECEIPT'
-                ? 'bg-[#C8542A] text-white shadow-md shadow-[#C8542A]/40'
-                : 'bg-[#1C1814] text-[#A89F91] hover:text-white hover:bg-white/5'
+                ? 'bg-[var(--terracotta)] text-white shadow-md shadow-[var(--terracotta)]/40'
+                : 'bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:text-white hover:bg-white/5'
             }`}
           >
             <Receipt className="w-4 h-4" />
@@ -750,8 +751,8 @@ TOTAL MXN                    $2,303.00`;
             }}
             className={`flex-initial flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'MANUAL'
-                ? 'bg-[#E0B441] text-[#12100E] shadow-md shadow-[#E0B441]/30 font-black'
-                : 'bg-[#1C1814] text-[#A89F91] hover:text-white hover:bg-white/5'
+                ? 'bg-[var(--gold)] text-[var(--on-gold)] shadow-md shadow-[var(--gold)]/30 font-black'
+                : 'bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:text-white hover:bg-white/5'
             }`}
           >
             <Keyboard className="w-4 h-4" />
@@ -767,7 +768,7 @@ TOTAL MXN                    $2,303.00`;
           {scanLocked && !isSearching && <button type="button" onClick={scanNext} className="w-full py-3 rounded-xl bg-emerald-700 text-white font-bold">Escanear otro producto</button>}
               {/* Tarjeta del Producto Detectado (Modo Interactivo) */}
               {scannedResult && (
-                <div className="p-4 rounded-2xl bg-[#1C1814] border border-[#E0B441]/40 space-y-3 animate-fade-in shadow-xl">
+                <div className="p-4 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--gold)]/40 space-y-3 animate-fade-in shadow-xl">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
@@ -775,14 +776,14 @@ TOTAL MXN                    $2,303.00`;
                       }`}>
                         {scannedResult.isExisting ? '✓ En tu Despensa' : '✨ Nuevo Producto'}
                       </span>
-                      {!scannedResult.isExisting && <label className="block text-xs text-[#A89F91] mt-3">Nombre del producto
+                      {!scannedResult.isExisting && <label className="block text-xs text-[var(--ink-secondary)] mt-3">Nombre del producto
                         <input aria-label="Nombre del producto escaneado" value={scannedResult.product.name || ''} placeholder="Ej. Leche entera 1 litro" maxLength={300} onChange={(e) => setScannedResult((prev) => ({ ...prev, product: { ...prev.product, name: e.target.value } }))} className="block w-full p-3 mt-1 rounded-xl border border-white/20 text-white bg-black/20" />
                       </label>}
                       <p className="text-xs text-emerald-300 mt-2">{scannedResult.isExisting ? `En esta casa: ${scannedResult.product.quantity} ${scannedResult.product.unit}` : 'Confirma el nombre antes de registrarlo.'}</p>
                       <h4 className="text-base font-bold text-white mt-1">
                         {scannedResult.product.name}
                       </h4>
-                      <p className="text-xs text-[#A89F91]">
+                      <p className="text-xs text-[var(--ink-secondary)]">
                         Código: <span className="font-mono text-white">{scannedResult.barcode}</span> • {scannedResult.product.category}
                       </p>
                     </div>
@@ -796,7 +797,7 @@ TOTAL MXN                    $2,303.00`;
                     </button>
                   </div>
 
-                  <label className="text-xs text-[#A89F91] flex gap-3 items-center">Cantidad ({scannedResult.product.unit || 'piezas'})<input aria-label="Cantidad a registrar" type="number" inputMode="decimal" min="0.001" step="0.001" value={actionQuantity} onChange={(e) => setActionQuantity(e.target.value)} className="w-24 p-2 rounded-lg bg-black/30 text-white border border-white/20" /></label>
+                  <label className="text-xs text-[var(--ink-secondary)] flex gap-3 items-center">Cantidad ({scannedResult.product.unit || 'piezas'})<input aria-label="Cantidad a registrar" type="number" inputMode="decimal" min="0.001" step="0.001" value={actionQuantity} onChange={(e) => setActionQuantity(e.target.value)} className="w-24 p-2 rounded-lg bg-black/30 text-white border border-white/20" /></label>
                   {/* Acciones para el Producto */}
                   <div className="grid grid-cols-3 gap-2 pt-1" inert={!scannedResult.product.name?.trim() || !Number.isFinite(Number(actionQuantity)) || Number(actionQuantity) <= 0 ? true : undefined}>
                     <button
@@ -846,8 +847,8 @@ TOTAL MXN                    $2,303.00`;
             <div className="space-y-4">
               
               {/* Selector de Dirección Inmediata */}
-              <div className="p-3 rounded-2xl bg-[#1A1613] border border-[#2A2521] space-y-1.5">
-                <span className="text-[10px] font-extrabold text-[#E0B441] uppercase tracking-wider block">
+              <div className="p-3 rounded-2xl bg-[var(--bg-sunken)] border border-[var(--border-soft)] space-y-1.5">
+                <span className="text-[10px] font-extrabold text-[var(--gold)] uppercase tracking-wider block">
                   ¿Qué hacer al detectar el código?
                 </span>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
@@ -870,7 +871,7 @@ TOTAL MXN                    $2,303.00`;
                         className={`flex items-center gap-1.5 p-2 rounded-xl text-[11px] font-bold transition-all text-left ${
                           isSelected
                             ? 'bg-emerald-500/20 border border-emerald-400 text-emerald-300 shadow-sm'
-                            : 'bg-[#12100E] border border-[#2A2521] text-[#A89F91] hover:text-white hover:bg-white/5'
+                            : 'bg-[var(--bg-base)] border border-[var(--border-soft)] text-[var(--ink-secondary)] hover:text-white hover:bg-white/5'
                         }`}
                       >
                         <IconComp className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-emerald-400' : mode.color}`} />
@@ -895,7 +896,7 @@ TOTAL MXN                    $2,303.00`;
               )}
 
               {/* Visor de Cámara HD */}
-              <div className="relative w-full rounded-2xl overflow-hidden bg-black border border-[#2A2521] min-h-[300px] sm:min-h-[360px] flex items-center justify-center">
+              <div className="relative w-full rounded-2xl overflow-hidden bg-black border border-[var(--border-soft)] min-h-[300px] sm:min-h-[360px] flex items-center justify-center">
                 
                 {/* Elemento de Video WebRTC Nativo */}
                 <video
@@ -956,8 +957,8 @@ TOTAL MXN                    $2,303.00`;
                 {/* Estado de Error o Cámara Pausada */}
                 {!scannerActive && (
                   <div className="absolute inset-0 bg-black/90 p-6 flex flex-col items-center justify-center text-center space-y-3 z-10">
-                    <AlertCircle className="w-9 h-9 mx-auto text-[#E0B441]" />
-                    <p className="text-xs text-[#A89F91] max-w-sm mx-auto">
+                    <AlertCircle className="w-9 h-9 mx-auto text-[var(--gold)]" />
+                    <p className="text-xs text-[var(--ink-secondary)] max-w-sm mx-auto">
                       {cameraError || (cameraStarting ? 'Abriendo cámara…' : 'La cámara está detenida. Puedes reintentar o usar una foto.')}
                     </p>
                     <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
@@ -980,7 +981,7 @@ TOTAL MXN                    $2,303.00`;
                 )}
               </div>
 
-              <p className="text-xs text-[#A89F91]">Coloca el envase a 15–25 cm, evita reflejos y mantén el código completo dentro de la imagen.</p>
+              <p className="text-xs text-[var(--ink-secondary)]">Coloca el envase a 15–25 cm, evita reflejos y mantén el código completo dentro de la imagen.</p>
               {/* Botón Alternativo de Subida por Foto */}
               <input
                 type="file"
@@ -990,12 +991,12 @@ TOTAL MXN                    $2,303.00`;
                 onChange={handleBarcodeFileUpload}
                 className="hidden"
               />
-              <div className="flex items-center justify-between text-xs text-[#A89F91] px-1">
+              <div className="flex items-center justify-between text-xs text-[var(--ink-secondary)] px-1">
                 <span>¿Problemas de enfoque con el sensor?</span>
                 <button
                   type="button"
                   onClick={() => fileBarcodeRef.current?.click()}
-                  className="text-[#E0B441] hover:underline font-semibold flex items-center gap-1"
+                  className="text-[var(--gold)] hover:underline font-semibold flex items-center gap-1"
                 >
                   <ImageIcon className="w-3.5 h-3.5" />
                   <span>Tomar Foto con Cámara Nativa</span>
@@ -1022,12 +1023,12 @@ TOTAL MXN                    $2,303.00`;
               />
 
               {/* Botones de Captura del Ticket */}
-              <div className="p-4 rounded-2xl bg-[#1A1613] border border-[#2A2521] space-y-3">
+              <div className="p-4 rounded-2xl bg-[var(--bg-sunken)] border border-[var(--border-soft)] space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <button
                     type="button"
                     onClick={handleCaptureLiveCameraForReceipt}
-                    className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-gradient-to-r from-[#C8542A] to-[#E5724A] text-white font-bold text-xs sm:text-sm hover:brightness-110 shadow-lg shadow-[#C8542A]/30 transition-all"
+                    className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-gradient-to-r from-[var(--terracotta)] to-[var(--ember)] text-white font-bold text-xs sm:text-sm hover:brightness-110 shadow-lg shadow-[var(--terracotta)]/30 transition-all"
                   >
                     <Camera className="w-4 h-4" />
                     <span>📸 Tomar Foto al Ticket</span>
@@ -1054,12 +1055,12 @@ TOTAL MXN                    $2,303.00`;
 
                 {/* Pruebas 1-Clic de tickets reales */}
                 <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/5 text-[11px]">
-                  <span className="text-[#A89F91]">Probar tickets muestra:</span>
+                  <span className="text-[var(--ink-secondary)]">Probar tickets muestra:</span>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => handleLoadSampleTicket('lacomer')}
-                      className="px-2.5 py-1 rounded-lg bg-[#E0B441]/15 hover:bg-[#E0B441]/25 text-[#E0B441] font-semibold border border-[#E0B441]/30 transition-all"
+                      className="px-2.5 py-1 rounded-lg bg-[var(--gold)]/15 hover:bg-[var(--gold)]/25 text-[var(--gold)] font-semibold border border-[var(--gold)]/30 transition-all"
                     >
                       🇲🇽 La Comer ($ MXN)
                     </button>
@@ -1083,14 +1084,14 @@ TOTAL MXN                    $2,303.00`;
 
               {/* Progreso de OCR */}
               {isOcrProcessing && (
-                <div className="p-4 rounded-2xl bg-[#1C1814] border border-[#E0B441]/40 space-y-2 animate-fade-in">
-                  <div className="flex items-center gap-2 text-xs font-bold text-[#E0B441]">
+                <div className="p-4 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--gold)]/40 space-y-2 animate-fade-in">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[var(--gold)]">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span>{ocrProgress?.status || 'Leyendo ticket con visión artificial OCR...'}</span>
                   </div>
                   <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
                     <div 
-                      className="h-full bg-gradient-to-r from-[#C8542A] to-[#E0B441] transition-all duration-300"
+                      className="h-full bg-gradient-to-r from-[var(--terracotta)] to-[var(--gold)] transition-all duration-300"
                       style={{ width: `${ocrProgress?.progress || 35}%` }}
                     />
                   </div>
@@ -1114,14 +1115,14 @@ TOTAL MXN                    $2,303.00`;
 
               {/* Lista de Partidas Detectadas en el Ticket */}
               {extractedReceiptItems.length > 0 && (
-                <div className="p-4 rounded-2xl bg-[#161310] border border-[#2A2521] space-y-3">
+                <div className="p-4 rounded-2xl bg-[var(--bg-sunken)] border border-[var(--border-soft)] space-y-3">
                   <div className="flex items-center justify-between border-b border-white/5 pb-2">
                     <div>
                       <span className="text-xs font-extrabold text-white">
                         🧾 Artículos Detectados ({selectedReceiptItemIds.size} de {extractedReceiptItems.length})
                       </span>
-                      <span className="text-[11px] text-[#A89F91] block">
-                        Tienda: <strong className="text-[#E0B441]">{receiptStoreName}</strong>
+                      <span className="text-[11px] text-[var(--ink-secondary)] block">
+                        Tienda: <strong className="text-[var(--gold)]">{receiptStoreName}</strong>
                       </span>
                     </div>
 
@@ -1134,7 +1135,7 @@ TOTAL MXN                    $2,303.00`;
                           setSelectedReceiptItemIds(new Set(extractedReceiptItems.map(i => i.id)));
                         }
                       }}
-                      className="text-xs text-[#E0B441] hover:underline font-semibold"
+                      className="text-xs text-[var(--gold)] hover:underline font-semibold"
                     >
                       {selectedReceiptItemIds.size === extractedReceiptItems.length ? 'Desmarcar todos' : 'Marcar todos'}
                     </button>
@@ -1142,10 +1143,10 @@ TOTAL MXN                    $2,303.00`;
 
                   {/* Banner de Inteligencia de Precios & Asesor Multitienda */}
                   {priceIntelligence && (priceIntelligence.priceDropsCount > 0 || priceIntelligence.priceHikesCount > 0 || priceIntelligence.totalCrossStoreSavingsPotential > 0) && (
-                    <div className="p-2.5 rounded-xl bg-gradient-to-r from-[#1C1814] via-[#261E18] to-[#1C1814] border border-[#E0B441]/35 text-[11px] space-y-1.5 animate-fade-in">
-                      <div className="flex items-center justify-between font-bold text-[#E0B441]">
+                    <div className="p-2.5 rounded-xl bg-gradient-to-r from-[var(--bg-elevated)] via-[var(--bg-elevated)] to-[var(--bg-elevated)] border border-[var(--gold)]/35 text-[11px] space-y-1.5 animate-fade-in">
+                      <div className="flex items-center justify-between font-bold text-[var(--gold)]">
                         <span className="flex items-center gap-1.5">
-                          <Award className="w-3.5 h-3.5 text-[#E0B441]" />
+                          <Award className="w-3.5 h-3.5 text-[var(--gold)]" />
                           Auditoría de Precios & Asesor Multitienda:
                         </span>
                         {priceIntelligence.totalCrossStoreSavingsPotential > 0 && (
@@ -1168,7 +1169,7 @@ TOTAL MXN                    $2,303.00`;
                           </span>
                         )}
                         {priceIntelligence.recommendations.length > 0 && (
-                          <span className="px-1.5 py-0.5 rounded bg-[#E0B441]/10 text-[#E0B441] border border-[#E0B441]/25 font-semibold">
+                          <span className="px-1.5 py-0.5 rounded bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/25 font-semibold">
                             💡 En {priceIntelligence.recommendations[0]?.cheapestStore}: "{priceIntelligence.recommendations[0]?.productName}" a ${priceIntelligence.recommendations[0]?.cheapestPrice.toFixed(2)} (-${priceIntelligence.recommendations[0]?.lineSavings.toFixed(2)})
                           </span>
                         )}
@@ -1191,9 +1192,9 @@ TOTAL MXN                    $2,303.00`;
               PESTAÑA 3: INGRESO MANUAL DE CÓDIGOS DE BARRA O ID
              ═════════════════════════════════════════════════════════════════ */}
           {activeTab === 'MANUAL' && (
-            <form onSubmit={handleManualSubmit} className="p-4 rounded-2xl bg-[#1A1613] border border-[#2A2521] space-y-4">
+            <form onSubmit={handleManualSubmit} className="p-4 rounded-2xl bg-[var(--bg-sunken)] border border-[var(--border-soft)] space-y-4">
               <div>
-                <label className="text-xs font-extrabold text-[#E0B441] block mb-1">
+                <label className="text-xs font-extrabold text-[var(--gold)] block mb-1">
                   Escribe los dígitos del código de barras o clave corta:
                 </label>
                 <div className="relative">
@@ -1202,18 +1203,18 @@ TOTAL MXN                    $2,303.00`;
                     value={manualCode}
                     onChange={(e) => setManualCode(e.target.value)}
                     placeholder="Ej. 7501055300076 o ALC-4B7"
-                    className="w-full pl-4 pr-12 py-3 rounded-xl bg-[#12100E] border border-[#2A2521] text-white font-mono text-sm focus:outline-none focus:border-[#E0B441]"
+                    className="w-full pl-4 pr-12 py-3 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white font-mono text-sm focus:outline-none focus:border-[var(--gold)]"
                   />
                   <button
                     aria-label="Buscar código" disabled={isSearching || !manualCode.trim()} type="submit"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-[#E0B441] text-[#12100E] font-bold hover:brightness-110"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-[var(--gold)] text-[var(--on-gold)] font-bold hover:brightness-110"
                   >
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              <div className="text-[11px] text-[#A89F91] space-y-1">
+              <div className="text-[11px] text-[var(--ink-secondary)] space-y-1">
                 <p>💡 <strong>Tip del Comprador:</strong> Puedes escribir el código de barras impreso en cualquier envase de supermercado para consultar su catálogo o sumarlo a tu inventario.</p>
               </div>
             </form>

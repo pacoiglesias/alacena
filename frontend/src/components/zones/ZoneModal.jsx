@@ -4,6 +4,7 @@ import {
   Trash2, Check, Sparkles, Thermometer, Droplets, Box
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
+import { confirmDialog } from '../../services/notice';
 
 const PRESETS = [
   { name: 'Cava Principal', type: 'WINE_CELLAR', temp: '14°C', humidity: '70%', capacity: 120, notes: 'Control de humedad 70%, 14°C constante' },
@@ -72,8 +73,8 @@ export default function ZoneModal({ isOpen, onClose, onSave, onDelete, initialZo
     onClose();
   };
 
-  const handleDelete = () => {
-    if (window.confirm(`¿Estás seguro de eliminar la ubicación "${name}"? Los productos asignados conservarán su historial.`)) {
+  const handleDelete = async () => {
+    if (await confirmDialog(`¿Estás seguro de eliminar la ubicación "${name}"? Los productos asignados conservarán su historial.`)) {
       audio.delete();
       onDelete(initialZone.id);
       onClose();
@@ -82,19 +83,19 @@ export default function ZoneModal({ isOpen, onClose, onSave, onDelete, initialZo
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-lg rounded-3xl bg-[#161311] border border-[#E0B441]/30 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="relative w-full max-w-lg rounded-3xl bg-[var(--bg-sunken)] border border-[var(--gold)]/30 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-5 sm:p-6 border-b border-[#2A2521] bg-[#1C1814]">
+        <div className="flex items-center justify-between p-5 sm:p-6 border-b border-[var(--border-soft)] bg-[var(--bg-elevated)]">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-xl border ${type === 'WINE_CELLAR' ? 'bg-[#6B1F2E]/30 text-[#E0B441] border-[#A83A50]/40' : 'bg-[#E0B441]/20 text-[#E0B441] border-[#E0B441]/30'}`}>
+            <div className={`p-2 rounded-xl border ${type === 'WINE_CELLAR' ? 'bg-[var(--wine)]/30 text-[var(--gold)] border-[var(--wine-bright)]/40' : 'bg-[var(--gold)]/20 text-[var(--gold)] border-[var(--gold)]/30'}`}>
               {type === 'WINE_CELLAR' ? <Wine className="w-5 h-5" /> : <Warehouse className="w-5 h-5" />}
             </div>
             <div>
               <h3 className="text-base sm:text-lg font-bold text-white font-display">
                 {initialZone ? 'Configurar / Renombrar Ubicación' : 'Nueva Ubicación en Casa'}
               </h3>
-              <p className="text-xs text-[#B8AFA3]">
+              <p className="text-xs text-[var(--ink-secondary)]">
                 Personaliza Cava, Alacena, Refrigerador o cualquier espacio del hogar.
               </p>
             </div>
@@ -115,7 +116,7 @@ export default function ZoneModal({ isOpen, onClose, onSave, onDelete, initialZo
           
           {/* Presets Rápidos */}
           <div>
-            <label className="block text-[11px] font-extrabold text-[#E0B441] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <label className="block text-[11px] font-extrabold text-[var(--gold)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
               Sugerencias Rápidas para la Casa (1 Clic)
             </label>
@@ -127,8 +128,8 @@ export default function ZoneModal({ isOpen, onClose, onSave, onDelete, initialZo
                   onClick={() => handleApplyPreset(p)}
                   className={`px-2.5 py-1 text-xs rounded-lg border transition-all ${
                     name === p.name
-                      ? 'bg-[#E0B441]/20 text-[#E0B441] border-[#E0B441]'
-                      : 'bg-[#1C1814] text-[#B8AFA3] border-[#2A2521] hover:border-[#E0B441]/40 hover:text-white'
+                      ? 'bg-[var(--gold)]/20 text-[var(--gold)] border-[var(--gold)]'
+                      : 'bg-[var(--bg-elevated)] text-[var(--ink-secondary)] border-[var(--border-soft)] hover:border-[var(--gold)]/40 hover:text-white'
                   }`}
                 >
                   {p.type === 'WINE_CELLAR' ? '🍷' : p.type === 'FRIDGE' ? '❄️' : '🏠'} {p.name}
@@ -149,7 +150,7 @@ export default function ZoneModal({ isOpen, onClose, onSave, onDelete, initialZo
               placeholder="Ej. Cava Principal, Alacena Seca, Cava Don Paco..."
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-[#12100E] border border-[#2A2521] text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[#E0B441] focus:ring-1 focus:ring-[#E0B441] transition-all"
+              className="w-full px-4 py-3 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[var(--gold)] focus:ring-1 focus:ring-[var(--gold)] transition-all"
             />
           </div>
 
@@ -183,11 +184,11 @@ export default function ZoneModal({ isOpen, onClose, onSave, onDelete, initialZo
                     }}
                     className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-semibold transition-all text-left ${
                       isSelected
-                        ? 'bg-[#E0B441]/15 border-[#E0B441] text-[#E0B441] shadow-sm'
-                        : 'bg-[#12100E] border-[#2A2521] text-[#B8AFA3] hover:text-white hover:bg-white/5'
+                        ? 'bg-[var(--gold)]/15 border-[var(--gold)] text-[var(--gold)] shadow-sm'
+                        : 'bg-[var(--bg-base)] border-[var(--border-soft)] text-[var(--ink-secondary)] hover:text-white hover:bg-white/5'
                     }`}
                   >
-                    <IconComponent className={`w-4 h-4 shrink-0 ${isSelected ? 'text-[#E0B441]' : item.color}`} />
+                    <IconComponent className={`w-4 h-4 shrink-0 ${isSelected ? 'text-[var(--gold)]' : item.color}`} />
                     <span className="truncate">{item.label}</span>
                   </button>
                 );
@@ -198,7 +199,7 @@ export default function ZoneModal({ isOpen, onClose, onSave, onDelete, initialZo
           {/* Variables de Control (Temperatura, Humedad, Capacidad) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
             <div>
-              <label className="block text-[11px] font-bold text-[#B8AFA3] uppercase tracking-wider mb-1 flex items-center gap-1">
+              <label className="block text-[11px] font-bold text-[var(--ink-secondary)] uppercase tracking-wider mb-1 flex items-center gap-1">
                 <Thermometer className="w-3.5 h-3.5 text-rose-400" />
                 Temp. Ideal
               </label>
@@ -207,12 +208,12 @@ export default function ZoneModal({ isOpen, onClose, onSave, onDelete, initialZo
                 placeholder="Ej. 14°C"
                 value={targetTemp}
                 onChange={(e) => setTargetTemp(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[#12100E] border border-[#2A2521] text-white text-xs focus:outline-none focus:border-[#E0B441]"
+                className="w-full px-3 py-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white text-xs focus:outline-none focus:border-[var(--gold)]"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-[#B8AFA3] uppercase tracking-wider mb-1 flex items-center gap-1">
+              <label className="block text-[11px] font-bold text-[var(--ink-secondary)] uppercase tracking-wider mb-1 flex items-center gap-1">
                 <Droplets className="w-3.5 h-3.5 text-blue-400" />
                 Humedad
               </label>
@@ -221,12 +222,12 @@ export default function ZoneModal({ isOpen, onClose, onSave, onDelete, initialZo
                 placeholder="Ej. 70%"
                 value={targetHumidity}
                 onChange={(e) => setTargetHumidity(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[#12100E] border border-[#2A2521] text-white text-xs focus:outline-none focus:border-[#E0B441]"
+                className="w-full px-3 py-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white text-xs focus:outline-none focus:border-[var(--gold)]"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-[#B8AFA3] uppercase tracking-wider mb-1 flex items-center gap-1">
+              <label className="block text-[11px] font-bold text-[var(--ink-secondary)] uppercase tracking-wider mb-1 flex items-center gap-1">
                 <Box className="w-3.5 h-3.5 text-amber-400" />
                 Capacidad Máx.
               </label>
@@ -236,7 +237,7 @@ export default function ZoneModal({ isOpen, onClose, onSave, onDelete, initialZo
                 placeholder="Ej. 120 botellas"
                 value={maxCapacity}
                 onChange={(e) => setMaxCapacity(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[#12100E] border border-[#2A2521] text-white text-xs focus:outline-none focus:border-[#E0B441]"
+                className="w-full px-3 py-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white text-xs focus:outline-none focus:border-[var(--gold)]"
               />
             </div>
           </div>
@@ -251,12 +252,12 @@ export default function ZoneModal({ isOpen, onClose, onSave, onDelete, initialZo
               placeholder="Ej. Subsuelo Ala Norte, Estantes 1 a 6 de madera de roble..."
               value={tempNotes}
               onChange={(e) => setTempNotes(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-[#12100E] border border-[#2A2521] text-white placeholder-gray-500 text-xs focus:outline-none focus:border-[#E0B441] transition-all"
+              className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white placeholder-gray-500 text-xs focus:outline-none focus:border-[var(--gold)] transition-all"
             />
           </div>
 
           {/* Botones de Acción */}
-          <div className="pt-4 flex items-center justify-between border-t border-[#2A2521] gap-3">
+          <div className="pt-4 flex items-center justify-between border-t border-[var(--border-soft)] gap-3">
             {initialZone ? (
               <button
                 type="button"
@@ -275,13 +276,13 @@ export default function ZoneModal({ isOpen, onClose, onSave, onDelete, initialZo
                   audio.click();
                   onClose();
                 }}
-                className="px-4 py-2 text-xs font-bold text-[#B8AFA3] hover:text-white hover:bg-white/10 rounded-xl transition-all"
+                className="px-4 py-2 text-xs font-bold text-[var(--ink-secondary)] hover:text-white hover:bg-white/10 rounded-xl transition-all"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-[#C8542A] to-[#E0B441] hover:brightness-110 rounded-xl transition-all shadow-lg shadow-[#C8542A]/20"
+                className="flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-[var(--terracotta)] to-[var(--gold)] hover:brightness-110 rounded-xl transition-all shadow-lg shadow-[var(--terracotta)]/20"
               >
                 <Check className="w-4 h-4" />
                 <span>{initialZone ? 'Guardar Cambios' : 'Crear Ubicación'}</span>

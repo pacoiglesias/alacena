@@ -91,11 +91,11 @@ export default function QuickScanActionModal({
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
       <div 
-        className="w-full max-w-md rounded-3xl bg-[#0F1117] border border-[#232838] shadow-2xl overflow-hidden flex flex-col text-[#F8FAFC] animate-scaleUp"
+        className="w-full max-w-md rounded-3xl bg-[var(--bg-sunken)] border border-[var(--border-soft)] shadow-2xl overflow-hidden flex flex-col text-[var(--ink-primary)] animate-scaleUp"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabecera del modal */}
-        <div className="p-5 border-b border-[#1E2333] flex items-center justify-between bg-gradient-to-r from-[#141824] to-[#0F1117]">
+        <div className="p-5 border-b border-[var(--border-soft)] flex items-center justify-between bg-gradient-to-r from-[var(--bg-elevated)] to-[var(--bg-sunken)]">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
               <Sparkles className="w-5 h-5" />
@@ -112,7 +112,7 @@ export default function QuickScanActionModal({
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#94A3B8] hover:text-white transition-all cursor-pointer"
+            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-[var(--ink-secondary)] hover:text-white transition-all cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -128,9 +128,9 @@ export default function QuickScanActionModal({
 
         {/* Ficha del Producto */}
         <div className="p-5 flex flex-col gap-4">
-          <div className="flex items-start justify-between gap-3 p-4 rounded-2xl bg-[#161B26] border border-[#23293D]">
+          <div className="flex items-start justify-between gap-3 p-4 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-soft)]">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 text-xs text-[#94A3B8] mb-1">
+              <div className="flex items-center gap-1.5 text-xs text-[var(--ink-secondary)] mb-1">
                 <MapPin className="w-3.5 h-3.5 text-emerald-400" />
                 <span className="font-semibold text-white/90">{product.zone || 'Alacena'}</span>
                 <span>•</span>
@@ -140,7 +140,7 @@ export default function QuickScanActionModal({
                 {product.name}
               </h2>
               {product.barcode && (
-                <span className="inline-block mt-1 font-mono text-[10px] text-[#94A3B8] bg-black/40 px-2 py-0.5 rounded-md border border-white/5">
+                <span className="inline-block mt-1 font-mono text-[10px] text-[var(--ink-secondary)] bg-black/40 px-2 py-0.5 rounded-md border border-white/5">
                   {product.barcode}
                 </span>
               )}
@@ -148,13 +148,13 @@ export default function QuickScanActionModal({
 
             {/* Contador de Stock Actual */}
             <div className="text-right shrink-0">
-              <span className="text-[10px] font-bold text-[#94A3B8] uppercase block">
+              <span className="text-[10px] font-bold text-[var(--ink-secondary)] uppercase block">
                 Existencia
               </span>
               <span className={`text-2xl font-black ${currentQty <= (product.minStock || 0) ? 'text-rose-400' : 'text-emerald-400'}`}>
                 {currentQty}
               </span>
-              <span className="text-xs text-[#94A3B8] ml-1 font-medium">
+              <span className="text-xs text-[var(--ink-secondary)] ml-1 font-medium">
                 {product.unit || 'pzas'}
               </span>
             </div>
@@ -227,7 +227,7 @@ export default function QuickScanActionModal({
           </div>
 
           {/* Módulo de Grabación NFC */}
-          <div className="mt-2 p-3.5 rounded-2xl bg-[#131620] border border-[#202534] flex flex-col gap-2">
+          <div className="mt-2 p-3.5 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-soft)] flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs font-bold text-white/90">
                 <Radio className="w-4 h-4 text-sky-400" />
@@ -238,7 +238,7 @@ export default function QuickScanActionModal({
               </span>
             </div>
 
-            <p className="text-[11px] text-[#94A3B8] leading-relaxed">
+            <p className="text-[11px] text-[var(--ink-secondary)] leading-relaxed">
               Pega un sticker NFC (NTAG213/215) en la repisa, frasco o bote. Al acercar tu celular, abrirá esta tarjeta en 1 segundo.
             </p>
 
@@ -265,10 +265,10 @@ export default function QuickScanActionModal({
         </div>
 
         {/* Pie del modal */}
-        <div className="p-4 bg-[#0A0C10] border-t border-[#1C202E] flex justify-end">
+        <div className="p-4 bg-[var(--bg-elevated)] border-t border-[var(--border-soft)] flex justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl text-xs font-bold text-[#94A3B8] hover:text-white transition-all cursor-pointer"
+            className="px-5 py-2 rounded-xl text-xs font-bold text-[var(--ink-secondary)] hover:text-white transition-all cursor-pointer"
           >
             Cerrar
           </button>

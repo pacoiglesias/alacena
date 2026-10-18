@@ -10,6 +10,7 @@ import {
 import { audio } from '../../services/audioService';
 import { generateQrPdf, getItemScanUrl } from '../../services/qrPdfService';
 import QRCode from 'qrcode';
+import { notify } from '../../services/notice';
 
 export default function PantryQrBookletModal({
   isOpen,
@@ -405,7 +406,7 @@ export default function PantryQrBookletModal({
       audio.success();
     } catch (e) {
       console.warn('Error generando PDF:', e);
-      alert('Error generando PDF: ' + e.message);
+      notify('Error generando PDF: ' + e.message);
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -530,13 +531,13 @@ export default function PantryQrBookletModal({
 
       <div 
         id="qr-modal-dialog"
-        className="relative w-full max-w-5xl max-h-[94vh] overflow-hidden flex flex-col rounded-3xl bg-[#14110F] border border-[#E0B441]/30 shadow-2xl print:border-none print:shadow-none print:bg-white print:max-h-none print:h-auto print:rounded-none print:overflow-visible print:w-full print:max-w-none"
+        className="relative w-full max-w-5xl max-h-[94vh] overflow-hidden flex flex-col rounded-3xl bg-[var(--bg-base)] border border-[var(--gold)]/30 shadow-2xl print:border-none print:shadow-none print:bg-white print:max-h-none print:h-auto print:rounded-none print:overflow-visible print:w-full print:max-w-none"
       >
         
         {/* Header - Hidden on Print */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#2A2521] bg-[#1C1814] print:hidden no-print">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[var(--border-soft)] bg-[var(--bg-elevated)] print:hidden no-print">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-gradient-to-br from-[#E0B441]/20 to-[#C8542A]/20 border border-[#E0B441]/40 text-[#E0B441]">
+            <div className="p-2.5 rounded-2xl bg-gradient-to-br from-[var(--gold)]/20 to-[var(--terracotta)]/20 border border-[var(--gold)]/40 text-[var(--gold)]">
               <Printer className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
@@ -544,11 +545,11 @@ export default function PantryQrBookletModal({
                 <h3 className="text-base sm:text-lg font-bold text-white font-display">
                   Centro de Impresión QR: Botes, Tableros & Cava
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#E0B441]/15 text-[#E0B441] border border-[#E0B441]/30">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[var(--gold)]/15 text-[var(--gold)] border border-[var(--gold)]/30">
                   {printableList.length} ítems a imprimir
                 </span>
               </div>
-              <p className="text-xs text-[#B8AFA3]">
+              <p className="text-xs text-[var(--ink-secondary)]">
                 Genera stickers para frascos, tableros de pedidos para puertas o collarines con troquel
               </p>
             </div>
@@ -558,17 +559,17 @@ export default function PantryQrBookletModal({
             <button
               onClick={handleDownloadPdf}
               disabled={printableList.length === 0 || isGeneratingPdf}
-              className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-white/10 hover:bg-white/15 text-[#E0B441] border border-[#E0B441]/35 transition-all disabled:opacity-50 active:scale-95 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-white/10 hover:bg-white/15 text-[var(--gold)] border border-[var(--gold)]/35 transition-all disabled:opacity-50 active:scale-95 cursor-pointer"
               title="Descargar archivo PDF vectorial de alta resolución"
             >
-              <FileText className="w-4 h-4 text-[#E0B441]" />
+              <FileText className="w-4 h-4 text-[var(--gold)]" />
               <span>{isGeneratingPdf ? 'Generando...' : '📄 Descargar PDF'}</span>
             </button>
 
             <button
               onClick={handlePrint}
               disabled={printableList.length === 0}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-[#12100E] bg-gradient-to-r from-[#E0B441] to-[#E5724A] hover:brightness-110 shadow-lg shadow-[#E0B441]/20 transition-all disabled:opacity-50 active:scale-95 cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-[var(--on-gold)] bg-gradient-to-r from-[var(--gold)] to-[var(--ember)] hover:brightness-110 shadow-lg shadow-[var(--gold)]/20 transition-all disabled:opacity-50 active:scale-95 cursor-pointer"
             >
               <Printer className="w-4 h-4" />
               <span>🖨️ Imprimir ({printableList.length})</span>
@@ -578,7 +579,7 @@ export default function PantryQrBookletModal({
                 audio.click();
                 onClose();
               }}
-              className="p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -586,20 +587,20 @@ export default function PantryQrBookletModal({
         </div>
 
         {/* Barra de Controles y 4 Formatos Físicos - Hidden on Print */}
-        <div className="p-3 sm:p-4 border-b border-[#2A2521] bg-[#171412] space-y-3 print:hidden no-print">
+        <div className="p-3 sm:p-4 border-b border-[var(--border-soft)] bg-[var(--bg-base)] space-y-3 print:hidden no-print">
           
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             
             {/* 4 Formatos de Impresión Reales */}
-            <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-[#1C1814] border border-[#2A2521] overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-soft)] overflow-x-auto no-scrollbar">
               
               {/* Formato 1: Stickers para Botes & Sobres */}
               <button
                 onClick={() => { audio.click(); setPrintFormat('STICKERS'); }}
                 className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
                   printFormat === 'STICKERS'
-                    ? 'bg-[#E0B441] text-[#12100E] font-bold shadow-sm'
-                    : 'text-[#B8AFA3] hover:text-white'
+                    ? 'bg-[var(--gold)] text-[var(--on-gold)] font-bold shadow-sm'
+                    : 'text-[var(--ink-secondary)] hover:text-white'
                 }`}
               >
                 <Package className="w-3.5 h-3.5" />
@@ -611,8 +612,8 @@ export default function PantryQrBookletModal({
                 onClick={() => { audio.click(); setPrintFormat('TABLERO_PEDIDOS'); }}
                 className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
                   printFormat === 'TABLERO_PEDIDOS'
-                    ? 'bg-[#E5724A] text-white font-bold shadow-sm'
-                    : 'text-[#B8AFA3] hover:text-white'
+                    ? 'bg-[var(--ember)] text-white font-bold shadow-sm'
+                    : 'text-[var(--ink-secondary)] hover:text-white'
                 }`}
                 title="Tablero para pegar en la puerta de la alacena y escanear pedidos/salidas rápidamente"
               >
@@ -625,8 +626,8 @@ export default function PantryQrBookletModal({
                 onClick={() => { audio.click(); setPrintFormat('WINE_TAGS'); }}
                 className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
                   printFormat === 'WINE_TAGS'
-                    ? 'bg-[#A83A50] text-white font-bold shadow-sm'
-                    : 'text-[#B8AFA3] hover:text-white'
+                    ? 'bg-[var(--wine-bright)] text-white font-bold shadow-sm'
+                    : 'text-[var(--ink-secondary)] hover:text-white'
                 }`}
               >
                 <Wine className="w-3.5 h-3.5" />
@@ -638,8 +639,8 @@ export default function PantryQrBookletModal({
                 onClick={() => { audio.click(); setPrintFormat('CATALOG'); }}
                 className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
                   printFormat === 'CATALOG'
-                    ? 'bg-[#3D8B6E] text-white font-bold shadow-sm'
-                    : 'text-[#B8AFA3] hover:text-white'
+                    ? 'bg-[var(--success-bright)] text-white font-bold shadow-sm'
+                    : 'text-[var(--ink-secondary)] hover:text-white'
                 }`}
               >
                 <BookOpen className="w-3.5 h-3.5" />
@@ -651,8 +652,8 @@ export default function PantryQrBookletModal({
                 onClick={() => { audio.click(); setPrintFormat('TUPPERS'); }}
                 className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
                   printFormat === 'TUPPERS'
-                    ? 'bg-[#2B6CB0] text-white font-bold shadow-sm'
-                    : 'text-[#B8AFA3] hover:text-white'
+                    ? 'bg-[var(--info)] text-white font-bold shadow-sm'
+                    : 'text-[var(--ink-secondary)] hover:text-white'
                 }`}
                 title="Etiquetas para tuppers con fecha y QR reutilizable para el refri"
               >
@@ -678,19 +679,19 @@ export default function PantryQrBookletModal({
             {/* Búsqueda y Selección Rápida */}
             <div className="flex items-center gap-2">
               <div className="relative flex-1 sm:w-52">
-                <Search className="w-3.5 h-3.5 text-[#8B8378] absolute left-3 top-1/2 -translate-y-1/2" />
+                <Search className="w-3.5 h-3.5 text-[var(--ink-tertiary)] absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Buscar insumo..."
-                  className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[#1C1814] border border-[#3D3630] text-xs text-[#F2EDE4] placeholder:text-[#6E655F] outline-none"
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] text-xs text-[var(--ink-primary)] placeholder:text-[var(--ink-tertiary)] outline-none"
                 />
               </div>
 
               <button
                 onClick={toggleSelectAll}
-                className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-[#E0B441] border border-[#3D3630] transition-all shrink-0 cursor-pointer"
+                className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-[var(--gold)] border border-[var(--border-strong)] transition-all shrink-0 cursor-pointer"
               >
                 {selectedProductIds.size === filteredProducts.length ? 'Deseleccionar' : 'Todos'}
               </button>
@@ -700,7 +701,7 @@ export default function PantryQrBookletModal({
 
           {/* Filtro de Zonas */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
-            <span className="text-[11px] font-bold text-[#8B8378] uppercase tracking-wider shrink-0 mr-1">
+            <span className="text-[11px] font-bold text-[var(--ink-tertiary)] uppercase tracking-wider shrink-0 mr-1">
               Zona:
             </span>
             <button
@@ -708,7 +709,7 @@ export default function PantryQrBookletModal({
               className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer ${
                 selectedZoneFilter === 'ALL'
                   ? 'bg-white/20 text-white font-bold'
-                  : 'bg-white/5 text-[#8B8378] hover:text-white'
+                  : 'bg-white/5 text-[var(--ink-tertiary)] hover:text-white'
               }`}
             >
               Todas ({products.length})
@@ -719,8 +720,8 @@ export default function PantryQrBookletModal({
                 onClick={() => setSelectedZoneFilter(z.name)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer ${
                   selectedZoneFilter === z.name
-                    ? 'bg-[#E0B441]/25 text-[#E0B441] font-bold border border-[#E0B441]/40'
-                    : 'bg-white/5 text-[#8B8378] hover:text-white'
+                    ? 'bg-[var(--gold)]/25 text-[var(--gold)] font-bold border border-[var(--gold)]/40'
+                    : 'bg-white/5 text-[var(--ink-tertiary)] hover:text-white'
                 }`}
               >
                 {z.name}
@@ -735,7 +736,7 @@ export default function PantryQrBookletModal({
            ═══════════════════════════════════════════════════════════════ */}
         <div 
           id="printable-qr-catalog" 
-          className="flex-1 overflow-y-auto p-4 sm:p-6 print:p-4 bg-[#0F0D0B] print:bg-white text-white print:text-black custom-scrollbar print:overflow-visible print:h-auto"
+          className="flex-1 overflow-y-auto p-4 sm:p-6 print:p-4 bg-[var(--bg-sunken)] print:bg-white text-white print:text-black custom-scrollbar print:overflow-visible print:h-auto"
         >
           
           {/* Encabezado Oficial Impreso en Papel */}
@@ -785,8 +786,8 @@ export default function PantryQrBookletModal({
                     key={p.id}
                     className={`p-3.5 rounded-2xl border transition-all flex flex-col justify-between break-inside-avoid relative ${
                       isSelected 
-                        ? 'bg-[#1C1814] border-[#3D3630] print:bg-white print:border-2 print:border-dashed print:border-gray-500' 
-                        : 'bg-[#14110F]/40 border-[#2A2521] opacity-40 print:hidden'
+                        ? 'bg-[var(--bg-elevated)] border-[var(--border-strong)] print:bg-white print:border-2 print:border-dashed print:border-gray-500' 
+                        : 'bg-[var(--bg-base)]/40 border-[var(--border-soft)] opacity-40 print:hidden'
                     }`}
                   >
                     {/* Guía de tijera recortable en papel */}
@@ -796,34 +797,34 @@ export default function PantryQrBookletModal({
                     </div>
 
                     {/* Controles de Selección en Pantalla */}
-                    <div className="print:hidden no-print flex items-center justify-between pb-2 border-b border-[#2A2521]">
+                    <div className="print:hidden no-print flex items-center justify-between pb-2 border-b border-[var(--border-soft)]">
                       <button
                         type="button"
                         onClick={() => toggleSelectProduct(p.id)}
-                        className="flex items-center gap-1.5 text-xs font-semibold text-[#B8AFA3] hover:text-white cursor-pointer"
+                        className="flex items-center gap-1.5 text-xs font-semibold text-[var(--ink-secondary)] hover:text-white cursor-pointer"
                       >
-                        {isSelected ? <CheckSquare className="w-4 h-4 text-[#E0B441]" /> : <Square className="w-4 h-4" />}
+                        {isSelected ? <CheckSquare className="w-4 h-4 text-[var(--gold)]" /> : <Square className="w-4 h-4" />}
                         <span>{isSelected ? 'Incluido' : 'Omitir'}</span>
                       </button>
 
                       {isSelected && (
-                        <div className="flex items-center gap-1 bg-[#14110F] px-1.5 py-0.5 rounded-lg border border-[#3D3630]">
-                          <button onClick={() => handleCopiesChange(p.id, -1)} className="text-xs text-[#8B8378] hover:text-white px-1 cursor-pointer">-</button>
-                          <span className="text-[11px] font-mono font-bold text-[#E0B441]">{copies} copias</span>
-                          <button onClick={() => handleCopiesChange(p.id, 1)} className="text-xs text-[#8B8378] hover:text-white px-1 cursor-pointer">+</button>
+                        <div className="flex items-center gap-1 bg-[var(--bg-base)] px-1.5 py-0.5 rounded-lg border border-[var(--border-strong)]">
+                          <button onClick={() => handleCopiesChange(p.id, -1)} className="text-xs text-[var(--ink-tertiary)] hover:text-white px-1 cursor-pointer">-</button>
+                          <span className="text-[11px] font-mono font-bold text-[var(--gold)]">{copies} copias</span>
+                          <button onClick={() => handleCopiesChange(p.id, 1)} className="text-xs text-[var(--ink-tertiary)] hover:text-white px-1 cursor-pointer">+</button>
                         </div>
                       )}
                     </div>
 
                     {/* Cabecera del Sticker */}
-                    <div className="text-center pt-1 pb-1.5 border-b border-[#2A2521] print:border-gray-300">
-                      <span className="text-[8px] font-black uppercase tracking-widest text-[#E0B441] print:text-gray-700 block">
+                    <div className="text-center pt-1 pb-1.5 border-b border-[var(--border-soft)] print:border-gray-300">
+                      <span className="text-[8px] font-black uppercase tracking-widest text-[var(--gold)] print:text-gray-700 block">
                         ALACENA • {p.zone || 'DESPENSA'}
                       </span>
                       <h4 className="font-display text-sm font-extrabold text-white print:text-black leading-tight mt-0.5 line-clamp-1">
                         {p.name}
                       </h4>
-                      <span className="text-[10px] font-bold text-[#8B8378] print:text-gray-600 block mt-0.5">
+                      <span className="text-[10px] font-bold text-[var(--ink-tertiary)] print:text-gray-600 block mt-0.5">
                         {p.quantity} {p.unit} • {p.category || 'Insumo'}
                       </span>
                     </div>
@@ -881,17 +882,17 @@ export default function PantryQrBookletModal({
                     key={p.id}
                     className={`p-3 rounded-xl border transition-all flex items-center gap-3 break-inside-avoid ${
                       isSelected 
-                        ? 'bg-[#1C1814] border-[#3D3630] print:bg-white print:border print:border-gray-400 print:shadow-none' 
-                        : 'bg-[#14110F]/40 border-[#2A2521] opacity-40 print:hidden'
+                        ? 'bg-[var(--bg-elevated)] border-[var(--border-strong)] print:bg-white print:border print:border-gray-400 print:shadow-none' 
+                        : 'bg-[var(--bg-base)]/40 border-[var(--border-soft)] opacity-40 print:hidden'
                     }`}
                   >
                     {/* Checkbox en pantalla */}
                     <button
                       type="button"
                       onClick={() => toggleSelectProduct(p.id)}
-                      className="print:hidden no-print text-[#B8AFA3] hover:text-white shrink-0 cursor-pointer"
+                      className="print:hidden no-print text-[var(--ink-secondary)] hover:text-white shrink-0 cursor-pointer"
                     >
-                      {isSelected ? <CheckSquare className="w-4 h-4 text-[#E5724A]" /> : <Square className="w-4 h-4" />}
+                      {isSelected ? <CheckSquare className="w-4 h-4 text-[var(--ember)]" /> : <Square className="w-4 h-4" />}
                     </button>
 
                     {/* QR Code Compacto para Lectura Rápida en Tablero */}
@@ -909,7 +910,7 @@ export default function PantryQrBookletModal({
                     {/* Ficha de Pedido & Salida */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="text-[8px] font-black uppercase text-[#E5724A] print:text-gray-700 font-mono">
+                        <span className="text-[8px] font-black uppercase text-[var(--ember)] print:text-gray-700 font-mono">
                           {barcode}
                         </span>
                         <span className="text-[8px] font-bold text-gray-500">
@@ -921,13 +922,13 @@ export default function PantryQrBookletModal({
                         {p.name}
                       </h4>
 
-                      <div className="flex items-center justify-between text-[9px] text-[#B8AFA3] print:text-gray-600 mt-1">
+                      <div className="flex items-center justify-between text-[9px] text-[var(--ink-secondary)] print:text-gray-600 mt-1">
                         <span>Min: <strong>{p.minStock || 1}</strong></span>
                         <span>Max: <strong>{p.maxStock || 4} {p.unit}</strong></span>
                       </div>
 
                       {/* Botones / Instrucciones de Escaneo */}
-                      <div className="mt-1 pt-1 border-t border-[#2A2521] print:border-gray-200 flex items-center justify-between text-[8px] font-bold">
+                      <div className="mt-1 pt-1 border-t border-[var(--border-soft)] print:border-gray-200 flex items-center justify-between text-[8px] font-bold">
                         <span className="text-emerald-400 print:text-emerald-800">🛒 Pedir Súper</span>
                         <span className="text-amber-400 print:text-amber-800">➖ Salida Cocina</span>
                       </div>
@@ -953,16 +954,16 @@ export default function PantryQrBookletModal({
                     key={p.id}
                     className={`p-4 rounded-2xl border transition-all flex flex-col justify-between break-inside-avoid relative text-center ${
                       isSelected 
-                        ? 'bg-[#1C1814] border-[#A83A50]/40 print:bg-white print:border-2 print:border-gray-600' 
-                        : 'bg-[#14110F]/40 border-[#2A2521] opacity-40 print:hidden'
+                        ? 'bg-[var(--bg-elevated)] border-[var(--wine-bright)]/40 print:bg-white print:border-2 print:border-gray-600' 
+                        : 'bg-[var(--bg-base)]/40 border-[var(--border-soft)] opacity-40 print:hidden'
                     }`}
                   >
                     {/* Controles en Pantalla */}
-                    <div className="print:hidden no-print flex items-center justify-between pb-2 border-b border-[#2A2521] mb-2">
+                    <div className="print:hidden no-print flex items-center justify-between pb-2 border-b border-[var(--border-soft)] mb-2">
                       <button
                         type="button"
                         onClick={() => toggleSelectProduct(p.id)}
-                        className="flex items-center gap-1.5 text-xs font-semibold text-[#B8AFA3] hover:text-white cursor-pointer"
+                        className="flex items-center gap-1.5 text-xs font-semibold text-[var(--ink-secondary)] hover:text-white cursor-pointer"
                       >
                         {isSelected ? <CheckSquare className="w-4 h-4 text-rose-400" /> : <Square className="w-4 h-4" />}
                         <span>{isSelected ? 'Incluido' : 'Omitir'}</span>
@@ -981,7 +982,7 @@ export default function PantryQrBookletModal({
 
                     {/* Ficha Sommelier de la Botella */}
                     <div className="py-2">
-                      <span className="text-[8px] font-black uppercase tracking-widest text-[#A83A50] block">
+                      <span className="text-[8px] font-black uppercase tracking-widest text-[var(--wine-bright)] block">
                         CAVAPRO • GRAN RESERVA
                       </span>
                       <h4 className="font-display text-sm font-bold text-white print:text-black leading-tight mt-0.5 line-clamp-1">
@@ -1036,8 +1037,8 @@ export default function PantryQrBookletModal({
                     key={p.id}
                     className={`p-3 rounded-xl border transition-all flex items-center gap-3 break-inside-avoid ${
                       isSelected 
-                        ? 'bg-[#1C1814] border-[#3D3630] print:bg-white print:border print:border-gray-300' 
-                        : 'bg-[#14110F]/40 border-[#2A2521] opacity-40 print:hidden'
+                        ? 'bg-[var(--bg-elevated)] border-[var(--border-strong)] print:bg-white print:border print:border-gray-300' 
+                        : 'bg-[var(--bg-base)]/40 border-[var(--border-soft)] opacity-40 print:hidden'
                     }`}
                   >
                     <div className="p-1.5 bg-white rounded-lg border border-gray-200 shrink-0">
@@ -1052,7 +1053,7 @@ export default function PantryQrBookletModal({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="text-[8px] font-black uppercase text-[#E0B441] print:text-gray-600 font-mono">
+                        <span className="text-[8px] font-black uppercase text-[var(--gold)] print:text-gray-600 font-mono">
                           {barcode}
                         </span>
                         <span className="text-[9px] font-bold text-gray-500">
@@ -1087,8 +1088,8 @@ export default function PantryQrBookletModal({
                     key={p.id}
                     className={`p-3.5 rounded-2xl border transition-all flex flex-col justify-between break-inside-avoid relative ${
                       isSelected 
-                        ? 'bg-[#141A24] border-sky-500/40 print:bg-white print:border-2 print:border-sky-800' 
-                        : 'bg-[#14110F]/40 border-[#2A2521] opacity-40 print:hidden'
+                        ? 'bg-[var(--bg-elevated)] border-sky-500/40 print:bg-white print:border-2 print:border-sky-800' 
+                        : 'bg-[var(--bg-base)]/40 border-[var(--border-soft)] opacity-40 print:hidden'
                     }`}
                   >
                     <div className="flex items-center justify-between pb-2 border-b border-sky-500/20">
@@ -1145,7 +1146,7 @@ export default function PantryQrBookletModal({
               MODO ESPECIAL: PROGRAMADOR DE TAGS NFC FÍSICOS
              ═════════════════════════════════════════════════════════════ */}
           {printFormat === 'NFC_WRITER' && (
-            <div className="max-w-2xl mx-auto p-4 sm:p-6 rounded-3xl bg-[#141824] border border-[#232A3E] space-y-5">
+            <div className="max-w-2xl mx-auto p-4 sm:p-6 rounded-3xl bg-[var(--bg-elevated)] border border-[var(--border-soft)] space-y-5">
               <div className="flex items-start gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400 shrink-0">
                   <Radio className="w-6 h-6 animate-pulse" />
@@ -1154,14 +1155,14 @@ export default function PantryQrBookletModal({
                   <h3 className="text-base font-extrabold text-white">
                     Programador de Stickers NFC para el Hogar
                   </h3>
-                  <p className="text-xs text-[#94A3B8] mt-1 leading-relaxed">
+                  <p className="text-xs text-[var(--ink-secondary)] mt-1 leading-relaxed">
                     Usa cualquier sticker NFC estándar (chips <strong>NTAG213 / NTAG215</strong>). Pégalos debajo de las repisas, en la puerta de la alacena, en botes o en botellas de vino.
                   </p>
                 </div>
               </div>
 
               {/* Selector de Producto a Grabar */}
-              <div className="p-4 rounded-2xl bg-[#0F121C] border border-[#1E2333] space-y-3">
+              <div className="p-4 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-soft)] space-y-3">
                 <label className="text-xs font-bold text-gray-300 block">
                   1. Selecciona el insumo que deseas grabar en el sticker NFC:
                 </label>
@@ -1171,7 +1172,7 @@ export default function PantryQrBookletModal({
                     const sel = products.find(p => p.id === e.target.value);
                     if (sel) setNfcSelectedProduct(sel);
                   }}
-                  className="w-full px-3 py-2.5 rounded-xl bg-[#171D2D] border border-[#2A334C] text-sm text-white font-medium outline-none"
+                  className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-soft)] text-sm text-white font-medium outline-none"
                 >
                   {products.map(p => (
                     <option key={p.id} value={p.id}>
@@ -1252,7 +1253,7 @@ export default function PantryQrBookletModal({
         </div>
 
         {/* Footer en Pantalla */}
-        <div className="p-4 border-t border-[#2A2521] bg-[#1C1814] flex items-center justify-between text-xs text-[#8B8378] print:hidden no-print flex-wrap gap-2">
+        <div className="p-4 border-t border-[var(--border-soft)] bg-[var(--bg-elevated)] flex items-center justify-between text-xs text-[var(--ink-tertiary)] print:hidden no-print flex-wrap gap-2">
           <span>
             💡 <strong>Consejo para el Hogar:</strong> Plastifica la hoja del <em>Tablero de Pedidos</em> y cuélgala en la puerta de la alacena para inventariar sin abrir cada frasco.
           </span>

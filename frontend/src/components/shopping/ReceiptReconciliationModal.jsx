@@ -70,10 +70,10 @@ export default function ReceiptReconciliationModal({
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Guardar mi compra" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-lg bg-[#1C1814] border border-[#3D3630] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-lg bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header Modal */}
-        <div className="p-6 border-b border-[#2A2521] bg-gradient-to-r from-[#1C1814] via-[#2A1F1A] to-[#1C1814] flex items-center justify-between">
+        <div className="p-6 border-b border-[var(--border-soft)] bg-gradient-to-r from-[var(--bg-elevated)] via-[var(--bg-elevated)] to-[var(--bg-elevated)] flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
               <Receipt className="w-6 h-6" />
@@ -82,7 +82,7 @@ export default function ReceiptReconciliationModal({
               <h3 className="font-display text-xl font-bold text-white tracking-tight">
                 Guardar mi compra
               </h3>
-              <p className="text-xs text-[#B8AFA3] mt-0.5">
+              <p className="text-xs text-[var(--ink-secondary)] mt-0.5">
                 Ingreso de {checkedItems.length} artículos a la despensa y control de gasto real
               </p>
             </div>
@@ -100,7 +100,7 @@ export default function ReceiptReconciliationModal({
 
           {/* Resumen de Artículos a Transferir */}
           <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-            <div className="flex items-center justify-between text-xs font-semibold text-[#B8AFA3] mb-2">
+            <div className="flex items-center justify-between text-xs font-semibold text-[var(--ink-secondary)] mb-2">
               <span>Artículos seleccionados ({checkedItems.length})</span>
               <span>Total Estimado: ${totalEstimatedMxn.toFixed(2)} {currency}</span>
             </div>
@@ -123,7 +123,7 @@ export default function ReceiptReconciliationModal({
             
             {/* Estimado de la app */}
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-              <span className="text-[11px] font-semibold text-[#8B8378] block">Estimado en Lista</span>
+              <span className="text-[11px] font-semibold text-[var(--ink-tertiary)] block">Estimado en Lista</span>
               <div className="text-xl font-display font-bold text-gray-300 mt-1 font-mono">
                 ${totalEstimatedMxn.toFixed(2)}
               </div>
@@ -180,27 +180,27 @@ export default function ReceiptReconciliationModal({
 
           {/* Responsable de la Compra */}
           <div>
-            <label className="block text-xs font-bold text-[#E0B441] mb-1.5 flex items-center gap-1.5">
+            <label className="block text-xs font-bold text-[var(--gold)] mb-1.5 flex items-center gap-1.5">
               <User className="w-3.5 h-3.5" />
               <span>Personal que realizó la compra</span>
             </label>
             <select
               value={buyerName}
               onChange={(e) => setBuyerName(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#E0B441]"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[var(--gold)]"
             >
               {catalogs.staff?.map((s) => (
-                <option key={s.id || s.name} value={s.name} className="bg-[#1C1814] text-white">
+                <option key={s.id || s.name} value={s.name} className="bg-[var(--bg-elevated)] text-white">
                   {s.name} ({s.role || 'Servicio'})
                 </option>
               ))}
-              <option value="Patrón / Administrador" className="bg-[#1C1814] text-white">Patrón / Administrador</option>
+              <option value="Patrón / Administrador" className="bg-[var(--bg-elevated)] text-white">Patrón / Administrador</option>
             </select>
           </div>
 
           {/* Folio / Notas de Ticket */}
           <div>
-            <label className="block text-xs font-semibold text-[#B8AFA3] mb-1.5">
+            <label className="block text-xs font-semibold text-[var(--ink-secondary)] mb-1.5">
               Folio de Ticket o Notas (opcional)
             </label>
             <input
@@ -208,14 +208,14 @@ export default function ReceiptReconciliationModal({
               value={ticketNotes}
               onChange={(e) => setTicketNotes(e.target.value)}
               aria-label="Notas de la compra" placeholder="Ej. Ticket #88492 Costco Valle, pago con tarjeta corporativa"
-              className="w-full px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#E0B441]"
+              className="w-full px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--gold)]"
             />
           </div>
 
         </div>
 
         {/* Footer Actions */}
-        <div className="p-6 border-t border-[#2A2521] bg-[#12100E] flex items-center justify-end gap-3">
+        <div className="p-6 border-t border-[var(--border-soft)] bg-[var(--bg-base)] flex items-center justify-end gap-3">
           <button
             onClick={() => { audio.click(); onClose(); }}
             className="px-4 py-2.5 rounded-xl text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/5 transition-all"

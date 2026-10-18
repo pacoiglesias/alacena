@@ -9,6 +9,8 @@ import { onAuthStateChanged, getIdTokenResult } from 'firebase/auth';
 import { auth } from './services/firebase';
 import Header from './components/layout/Header';
 import BottomNavBar from './components/layout/BottomNavBar';
+import NoticeHost from './components/common/NoticeHost';
+import { notify, confirmDialog } from './services/notice';
 const InventoryView = lazy(() => import('./components/inventory/InventoryView'));
 const ManualProductModal = lazy(() => import('./components/inventory/ManualProductModal'));
 import ShoppingListView from './components/shopping/ShoppingListView';
@@ -513,7 +515,7 @@ export default function App() {
     shoppingList.filter((i) => !ids.has(i.id)).forEach((i) => deleteShoppingItemFromCloud(i.id));
     clean.forEach(saveShoppingItemToCloud);
     setShoppingList(clean);
-    alert(clean.length < shoppingList.length ? 'Se combinaron los productos repetidos de la misma casa y unidad.' : 'Tu lista no tiene productos repetidos.');
+    notify(clean.length < shoppingList.length ? 'Se combinaron los productos repetidos de la misma casa y unidad.' : 'Tu lista no tiene productos repetidos.');
   };
 
   const handleClearCheckedShoppingItems = () => {
@@ -524,8 +526,8 @@ export default function App() {
     audio.click();
   };
 
-  const handleClearAllShoppingItems = () => {
-    if (confirm('¿Deseas vaciar por completo la lista de compras?')) {
+  const handleClearAllShoppingItems = async () => {
+    if (await confirmDialog('¿Deseas vaciar por completo la lista de compras?')) {
       shoppingList.filter((i) => belongsToHouse(i, activeHouse.id)).forEach((i) => deleteShoppingItemFromCloud(i.id));
       setShoppingList((prev) => prev.filter((i) => !belongsToHouse(i, activeHouse.id)));
       audio.click();
@@ -538,7 +540,7 @@ export default function App() {
     if (!recorded || recorded.reversed || !belongsToHouse(receipt, activeHouse.id)) return;
     const target = products.find((p) => sameStockItem(p, { ...item, householdId: activeHouse.id }));
     if (!target || target.quantity < item.quantity) {
-      alert('No hay suficiente existencia para devolver esta cantidad. Revisa si ya se consumió parte de la compra.'); return;
+      notify('No hay suficiente existencia para devolver esta cantidad. Revisa si ya se consumió parte de la compra.'); return;
     }
     const updated = { ...target, quantity: Math.round((target.quantity - item.quantity) * 1000) / 1000, updatedAt: new Date().toISOString() };
     const updatedReceipt = { ...receipt, items: receipt.items.map((i) => i.id === item.id && i.name === item.name ? { ...i, reversed: true } : i) };
@@ -557,7 +559,7 @@ export default function App() {
       store: p.store || 'Supermercado', estimatedPriceMxn: p.unitPriceMxn || 0,
       targetZone: p.zone || zones[0]?.name || 'Alacena Principal', checked: false,
     }));
-    alert(additions.length ? 'Se agregaron ' + additions.length + ' artículos que faltan en esta casa.' : low.length ? 'Los faltantes ya están en tu lista.' : 'La despensa de esta casa tiene suficiente stock.');
+    notify(additions.length ? 'Se agregaron ' + additions.length + ' artículos que faltan en esta casa.' : low.length ? 'Los faltantes ya están en tu lista.' : 'La despensa de esta casa tiene suficiente stock.');
   };
 
   const handleCompletePurchaseToPantry = (purchasePayload) => {
@@ -853,7 +855,7 @@ export default function App() {
       targetZone: product.zone || 'Alacena Principal',
       checked: false,
     });
-    alert(`✅ "${product.name}" agregado a tu Lista de Compras.`);
+    notify(`✅ "${product.name}" agregado a tu Lista de Compras.`);
   };
 
   const handleOpenManualCaptureWithBarcode = (barcodeData) => {
@@ -971,12 +973,12 @@ export default function App() {
     a.download = `alacena-cavapro-backup-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    alert('💾 Copia de seguridad descargada exitosamente en formato JSON.');
+    notify('💾 Copia de seguridad descargada exitosamente en formato JSON.');
   };
 
   // Reset demo data
-  const handleResetDemoData = () => {
-    if (window.confirm('¿Deseas restaurar los datos de demostración con precios en MXN?')) {
+  const handleResetDemoData = async () => {
+    if (await confirmDialog('¿Deseas restaurar los datos de demostración con precios en MXN?')) {
       setProducts(INITIAL_PRODUCTS);
       setShoppingList(INITIAL_SHOPPING_LIST);
       setZones(INITIAL_ZONES);
@@ -1255,6 +1257,7 @@ export default function App() {
         onOpenScanner={() => setIsScannerOpen(true)}
         onOpenCommandCenter={() => setIsCommandCenterOpen(true)}
       />
+      <NoticeHost />
 
     </div>
   );

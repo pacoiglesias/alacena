@@ -35,10 +35,10 @@ export default function CavaProCommandCenterModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col rounded-3xl bg-[#0F172A] border border-white/10 shadow-2xl">
+      <div className="relative w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col rounded-3xl bg-[var(--bg-sunken)] border border-white/10 shadow-2xl">
         
         {/* Header: CAVAPRO v5.0 */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10 bg-[#141E33]">
+        <div className="flex items-center justify-between p-6 border-b border-white/10 bg-[var(--bg-elevated)]">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-500 text-white shadow-lg shadow-rose-950/40">
               <Sparkles className="w-6 h-6" />
@@ -277,7 +277,7 @@ export default function CavaProCommandCenterModal({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-white/10 bg-[#131C31] flex items-center justify-between">
+        <div className="p-4 border-t border-white/10 bg-[var(--bg-elevated)] flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
             <span>ALACENA Enterprise (CavaPro v5.0 Engine) • Spark 0 USD</span>

@@ -115,10 +115,10 @@ export default function AddWineModal({ isOpen, onClose, onSave, zones }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl bg-[#0F172A] border border-white/10 shadow-2xl">
+      <div className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl bg-[var(--bg-sunken)] border border-white/10 shadow-2xl">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10 bg-[#151D2A] sticky top-0 z-10">
+        <div className="flex items-center justify-between p-6 border-b border-white/10 bg-[var(--bg-elevated)] sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-400">
               <Wine className="w-6 h-6" />
@@ -204,7 +204,7 @@ export default function AddWineModal({ isOpen, onClose, onSave, zones }) {
               <select
                 value={wineType}
                 onChange={(e) => setWineType(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[#1E293B] border border-white/10 text-white text-sm"
+                className="w-full px-3 py-2 rounded-xl bg-[var(--bg-elevated)] border border-white/10 text-white text-sm"
               >
                 {WINE_TYPES.map((t) => (
                   <option key={t} value={t}>{t}</option>
@@ -222,7 +222,7 @@ export default function AddWineModal({ isOpen, onClose, onSave, zones }) {
               <select
                 value={countryCode}
                 onChange={handleCountryChange}
-                className="w-full px-3 py-2 rounded-xl bg-[#1E293B] border border-white/10 text-white text-sm font-bold"
+                className="w-full px-3 py-2 rounded-xl bg-[var(--bg-elevated)] border border-white/10 text-white text-sm font-bold"
               >
                 {WINE_COUNTRIES.map((c) => (
                   <option key={c.code} value={c.code}>
@@ -239,7 +239,7 @@ export default function AddWineModal({ isOpen, onClose, onSave, zones }) {
               <select
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[#1E293B] border border-white/10 text-white text-sm"
+                className="w-full px-3 py-2 rounded-xl bg-[var(--bg-elevated)] border border-white/10 text-white text-sm"
               >
                 {currentCountry.regions.map((r) => (
                   <option key={r} value={r}>{r}</option>
@@ -258,7 +258,7 @@ export default function AddWineModal({ isOpen, onClose, onSave, zones }) {
               <select
                 value={grape}
                 onChange={(e) => setGrape(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[#1E293B] border border-white/10 text-white text-sm"
+                className="w-full px-3 py-2 rounded-xl bg-[var(--bg-elevated)] border border-white/10 text-white text-sm"
               >
                 {GRAPES.map((g) => (
                   <option key={g} value={g}>{g}</option>
@@ -326,7 +326,7 @@ export default function AddWineModal({ isOpen, onClose, onSave, zones }) {
               <select
                 value={cellarZone}
                 onChange={(e) => setCellarZone(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[#1E293B] border border-white/10 text-white text-sm"
+                className="w-full px-3 py-2 rounded-xl bg-[var(--bg-elevated)] border border-white/10 text-white text-sm"
               >
                 {zones.map((z) => (
                   <option key={z.id} value={z.name}>{z.name}</option>

@@ -157,19 +157,19 @@ export default function CustomTabNamesModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-xl rounded-3xl bg-[#14110F] border border-[#E0B441]/35 shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
+      <div className="relative w-full max-w-xl rounded-3xl bg-[var(--bg-base)] border border-[var(--gold)]/35 shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[#2A2521] bg-[#1C1814]">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[var(--border-soft)] bg-[var(--bg-elevated)]">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-[#E0B441]/15 text-[#E0B441] border border-[#E0B441]/30">
+            <div className="p-2.5 rounded-2xl bg-[var(--gold)]/15 text-[var(--gold)] border border-[var(--gold)]/30">
               <Sliders className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-display font-bold text-[#F2EDE4]">
+              <h2 className="text-lg sm:text-xl font-display font-bold text-[var(--ink-primary)]">
                 Configurar Menú del Hogar
               </h2>
-              <p className="text-xs text-[#B8AFA3]">
+              <p className="text-xs text-[var(--ink-secondary)]">
                 Renombra, oculta lo que no uses o agrega pestañas personalizadas con 1 toque
               </p>
             </div>
@@ -179,7 +179,7 @@ export default function CustomTabNamesModal({
               audio.click();
               onClose();
             }}
-            className="p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/10 transition-colors"
+            className="p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/10 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -190,7 +190,7 @@ export default function CustomTabNamesModal({
           
           {/* Presets Rápidos */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-[#E0B441] uppercase tracking-wider flex items-center gap-1.5">
+            <label className="text-xs font-bold text-[var(--gold)] uppercase tracking-wider flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
               Plantillas Rápidas de 1 Clic
             </label>
@@ -200,9 +200,9 @@ export default function CustomTabNamesModal({
                   key={preset.name}
                   type="button"
                   onClick={() => handleApplyPreset(preset)}
-                  className="p-2.5 rounded-xl bg-[#1C1814] hover:bg-[#25201A] border border-[#3D3630] hover:border-[#E0B441]/40 text-left transition-all group"
+                  className="p-2.5 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--bg-elevated)] border border-[var(--border-strong)] hover:border-[var(--gold)]/40 text-left transition-all group"
                 >
-                  <span className="text-xs font-semibold text-[#F2EDE4] group-hover:text-[#E0B441] transition-colors block leading-tight">
+                  <span className="text-xs font-semibold text-[var(--ink-primary)] group-hover:text-[var(--gold)] transition-colors block leading-tight">
                     {preset.name}
                   </span>
                 </button>
@@ -213,14 +213,14 @@ export default function CustomTabNamesModal({
           {/* Lista de Pestañas Configurables (Quitar / Mostrar / Renombrar) */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-[#E0B441] uppercase tracking-wider flex items-center gap-1.5">
+              <label className="text-xs font-bold text-[var(--gold)] uppercase tracking-wider flex items-center gap-1.5">
                 <Edit3 className="w-3.5 h-3.5" />
                 Pestañas del Menú (Visibilidad y Nombres)
               </label>
               <button
                 type="button"
                 onClick={() => setIsAddingCustom(!isAddingCustom)}
-                className="text-xs font-semibold text-[#E0B441] hover:underline flex items-center gap-1"
+                className="text-xs font-semibold text-[var(--gold)] hover:underline flex items-center gap-1"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>+ Agregar Pestaña</span>
@@ -229,10 +229,10 @@ export default function CustomTabNamesModal({
 
             {/* Formulario para agregar pestaña nueva */}
             {isAddingCustom && (
-              <form onSubmit={handleAddCustomTab} className="p-3.5 rounded-2xl bg-[#1C1814] border border-[#E0B441]/40 space-y-3 animate-fade-in">
+              <form onSubmit={handleAddCustomTab} className="p-3.5 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--gold)]/40 space-y-3 animate-fade-in">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#F2EDE4]">Nueva Pestaña Personalizada</span>
-                  <button type="button" onClick={() => setIsAddingCustom(false)} className="text-xs text-[#8B8378] hover:text-white">✕</button>
+                  <span className="text-xs font-bold text-[var(--ink-primary)]">Nueva Pestaña Personalizada</span>
+                  <button type="button" onClick={() => setIsAddingCustom(false)} className="text-xs text-[var(--ink-tertiary)] hover:text-white">✕</button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input
@@ -240,13 +240,13 @@ export default function CustomTabNamesModal({
                     value={newTabName}
                     onChange={(e) => setNewTabName(e.target.value)}
                     placeholder="Nombre (ej. Cuarto Frío, Bar)..."
-                    className="p-2 rounded-xl bg-[#14110F] border border-[#3D3630] text-xs text-[#F2EDE4] outline-none focus:border-[#E0B441]"
+                    className="p-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)] text-xs text-[var(--ink-primary)] outline-none focus:border-[var(--gold)]"
                     required
                   />
                   <select
                     value={newTabIcon}
                     onChange={(e) => setNewTabIcon(e.target.value)}
-                    className="p-2 rounded-xl bg-[#14110F] border border-[#3D3630] text-xs text-[#B8AFA3] outline-none"
+                    className="p-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)] text-xs text-[var(--ink-secondary)] outline-none"
                   >
                     <option value="Snowflake">❄️ Congelador / Frío</option>
                     <option value="Wine">🍷 Bar / Licores</option>
@@ -259,11 +259,11 @@ export default function CustomTabNamesModal({
 
                 {zones.length > 0 && (
                   <div>
-                    <label className="text-[11px] text-[#8B8378] block mb-1">Vincular a una Zona Física (Opcional):</label>
+                    <label className="text-[11px] text-[var(--ink-tertiary)] block mb-1">Vincular a una Zona Física (Opcional):</label>
                     <select
                       value={newTabZone}
                       onChange={(e) => setNewTabZone(e.target.value)}
-                      className="w-full p-2 rounded-xl bg-[#14110F] border border-[#3D3630] text-xs text-[#F2EDE4] outline-none"
+                      className="w-full p-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-strong)] text-xs text-[var(--ink-primary)] outline-none"
                     >
                       <option value="">Ninguna (General)</option>
                       {zones.map((z) => (
@@ -277,13 +277,13 @@ export default function CustomTabNamesModal({
                   <button
                     type="button"
                     onClick={() => setIsAddingCustom(false)}
-                    className="px-3 py-1.5 rounded-lg border border-[#3D3630] text-xs text-[#B8AFA3]"
+                    className="px-3 py-1.5 rounded-lg border border-[var(--border-strong)] text-xs text-[var(--ink-secondary)]"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-1.5 rounded-lg bg-[#E0B441] text-[#12100E] font-bold text-xs hover:brightness-110"
+                    className="px-4 py-1.5 rounded-lg bg-[var(--gold)] text-[var(--on-gold)] font-bold text-xs hover:brightness-110"
                   >
                     Guardar Pestaña
                   </button>
@@ -300,8 +300,8 @@ export default function CustomTabNamesModal({
                     key={tab.id}
                     className={`p-3 rounded-2xl border transition-all flex items-center gap-3 ${
                       tab.enabled 
-                        ? 'bg-[#1C1814] border-[#3D3630]' 
-                        : 'bg-[#14110F]/50 border-[#2A2521] opacity-50'
+                        ? 'bg-[var(--bg-elevated)] border-[var(--border-strong)]' 
+                        : 'bg-[var(--bg-base)]/50 border-[var(--border-soft)] opacity-50'
                     }`}
                   >
                     {/* Botón de Visibilidad (Ocultar / Mostrar) */}
@@ -311,7 +311,7 @@ export default function CustomTabNamesModal({
                       className={`p-2 rounded-xl border transition-all shrink-0 ${
                         tab.enabled
                           ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25'
-                          : 'bg-white/5 border-[#2A2521] text-[#6E655F] hover:text-white'
+                          : 'bg-white/5 border-[var(--border-soft)] text-[var(--ink-tertiary)] hover:text-white'
                       }`}
                       title={tab.enabled ? 'Ocultar esta pestaña del menú' : 'Mostrar esta pestaña en el menú'}
                     >
@@ -332,11 +332,11 @@ export default function CustomTabNamesModal({
                         type="text"
                         value={tab.label}
                         onChange={(e) => handleRenameTab(tab.id, e.target.value)}
-                        className="w-full bg-transparent text-sm font-semibold text-[#F2EDE4] px-2 py-1 rounded-lg border border-transparent focus:border-[#E0B441] focus:bg-[#14110F] outline-none transition-all"
+                        className="w-full bg-transparent text-sm font-semibold text-[var(--ink-primary)] px-2 py-1 rounded-lg border border-transparent focus:border-[var(--gold)] focus:bg-[var(--bg-base)] outline-none transition-all"
                         placeholder="Nombre de la pestaña..."
                       />
                       {!tab.isSystem && tab.targetZone && (
-                        <span className="text-[10px] text-[#E0B441] font-mono pl-2 block">
+                        <span className="text-[10px] text-[var(--gold)] font-mono pl-2 block">
                           → Filtra Zona: {tab.targetZone}
                         </span>
                       )}
@@ -347,7 +347,7 @@ export default function CustomTabNamesModal({
                       <button
                         type="button"
                         onClick={() => handleDeleteCustomTab(tab.id)}
-                        className="p-1.5 rounded-lg text-[#8B8378] hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0"
+                        className="p-1.5 rounded-lg text-[var(--ink-tertiary)] hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0"
                         title="Eliminar pestaña personalizada"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -362,11 +362,11 @@ export default function CustomTabNamesModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-t border-[#2A2521] bg-[#1C1814] flex-wrap gap-3">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-t border-[var(--border-soft)] bg-[var(--bg-elevated)] flex-wrap gap-3">
           <button
             type="button"
             onClick={handleResetDefaults}
-            className="flex items-center gap-1.5 text-xs font-semibold text-[#8B8378] hover:text-rose-400 transition-colors"
+            className="flex items-center gap-1.5 text-xs font-semibold text-[var(--ink-tertiary)] hover:text-rose-400 transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Restaurar Predeterminados</span>
@@ -379,7 +379,7 @@ export default function CustomTabNamesModal({
                 audio.click();
                 onClose();
               }}
-              className="px-4 py-2.5 rounded-xl border border-[#3D3630] text-xs sm:text-sm font-semibold text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all"
+              className="px-4 py-2.5 rounded-xl border border-[var(--border-strong)] text-xs sm:text-sm font-semibold text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all"
             >
               Cancelar
             </button>
@@ -387,7 +387,7 @@ export default function CustomTabNamesModal({
             <button
               type="button"
               onClick={handleSubmit}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#E0B441] to-[#E5724A] text-[#12100E] font-bold text-xs sm:text-sm hover:brightness-110 shadow-lg shadow-[#E0B441]/20 transition-all active:scale-95"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[var(--gold)] to-[var(--ember)] text-[var(--on-gold)] font-bold text-xs sm:text-sm hover:brightness-110 shadow-lg shadow-[var(--gold)]/20 transition-all active:scale-95"
             >
               <Check className="w-4 h-4" />
               <span>Guardar Configuración</span>

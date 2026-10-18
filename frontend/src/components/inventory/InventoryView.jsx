@@ -3,15 +3,17 @@ import {
   Search, Plus, Filter, AlertTriangle, CheckCircle, 
   Trash2, Pencil, ArrowUpDown, DollarSign, Layers, Warehouse,
   LayoutGrid, Table as TableIcon, Wine, Sparkles, MapPin, Star, ShoppingCart,
-  Clock, FileSpreadsheet, Utensils, Check, QrCode, Radio, Camera
+  Clock, FileSpreadsheet, Utensils, Check, QrCode, Radio, Camera, ChevronDown, BarChart3
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { isCavaZone } from '../../utils/cavaGuard';
 import ZonesBar from '../zones/ZonesBar';
 import ProactiveHomeAdvisor from '../assistant/ProactiveHomeAdvisor';
+import ProductPhoto from '../common/ProductPhoto';
 import ItemQrModal from '../shopping/ItemQrModal';
 import PantryQrBookletModal from '../shopping/PantryQrBookletModal';
 import InventoryChartsWidget from './InventoryChartsWidget';
+import { confirmDialog } from '../../services/notice';
 
 // Helper: cálculo del estado de caducidad FEFO
 export function getExpiryStatus(expiryDate) {
@@ -20,10 +22,10 @@ export function getExpiryStatus(expiryDate) {
   const exp = new Date(expiryDate);
   const diffTime = exp.getTime() - now.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return { label: 'Caducado', days: diffDays, level: 'expired', badgeClass: 'bg-rose-500/20 text-rose-400 border border-rose-500/40' };
-  if (diffDays <= 3) return { label: `Vence en ${diffDays}d`, days: diffDays, level: 'critical', badgeClass: 'bg-rose-500/20 text-rose-400 border border-rose-500/50 animate-pulse' };
-  if (diffDays <= 15) return { label: `Vence en ${diffDays}d`, days: diffDays, level: 'warning', badgeClass: 'bg-amber-500/20 text-amber-300 border border-amber-500/40' };
-  return { label: `Vence en ${diffDays}d`, days: diffDays, level: 'good', badgeClass: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' };
+  if (diffDays < 0) return { label: 'Caducado', days: diffDays, level: 'expired', badgeClass: 'bg-rose-600 text-white border border-rose-400 font-extrabold shadow-sm' };
+  if (diffDays <= 3) return { label: `Vence en ${diffDays}d`, days: diffDays, level: 'critical', badgeClass: 'bg-rose-500 text-white border border-rose-300 font-extrabold shadow-sm animate-pulse' };
+  if (diffDays <= 15) return { label: `Vence en ${diffDays}d`, days: diffDays, level: 'warning', badgeClass: 'bg-amber-400 text-[var(--on-gold)] border border-amber-200 font-extrabold shadow-sm' };
+  return { label: `Vence en ${diffDays}d`, days: diffDays, level: 'good', badgeClass: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' };
 }
 
 // Helper: estilo de vino para borde izquierdo y silueta
@@ -61,6 +63,10 @@ export default function InventoryView({
   const [quickAddedId, setQuickAddedId] = useState(null);
   const [selectedQrProduct, setSelectedQrProduct] = useState(null);
   const [isQrBookletOpen, setIsQrBookletOpen] = useState(false);
+  // Resumen colapsable: abierto en escritorio, colapsado en móvil (la grilla manda)
+  const [showSummary, setShowSummary] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth >= 1024
+  );
   const searchInputRef = useRef(null);
 
   // Botellas exclusivas en la Cava
@@ -210,19 +216,40 @@ export default function InventoryView({
   return (
     <div className="space-y-6">
       
+      {/* ═════════════════════════════════════════════════════════════════
+          RESUMEN COLAPSABLE — métricas, gráficas y asistente.
+          La grilla de productos es la protagonista.
+         ═════════════════════════════════════════════════════════════════ */}
+      <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-elevated)]/60 overflow-hidden">
+        <button
+          onClick={() => { audio.click(); setShowSummary((v) => !v); }}
+          aria-expanded={showSummary}
+          className="w-full min-h-[44px] flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-white/[0.02] transition-colors"
+        >
+          <span className="flex items-center gap-2 text-sm font-bold text-[var(--ink-primary)]">
+            <BarChart3 className="w-4 h-4 text-[var(--gold)]" />
+            Resumen
+            <span className="text-[11px] font-medium text-[var(--ink-tertiary)]">
+              {metrics.totalItems} insumos · {metrics.lowStockCount} por agotarse · {metrics.expiringSoonCount} por vencer
+            </span>
+          </span>
+          <ChevronDown className={`w-4 h-4 text-[var(--ink-tertiary)] transition-transform duration-200 ${showSummary ? 'rotate-180' : ''}`} />
+        </button>
+        {showSummary && (
+          <div className="px-3 pb-4 sm:px-4 space-y-6 animate-fade-in">
       {/* Top Metrics Cards (Luxe Look in MXN) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         
         {/* 1. Total Artículos en Casa */}
-        <div className="rounded-2xl p-3.5 sm:p-5 flex items-center justify-between border border-[#1E2638] bg-[#121622] shadow-sm hover:border-emerald-500/30 transition-all">
+        <div className="rounded-2xl p-3.5 sm:p-5 flex items-center justify-between border border-[var(--border-soft)] bg-[var(--bg-elevated)] shadow-sm hover:border-emerald-500/30 transition-all">
           <div className="min-w-0">
-            <span className="text-[10px] sm:text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider block truncate">
+            <span className="text-[10px] sm:text-[11px] font-bold text-[var(--ink-secondary)] uppercase tracking-wider block truncate">
               En Despensa & Cava
             </span>
             <div className="text-xl sm:text-3xl font-black text-white mt-0.5 sm:mt-1 font-mono-num truncate">
-              {metrics.totalItems} <span className="text-[10px] sm:text-xs text-[#94A3B8] font-sans font-normal">insumos</span>
+              {metrics.totalItems} <span className="text-[10px] sm:text-xs text-[var(--ink-secondary)] font-sans font-normal">insumos</span>
             </div>
-            <span className="text-[10px] sm:text-xs text-[#94A3B8] mt-0.5 sm:mt-1 block truncate">
+            <span className="text-[10px] sm:text-xs text-[var(--ink-secondary)] mt-0.5 sm:mt-1 block truncate">
               {zones.length} zonas de tu casa
             </span>
           </div>
@@ -237,7 +264,7 @@ export default function InventoryView({
           className={`rounded-2xl p-3.5 sm:p-5 flex items-center justify-between border transition-all cursor-pointer shadow-sm ${
             statusFilter === 'LOW'
               ? 'bg-rose-500/10 border-rose-500/50'
-              : 'border-[#1E2638] bg-[#121622] hover:border-rose-500/40'
+              : 'border-[var(--border-soft)] bg-[var(--bg-elevated)] hover:border-rose-500/40'
           }`}
         >
           <div className="min-w-0">
@@ -245,9 +272,9 @@ export default function InventoryView({
               Por Agotarse
             </span>
             <div className="text-xl sm:text-3xl font-black text-rose-400 mt-0.5 sm:mt-1 font-mono-num truncate">
-              {metrics.lowStockCount} <span className="text-[10px] sm:text-xs text-[#94A3B8] font-sans font-normal">faltantes</span>
+              {metrics.lowStockCount} <span className="text-[10px] sm:text-xs text-[var(--ink-secondary)] font-sans font-normal">faltantes</span>
             </div>
-            <span className="text-[10px] sm:text-xs text-[#94A3B8] mt-0.5 sm:mt-1 block truncate">
+            <span className="text-[10px] sm:text-xs text-[var(--ink-secondary)] mt-0.5 sm:mt-1 block truncate">
               {statusFilter === 'LOW' ? '✓ Filtro activo' : 'Filtrar faltantes'}
             </span>
           </div>
@@ -262,7 +289,7 @@ export default function InventoryView({
           className={`rounded-2xl p-3.5 sm:p-5 flex items-center justify-between border transition-all cursor-pointer shadow-sm ${
             statusFilter === 'EXPIRING'
               ? 'bg-amber-500/10 border-amber-500/50'
-              : 'border-[#1E2638] bg-[#121622] hover:border-amber-500/40'
+              : 'border-[var(--border-soft)] bg-[var(--bg-elevated)] hover:border-amber-500/40'
           }`}
         >
           <div className="min-w-0">
@@ -270,9 +297,9 @@ export default function InventoryView({
               Vence Pronto (&le;15d)
             </span>
             <div className="text-xl sm:text-3xl font-black text-amber-300 mt-0.5 sm:mt-1 font-mono-num truncate">
-              {metrics.expiringSoonCount} <span className="text-[10px] sm:text-xs text-[#94A3B8] font-sans font-normal">por consumir</span>
+              {metrics.expiringSoonCount} <span className="text-[10px] sm:text-xs text-[var(--ink-secondary)] font-sans font-normal">por consumir</span>
             </div>
-            <span className="text-[10px] sm:text-xs text-[#94A3B8] mt-0.5 sm:mt-1 block truncate">
+            <span className="text-[10px] sm:text-xs text-[var(--ink-secondary)] mt-0.5 sm:mt-1 block truncate">
               {statusFilter === 'EXPIRING' ? '✓ Filtro activo' : 'Evita mermas'}
             </span>
           </div>
@@ -282,7 +309,7 @@ export default function InventoryView({
         </div>
 
         {/* 4. Valor Estimado de la Despensa (Moneda dinámica según el Hogar: EUR o MXN) */}
-        <div className="rounded-2xl p-3.5 sm:p-5 flex items-center justify-between border border-[#1E2638] bg-[#121622] shadow-sm hover:border-emerald-500/30 transition-all">
+        <div className="rounded-2xl p-3.5 sm:p-5 flex items-center justify-between border border-[var(--border-soft)] bg-[var(--bg-elevated)] shadow-sm hover:border-emerald-500/30 transition-all">
           <div className="min-w-0">
             <span className="text-[10px] sm:text-[11px] font-bold text-sky-400 uppercase tracking-wider block truncate">
               Valor Despensa
@@ -291,7 +318,7 @@ export default function InventoryView({
               {activeHouse?.currency === 'EUR' ? '€' : '$'}
               {Math.round(metrics.totalValuationMxn).toLocaleString(activeHouse?.currency === 'EUR' ? 'es-ES' : 'es-MX')}
             </div>
-            <span className="text-[10px] sm:text-xs text-[#94A3B8] mt-0.5 sm:mt-1 block truncate">
+            <span className="text-[10px] sm:text-xs text-[var(--ink-secondary)] mt-0.5 sm:mt-1 block truncate">
               {activeHouse?.currency || 'MXN'} • {activeHouse?.name || 'Hogar'}
             </span>
           </div>
@@ -326,14 +353,17 @@ export default function InventoryView({
         onOpenRecipesTab={onOpenRecipesTab}
         onOpenWineTasting={onOpenWineTasting}
       />
+          </div>
+        )}
+      </div>
 
       {/* ═════════════════════════════════════════════════════════════════
           BANNER PROACTIVO DE REPOSICIÓN INTELIGENTE (Auto-Restock Engine)
          ═════════════════════════════════════════════════════════════════ */}
       {metrics.lowStockCount > 0 && (
-        <div className="rounded-2xl p-4 sm:p-5 bg-gradient-to-r from-[#6B1F2E]/30 via-[#C8542A]/20 to-[#1C1916] border border-[#C8542A]/40 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
+        <div className="rounded-2xl p-4 sm:p-5 bg-gradient-to-r from-[var(--wine)]/30 via-[var(--terracotta)]/20 to-[var(--bg-elevated)] border border-[var(--terracotta)]/40 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-[#C8542A]/25 border border-[#C8542A]/50 flex items-center justify-center text-[#E5724A] shrink-0 shadow-sm">
+            <div className="w-11 h-11 rounded-2xl bg-[var(--terracotta)]/25 border border-[var(--terracotta)]/50 flex items-center justify-center text-[var(--ember)] shrink-0 shadow-sm">
               <AlertTriangle className="w-5 h-5" />
             </div>
             <div>
@@ -341,11 +371,11 @@ export default function InventoryView({
                 <h4 className="text-sm font-bold text-white font-display">
                   Alerta Proactiva de Abastecimiento
                 </h4>
-                <span className="px-2 py-0.5 rounded-full bg-[#C8542A] text-white text-[10px] font-mono-num font-extrabold tracking-wide">
+                <span className="px-2 py-0.5 rounded-full bg-[var(--terracotta)] text-white text-[10px] font-mono-num font-extrabold tracking-wide">
                   {metrics.lowStockCount} insumos críticos
                 </span>
               </div>
-              <p className="text-xs text-[#B8AFA3] mt-0.5">
+              <p className="text-xs text-[var(--ink-secondary)] mt-0.5">
                 Existen artículos por debajo del inventario mínimo de seguridad. Genera la orden con un solo toque para el personal.
               </p>
             </div>
@@ -366,7 +396,7 @@ export default function InventoryView({
                 audio.click();
                 if (onOpenShoppingTab) onOpenShoppingTab();
               }}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-[#C8542A] hover:bg-[#E5724A] text-white transition-all shadow-md shadow-[#C8542A]/30 flex items-center gap-2 active:scale-95"
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-[var(--terracotta)] hover:bg-[var(--ember)] text-white transition-all shadow-md shadow-[var(--terracotta)]/30 flex items-center gap-2 active:scale-95"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
               <span>🛒 Generar Lista del Súper</span>
@@ -376,33 +406,33 @@ export default function InventoryView({
       )}
 
       {/* Main Content Area */}
-      <div className="card-luxe p-6 border border-[#2A2521] bg-[#1C1916] space-y-5">
+      <div className="card-luxe p-6 border border-[var(--border-soft)] bg-[var(--bg-elevated)] space-y-5">
         
         {/* Action Bar: Search + View Switcher + "+ Capturar Producto" Button */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           
           {/* Search bar con atajo de teclado [/] */}
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-[#8B8378]" />
+            <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-[var(--ink-tertiary)]" />
             <input
               ref={searchInputRef}
               type="text"
               placeholder="Buscar por insumo, bodega, cepa, zona... (o pulsa /)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-12 py-2.5 rounded-xl bg-[#12100E] border border-[#2A2521] text-white placeholder-[#7A7268] text-xs sm:text-sm focus:outline-none focus:border-[#E0B441] transition-all"
+              className="w-full pl-10 pr-12 py-2.5 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white placeholder-[var(--ink-tertiary)] text-xs sm:text-sm focus:outline-none focus:border-[var(--gold)] transition-all"
             />
             {search ? (
               <button
                 type="button"
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-2.5 p-1 rounded-md text-[#94A3B8] hover:text-white"
+                className="absolute right-3 top-2.5 p-1 rounded-md text-[var(--ink-secondary)] hover:text-white"
                 title="Limpiar búsqueda"
               >
                 ✕
               </button>
             ) : (
-              <kbd className="absolute right-3 top-3 px-1.5 py-0.5 rounded bg-[#1C1916] border border-[#2A2521] text-[10px] text-[#8B8378] font-mono pointer-events-none hidden sm:inline">
+              <kbd className="absolute right-3 top-3 px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-soft)] text-[10px] text-[var(--ink-tertiary)] font-mono pointer-events-none hidden sm:inline">
                 /
               </kbd>
             )}
@@ -412,7 +442,7 @@ export default function InventoryView({
             {/* Botón Exportar CSV / Excel */}
             <button
               onClick={handleExportCsv}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[#12100E] hover:bg-[#1C1916] text-[#B8AFA3] hover:text-white border border-[#2A2521] transition-all active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[var(--bg-base)] hover:bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:text-white border border-[var(--border-soft)] transition-all active:scale-95"
               title="Descargar inventario completo en formato CSV compatible con Excel"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
@@ -425,10 +455,10 @@ export default function InventoryView({
                 audio.click();
                 setIsQrBookletOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[#E0B441]/10 hover:bg-[#E0B441]/20 text-[#E0B441] border border-[#E0B441]/35 transition-all active:scale-95 shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[var(--gold)]/10 hover:bg-[var(--gold)]/20 text-[var(--gold)] border border-[var(--gold)]/35 transition-all active:scale-95 shadow-sm"
               title="Abrir Centro de Impresión de Stickers para Frascos, Botes y Tablero de Pedidos"
             >
-              <QrCode className="w-3.5 h-3.5 text-[#E0B441]" />
+              <QrCode className="w-3.5 h-3.5 text-[var(--gold)]" />
               <span className="hidden sm:inline">Stickers & QR</span>
             </button>
 
@@ -439,7 +469,7 @@ export default function InventoryView({
                   audio.click();
                   onOpenRecipesTab();
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[#6B1F2E]/25 hover:bg-[#6B1F2E]/40 text-[#E0B441] border border-[#A83A50]/40 transition-all active:scale-95"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[var(--wine)]/25 hover:bg-[var(--wine)]/40 text-[var(--gold)] border border-[var(--wine-bright)]/40 transition-all active:scale-95"
                 title="Ver recetas sugeridas con lo que hay en existencia"
               >
                 <Utensils className="w-3.5 h-3.5" />
@@ -448,13 +478,13 @@ export default function InventoryView({
             )}
 
             {/* View Mode Toggle: Grid Luxe vs Table */}
-            <div className="flex items-center p-1 rounded-xl bg-[#12100E] border border-[#2A2521]">
+            <div className="flex items-center p-1 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)]">
               <button
                 onClick={() => { audio.click(); setViewMode('grid'); }}
                 className={`p-2 rounded-lg transition-all ${
                   viewMode === 'grid' 
-                    ? 'bg-[#6B1F2E] text-white shadow-md' 
-                    : 'text-[#8B8378] hover:text-white'
+                    ? 'bg-[var(--wine)] text-white shadow-md' 
+                    : 'text-[var(--ink-tertiary)] hover:text-white'
                 }`}
                 title="Vista Fichas Editoriales Luxe"
               >
@@ -464,8 +494,8 @@ export default function InventoryView({
                 onClick={() => { audio.click(); setViewMode('table'); }}
                 className={`p-2 rounded-lg transition-all ${
                   viewMode === 'table' 
-                    ? 'bg-[#6B1F2E] text-white shadow-md' 
-                    : 'text-[#8B8378] hover:text-white'
+                    ? 'bg-[var(--wine)] text-white shadow-md' 
+                    : 'text-[var(--ink-tertiary)] hover:text-white'
                 }`}
                 title="Vista Tabla Contable"
               >
@@ -480,7 +510,7 @@ export default function InventoryView({
                   audio.click();
                   onOpenScanner();
                 }}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-[#12100E] bg-gradient-to-r from-[#E0B441] to-[#E5724A] hover:brightness-110 transition-all shadow-md shadow-[#E0B441]/25 active:scale-95"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-[var(--on-gold)] bg-gradient-to-r from-[var(--gold)] to-[var(--ember)] hover:brightness-110 transition-all shadow-md shadow-[var(--gold)]/25 active:scale-95"
                 title="Escanear códigos de barras, etiquetas QR o NFC desde la cámara del móvil"
               >
                 <Camera className="w-4 h-4" />
@@ -494,7 +524,7 @@ export default function InventoryView({
                 audio.click();
                 onOpenManualModal();
               }}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-[#1F4D3A] to-[#2E6B52] hover:brightness-110 transition-all shadow-md shadow-[#1F4D3A]/40 active:scale-95"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-[var(--accent-qr)] to-[var(--success-bright)] hover:brightness-110 transition-all shadow-md shadow-[var(--accent-qr)]/40 active:scale-95"
             >
               <Plus className="w-4 h-4" />
               <span>+ Capturar</span>
@@ -515,23 +545,23 @@ export default function InventoryView({
 
         {/* 🍷 Banner de Regla Estricta y Maridaje Cava (Solo Botellas) */}
         {isCavaFilter && (
-          <div className="p-3.5 rounded-2xl bg-[#12100E] border border-[#6B1F2E]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-fade-in shadow-lg">
+          <div className="p-3.5 rounded-2xl bg-[var(--bg-base)] border border-[var(--wine)]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-fade-in shadow-lg">
             <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-xl bg-[#6B1F2E] text-[#E0B441] border border-[#E0B441]/30">
+              <span className="p-1.5 rounded-xl bg-[var(--wine)] text-[var(--gold)] border border-[var(--gold)]/30">
                 <Wine className="w-4 h-4" />
               </span>
               <div>
                 <span className="text-white font-bold block">
-                  Cava Principal: <strong className="text-[#E0B441] font-mono-num">{cavaBottlesCount}</strong> Botellas
+                  Cava Principal: <strong className="text-[var(--gold)] font-mono-num">{cavaBottlesCount}</strong> Botellas
                 </span>
-                <span className="text-[11px] text-[#A89F91]">
+                <span className="text-[11px] text-[var(--ink-secondary)]">
                   Regla del Sistema: En la Cava sólo se resguardan botellas de vinos, licores y destilados.
                 </span>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[#E0B441] font-bold flex items-center gap-1 mr-1">
+              <span className="text-[var(--gold)] font-bold flex items-center gap-1 mr-1">
                 <Sparkles className="w-3.5 h-3.5" />
                 Maridaje:
               </span>
@@ -550,8 +580,8 @@ export default function InventoryView({
                 }}
                 className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
                   search === pair.q
-                    ? 'bg-[#6B1F2E] text-white border border-[#A83A50] shadow-sm'
-                    : 'bg-[#1C1916] text-[#B8AFA3] hover:text-white border border-[#2A2521]'
+                    ? 'bg-[var(--wine)] text-white border border-[var(--wine-bright)] shadow-sm'
+                    : 'bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:text-white border border-[var(--border-soft)]'
                 }`}
               >
                 {pair.label}
@@ -572,15 +602,15 @@ export default function InventoryView({
               }}
               className={`px-3 py-1.5 rounded-xl font-medium transition-all shrink-0 border ${
                 selectedCategory === cat
-                  ? 'bg-[#6B1F2E]/30 text-[#E0B441] border-[#A83A50]/50 font-bold'
-                  : 'bg-[#12100E] text-[#8B8378] hover:text-white border-[#2A2521]'
+                  ? 'bg-[var(--wine)]/30 text-[var(--gold)] border-[var(--wine-bright)]/50 font-bold'
+                  : 'bg-[var(--bg-base)] text-[var(--ink-tertiary)] hover:text-white border-[var(--border-soft)]'
               }`}
             >
               {cat === 'ALL' ? 'Todas las Categorías' : cat}
             </button>
           ))}
 
-          <div className="h-4 w-px bg-[#2A2521] mx-1 shrink-0" />
+          <div className="h-4 w-px bg-[var(--border-soft)] mx-1 shrink-0" />
 
           {[
             { id: 'ALL', label: 'Todos' },
@@ -597,8 +627,8 @@ export default function InventoryView({
               }}
               className={`px-3 py-1.5 rounded-xl font-semibold transition-all shrink-0 ${
                 statusFilter === st.id
-                  ? 'bg-white/10 text-white border border-[#3D3630]'
-                  : 'bg-transparent text-[#8B8378] hover:text-white'
+                  ? 'bg-white/10 text-white border border-[var(--border-strong)]'
+                  : 'bg-transparent text-[var(--ink-tertiary)] hover:text-white'
               }`}
             >
               {st.label}
@@ -608,8 +638,8 @@ export default function InventoryView({
 
         {/* Empty State */}
         {filteredProducts.length === 0 ? (
-          <div className="text-center py-16 border border-dashed border-[#3D3630] rounded-3xl bg-[#12100E]/40 p-6">
-            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-[#6B1F2E]/20 border border-[#A83A50]/30 flex items-center justify-center text-[#E0B441]">
+          <div className="text-center py-16 border border-dashed border-[var(--border-strong)] rounded-3xl bg-[var(--bg-base)]/40 p-6">
+            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-[var(--wine)]/20 border border-[var(--wine-bright)]/30 flex items-center justify-center text-[var(--gold)]">
               {isCavaFilter ? <Wine className="w-8 h-8" /> : <Warehouse className="w-8 h-8" />}
             </div>
             <h4 className="font-display text-xl font-bold text-white">
@@ -617,7 +647,7 @@ export default function InventoryView({
                 ? '🍷 Tu cava está esperando su primera botella.' 
                 : '📖 La historia comienza con tu primera acción.'}
             </h4>
-            <p className="text-xs text-[#8B8378] mt-1 max-w-sm mx-auto">
+            <p className="text-xs text-[var(--ink-tertiary)] mt-1 max-w-sm mx-auto">
               {isCavaFilter 
                 ? 'Registra cosechas, bodegas, añadas y fichas de cata con valuación en MXN.'
                 : 'No se encontraron artículos con los filtros actuales. Registra un nuevo producto o ajusta la búsqueda.'}
@@ -627,7 +657,7 @@ export default function InventoryView({
                 audio.click();
                 onOpenManualModal();
               }}
-              className="mt-5 px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-[#6B1F2E] to-[#852538] hover:brightness-110 rounded-xl transition-all shadow-md"
+              className="mt-5 px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-[var(--wine)] to-[var(--wine-bright)] hover:brightness-110 rounded-xl transition-all shadow-md"
             >
               {isCavaFilter ? '➕ Añadir Vino a la Cava' : '+ Capturar Producto Ahora'}
             </button>
@@ -649,12 +679,12 @@ export default function InventoryView({
                 return (
                   <div
                     key={p.id}
-                    className="group relative rounded-2xl bg-[#121622] border border-[#1E2638] hover:border-[#2A364E] shadow-sm hover:shadow-md transition-all duration-200 p-4 flex flex-col justify-between overflow-hidden"
+                    className="group relative rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-soft)] hover:border-[var(--border-strong)] shadow-sm hover:shadow-md transition-all duration-200 p-4 flex flex-col justify-between overflow-hidden"
                     style={{ borderLeftWidth: '6px', borderLeftColor: wineColor }}
                   >
                     <div className="flex items-start justify-between gap-3">
                       {/* Izquierda: Silueta SVG de Botella */}
-                      <div className="w-12 h-20 rounded-2xl bg-[#1A2030] border border-[#252E42] flex items-center justify-center shrink-0">
+                      <div className="w-12 h-20 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] flex items-center justify-center shrink-0">
                         <svg className="w-6 h-14" viewBox="0 0 24 64" fill="none" stroke={wineColor} strokeWidth="1.8">
                           <path d="M10 2h4v10c0 2 3 5 4 8v38a4 4 0 01-4 4h-4a4 4 0 01-4-4V20c1-3 4-6 4-8V2z" fill={`${wineColor}22`} />
                           <line x1="8" y1="28" x2="16" y2="28" stroke="#E0B441" strokeWidth="1.5" />
@@ -663,22 +693,22 @@ export default function InventoryView({
 
                       {/* Centro: Bodega Fraunces, Vintage y Región */}
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 text-xs text-[#E0B441] font-semibold">
+                        <div className="flex items-center gap-1.5 text-xs text-[var(--gold)] font-semibold">
                           <span>{p.countryFlag || '🍷'}</span>
                           <span className="truncate">{p.country || 'D.O.'} • {p.region || 'Cava'}</span>
                         </div>
                         <h3 className="font-display text-lg font-bold text-white truncate mt-0.5">
                           {p.name}
                         </h3>
-                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#94A3B8] mt-1">
+                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--ink-secondary)] mt-1">
                           {p.vintage && (
-                            <span className="px-2 py-0.5 rounded-md bg-[#1A2030] text-[#E0B441] font-mono-num font-bold text-[11px] border border-[#252E42]">
+                            <span className="px-2 py-0.5 rounded-md bg-[var(--bg-elevated)] text-[var(--gold)] font-mono-num font-bold text-[11px] border border-[var(--border-strong)]">
                               Añada {p.vintage}
                             </span>
                           )}
                           {p.cavaLocation && (
-                            <span className="px-2 py-0.5 rounded-md bg-[#1C1916] text-[#B8AFA3] font-mono text-[11px] border border-[#2A2521] flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-[#E0B441]" />
+                            <span className="px-2 py-0.5 rounded-md bg-[var(--bg-elevated)] text-[var(--ink-secondary)] font-mono text-[11px] border border-[var(--border-soft)] flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-[var(--gold)]" />
                               <span>{p.cavaLocation}</span>
                             </span>
                           )}
@@ -687,7 +717,7 @@ export default function InventoryView({
 
                       {/* Derecha: Puntaje Sommelier 80-100 Tabular XL */}
                       <div className="text-right shrink-0">
-                        <div className="font-display text-2xl font-black text-[#E0B441] font-mono-num leading-none">
+                        <div className="font-display text-2xl font-black text-[var(--gold)] font-mono-num leading-none">
                           {p.sommelierPoints || 92}
                         </div>
                         <div className="flex items-center justify-end gap-0.5 mt-1">
@@ -696,8 +726,8 @@ export default function InventoryView({
                               key={s}
                               className={`w-3 h-3 ${
                                 s <= (p.rating || 5)
-                                  ? 'fill-[#E0B441] text-[#E0B441]'
-                                  : 'text-[#3D3630]'
+                                  ? 'fill-[var(--gold)] text-[var(--gold)]'
+                                  : 'text-[var(--border-strong)]'
                               }`}
                             />
                           ))}
@@ -706,7 +736,7 @@ export default function InventoryView({
                     </div>
 
                     {/* Fila Inferior: Stock en Botellas + Acciones */}
-                    <div className="mt-4 pt-3 border-t border-[#2A2521] flex items-center justify-between">
+                    <div className="mt-4 pt-3 border-t border-[var(--border-soft)] flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {/* 5 mini botellas indicadoras */}
                         <div className="flex items-center gap-1">
@@ -715,14 +745,14 @@ export default function InventoryView({
                               key={idx}
                               className={`w-2 h-4 rounded-sm ${
                                 idx <= (p.quantity || 0)
-                                  ? 'bg-[#E0B441]'
-                                  : 'bg-[#2A2521]'
+                                  ? 'bg-[var(--gold)]'
+                                  : 'bg-[var(--border-soft)]'
                               }`}
                               title={`${p.quantity} botellas en cava`}
                             />
                           ))}
                         </div>
-                        <span className="font-mono-num text-xs font-bold text-[#F2EDE4] ml-1">
+                        <span className="font-mono-num text-xs font-bold text-[var(--ink-primary)] ml-1">
                           {p.quantity} {p.unit || 'botellas'}
                         </span>
                       </div>
@@ -733,7 +763,7 @@ export default function InventoryView({
                             audio.click();
                             if (onOpenWineTasting) onOpenWineTasting(p);
                           }}
-                          className="px-3 py-1.5 rounded-xl bg-[#6B1F2E]/30 hover:bg-[#6B1F2E]/50 border border-[#A83A50]/40 text-[#E0B441] text-xs font-bold transition-all flex items-center gap-1.5"
+                          className="px-3 py-1.5 rounded-xl bg-[var(--wine)]/30 hover:bg-[var(--wine)]/50 border border-[var(--wine-bright)]/40 text-[var(--gold)] text-xs font-bold transition-all flex items-center gap-1.5"
                         >
                           <Wine className="w-3.5 h-3.5" />
                           <span>Descorche & Cata</span>
@@ -744,7 +774,7 @@ export default function InventoryView({
                             audio.click();
                             setSelectedQrProduct(p);
                           }}
-                          className="p-2 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#2A2521] text-[#E0B441] transition-all"
+                          className="p-2 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--border-soft)] border border-[var(--border-soft)] text-[var(--gold)] transition-all"
                           title="Ver / Imprimir Etiqueta QR o Grabar NFC de esta botella"
                         >
                           <QrCode className="w-3.5 h-3.5" />
@@ -752,7 +782,7 @@ export default function InventoryView({
 
                         <button
                           onClick={() => handleAdjustQuantity(p, 1)}
-                          className="w-8 h-8 rounded-xl bg-[#1C1916] hover:bg-[#2A2521] border border-[#2A2521] text-white flex items-center justify-center font-bold text-xs"
+                          className="w-8 h-8 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--border-soft)] border border-[var(--border-soft)] text-white flex items-center justify-center font-bold text-xs"
                           title="Añadir 1 botella"
                         >
                           +
@@ -767,22 +797,29 @@ export default function InventoryView({
               return (
                 <div
                   key={p.id}
-                  className="rounded-2xl p-4 bg-[#121622] border border-[#1E2638] hover:border-[#2A364E] shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between relative overflow-hidden"
+                  className="rounded-2xl p-4 bg-[var(--bg-elevated)] border border-[var(--border-soft)] hover:border-[var(--border-strong)] shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between relative overflow-hidden"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      {/* Avatar / Icono 48px */}
-                      <div className="w-12 h-12 rounded-2xl bg-[#1A2030] border border-[#252E42] flex items-center justify-center text-xl shrink-0">
-                        {p.category.includes('Carnes') ? '🥩' :
-                         p.category.includes('Lácteos') ? '🧀' :
-                         p.category.includes('Frutas') ? '🥬' :
-                         p.category.includes('Café') ? '☕' : '🥫'}
-                      </div>
+                      {/* Avatar / Foto 48px */}
+                      <ProductPhoto
+                        photo={p.photo}
+                        alt={p.name}
+                        size={48}
+                        fallback={
+                          <span className="text-xl">
+                            {p.category.includes('Carnes') ? '🥩' :
+                             p.category.includes('Lácteos') ? '🧀' :
+                             p.category.includes('Frutas') ? '🥬' :
+                             p.category.includes('Café') ? '☕' : '🥫'}
+                          </span>
+                        }
+                      />
                       <div className="min-w-0">
                         <h3 className="font-display text-base font-bold text-white truncate">
                           {p.name}
                         </h3>
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-[#94A3B8] mt-0.5">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--ink-secondary)] mt-0.5">
                           <span>{p.category}</span>
                           <span>•</span>
                           <span className="truncate">{p.store || 'Supermercado'}</span>
@@ -803,26 +840,26 @@ export default function InventoryView({
                     {/* Stock Badge Pill */}
                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono-num font-extrabold uppercase shrink-0 ${
                       isOut
-                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                        ? 'bg-rose-600 text-white border border-rose-400'
                         : isLow
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                        : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                        ? 'bg-amber-400 text-[var(--on-gold)] border border-amber-300'
+                        : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
                     }`}>
                       {isOut ? 'Agotado' : isLow ? 'Bajo' : 'OK'}
                     </span>
                   </div>
 
                   {/* Fila Inferior: Precios, Steppers ± y +Súper */}
-                  <div className="mt-4 pt-3 border-t border-[#1E2638] flex items-center justify-between">
+                  <div className="mt-4 pt-3 border-t border-[var(--border-soft)] flex items-center justify-between">
                     <div>
                       <div className="font-mono-num text-sm font-black text-white">
-                        {p.quantity} <span className="text-xs text-[#94A3B8] font-sans font-normal">{p.unit}</span>
+                        {p.quantity} <span className="text-xs text-[var(--ink-secondary)] font-sans font-normal">{p.unit}</span>
                       </div>
-                      <div className="text-[10px] text-[#94A3B8] font-mono-num">
+                      <div className="text-[10px] text-[var(--ink-secondary)] font-mono-num">
                         {activeHouse?.currency === 'EUR' ? '€' : '$'}
                         {(p.unitPriceMxn || 0).toFixed(2)} {activeHouse?.currency || 'MXN'} c/u
                       </div>
-                      <div className="w-24 bg-[#1A2030] rounded-full h-1.5 mt-1 overflow-hidden border border-[#252E42]" title={`Capacidad máx: ${p.maxStock || p.idealStock || 6} ${p.unit}`}>
+                      <div className="w-24 bg-[var(--bg-elevated)] rounded-full h-1.5 mt-1 overflow-hidden border border-[var(--border-strong)]" title={`Capacidad máx: ${p.maxStock || p.idealStock || 6} ${p.unit}`}>
                         <div 
                           className={`h-full rounded-full transition-all ${
                             p.quantity > (p.maxStock || p.idealStock || 6)
@@ -843,7 +880,7 @@ export default function InventoryView({
                         className={`px-2.5 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1 active:scale-95 cursor-pointer ${
                           quickAddedId === p.id
                             ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
-                            : 'bg-[#1A2030] hover:bg-[#252E42] border-[#252E42] text-[#94A3B8] hover:text-white'
+                            : 'bg-[var(--bg-elevated)] hover:bg-[var(--border-strong)] border-[var(--border-strong)] text-[var(--ink-secondary)] hover:text-white'
                         }`}
                         title="Añadir a la Lista de Compras con 1 solo toque"
                       >
@@ -863,14 +900,14 @@ export default function InventoryView({
                       {/* Botones Táctiles Grandes + / - */}
                       <button
                         onClick={() => handleAdjustQuantity(p, -1)}
-                        className="w-9 h-9 rounded-xl bg-[#1A2030] hover:bg-rose-500/20 border border-[#252E42] hover:border-rose-500/40 text-[#94A3B8] hover:text-rose-300 flex items-center justify-center font-black text-sm transition-all active:scale-95 cursor-pointer"
+                        className="w-9 h-9 rounded-xl bg-[var(--bg-elevated)] hover:bg-rose-500/20 border border-[var(--border-strong)] hover:border-rose-500/40 text-[var(--ink-secondary)] hover:text-rose-300 flex items-center justify-center font-black text-sm transition-all active:scale-95 cursor-pointer"
                         title="Consumir 1 unidad (-1)"
                       >
                         -
                       </button>
                       <button
                         onClick={() => handleAdjustQuantity(p, 1)}
-                        className="w-9 h-9 rounded-xl bg-[#1A2030] hover:bg-emerald-500/20 border border-[#252E42] hover:border-emerald-500/40 text-[#94A3B8] hover:text-emerald-300 flex items-center justify-center font-black text-sm transition-all active:scale-95 cursor-pointer"
+                        className="w-9 h-9 rounded-xl bg-[var(--bg-elevated)] hover:bg-emerald-500/20 border border-[var(--border-strong)] hover:border-emerald-500/40 text-[var(--ink-secondary)] hover:text-emerald-300 flex items-center justify-center font-black text-sm transition-all active:scale-95 cursor-pointer"
                         title="Ingresar / Reabastecer 1 unidad (+1)"
                       >
                         +
@@ -880,26 +917,26 @@ export default function InventoryView({
                           audio.click();
                           setSelectedQrProduct(p);
                         }}
-                        className="w-9 h-9 rounded-xl bg-[#1A2030] hover:bg-[#252E42] border border-[#252E42] text-[#E0B441] flex items-center justify-center transition-all ml-0.5 cursor-pointer"
+                        className="w-9 h-9 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--gold)] flex items-center justify-center transition-all ml-0.5 cursor-pointer"
                         title="Ver / Imprimir Etiqueta QR o Grabar en NFC"
                       >
                         <QrCode className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => { audio.click(); onEditProduct(p); }}
-                        className="w-9 h-9 rounded-xl bg-[#1A2030] hover:bg-[#252E42] border border-[#252E42] text-[#94A3B8] hover:text-white flex items-center justify-center transition-all ml-0.5 cursor-pointer"
+                        className="w-9 h-9 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--ink-secondary)] hover:text-white flex items-center justify-center transition-all ml-0.5 cursor-pointer"
                         title="Editar insumo"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           audio.click();
-                          if (confirm(`¿Estás seguro de que deseas eliminar permanentemente "${p.name}" del inventario?`)) {
+                          if (await confirmDialog(`¿Estás seguro de que deseas eliminar permanentemente "${p.name}" del inventario?`)) {
                             onDeleteProduct(p.id);
                           }
                         }}
-                        className="w-8 h-8 rounded-xl bg-[#1C1916] hover:bg-rose-500/20 border border-[#2A2521] hover:border-rose-500/40 text-[#8B8378] hover:text-rose-400 flex items-center justify-center transition-all ml-0.5"
+                        className="w-8 h-8 rounded-xl bg-[var(--bg-elevated)] hover:bg-rose-500/20 border border-[var(--border-soft)] hover:border-rose-500/40 text-[var(--ink-tertiary)] hover:text-rose-400 flex items-center justify-center transition-all ml-0.5"
                         title="Eliminar producto del inventario"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -923,10 +960,10 @@ export default function InventoryView({
           /* ═════════════════════════════════════════════════════════════════
              VISTA TABLA CONTABLE (Optimizada para Móvil y Desktop)
              ═════════════════════════════════════════════════════════════════ */
-          <div className="overflow-x-auto rounded-2xl border border-[#1E2638] bg-[#121622]">
+          <div className="overflow-x-auto rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-elevated)]">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-[#1E2638] text-[#94A3B8] uppercase tracking-wider font-bold text-[10px] bg-[#0E121A]">
+                <tr className="border-b border-[var(--border-soft)] text-[var(--ink-secondary)] uppercase tracking-wider font-bold text-[10px] bg-[var(--bg-elevated)]">
                   <th className="py-3 px-3 sm:px-4">Artículo</th>
                   <th className="py-3 px-3 hidden md:table-cell">Zona</th>
                   <th className="py-3 px-2 sm:px-3">Existencia</th>
@@ -935,7 +972,7 @@ export default function InventoryView({
                   <th className="py-3 px-2 sm:px-4 text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1E2638]">
+              <tbody className="divide-y divide-[var(--border-soft)]">
                 {filteredProducts.map((p) => {
                   const isLow = (p.quantity || 0) <= (p.minStock || 0);
                   const isOut = (p.quantity || 0) <= 0;
@@ -951,12 +988,12 @@ export default function InventoryView({
                           {p.isWine && <span className="text-sm sm:text-base">{p.countryFlag || '🍷'}</span>}
                           <span className="font-bold text-white text-xs sm:text-sm truncate max-w-[130px] xs:max-w-[170px] sm:max-w-none block">{p.name}</span>
                           {p.rating > 0 && (
-                            <span className="text-[#E0B441] text-[10px] sm:text-xs font-bold font-mono shrink-0">
+                            <span className="text-[var(--gold)] text-[10px] sm:text-xs font-bold font-mono shrink-0">
                               ⭐ {p.rating}
                             </span>
                           )}
                         </div>
-                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[#94A3B8] text-[10px] sm:text-xs">
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[var(--ink-secondary)] text-[10px] sm:text-xs">
                           <span className="md:hidden px-1.5 py-0.2 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 font-mono text-[9px]">
                             {p.zone}
                           </span>
@@ -976,7 +1013,7 @@ export default function InventoryView({
                       <td className="py-2.5 sm:py-3 px-2 sm:px-3">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                           <span className="font-mono-num font-bold text-xs sm:text-sm text-white whitespace-nowrap">
-                            {p.quantity} <span className="text-[10px] sm:text-xs text-[#94A3B8] font-sans">{p.unit}</span>
+                            {p.quantity} <span className="text-[10px] sm:text-xs text-[var(--ink-secondary)] font-sans">{p.unit}</span>
                           </span>
                           <span className={`px-1.5 py-0.2 rounded text-[9px] font-extrabold font-mono-num inline-block w-fit ${
                             isOut
@@ -1002,14 +1039,14 @@ export default function InventoryView({
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => handleAdjustQuantity(p, -1)}
-                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#1A2030] hover:bg-rose-500/20 border border-[#252E42] text-gray-300 hover:text-white flex items-center justify-center font-bold text-xs active:scale-95 cursor-pointer"
+                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[var(--bg-elevated)] hover:bg-rose-500/20 border border-[var(--border-strong)] text-gray-300 hover:text-white flex items-center justify-center font-bold text-xs active:scale-95 cursor-pointer"
                             title="Consumir 1 unidad"
                           >
                             -
                           </button>
                           <button
                             onClick={() => handleAdjustQuantity(p, 1)}
-                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#1A2030] hover:bg-emerald-500/20 border border-[#252E42] text-gray-300 hover:text-white flex items-center justify-center font-bold text-xs active:scale-95 cursor-pointer"
+                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[var(--bg-elevated)] hover:bg-emerald-500/20 border border-[var(--border-strong)] text-gray-300 hover:text-white flex items-center justify-center font-bold text-xs active:scale-95 cursor-pointer"
                             title="Añadir 1 unidad"
                           >
                             +
@@ -1022,9 +1059,9 @@ export default function InventoryView({
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               audio.click();
-                              if (confirm(`¿Estás seguro de que deseas eliminar "${p.name}"?`)) {
+                              if (await confirmDialog(`¿Estás seguro de que deseas eliminar "${p.name}"?`)) {
                                 onDeleteProduct(p.id);
                               }
                             }}

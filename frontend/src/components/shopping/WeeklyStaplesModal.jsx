@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { areItemsEquivalent } from '../../utils/deduplication';
+import { notify } from '../../services/notice';
 
 export const RECURRING_HOUSEHOLD_STAPLES = [
   { id: 'st-1', name: 'Leche Entera Pasteurizada', quantity: 2, unit: 'L', department: 'LACTEOS', store: 'Costco', estimatedPriceMxn: 38.00, emoji: '🥛' },
@@ -87,7 +88,7 @@ export default function WeeklyStaplesModal({
       }));
 
     if (itemsToAdd.length === 0) {
-      alert('Los artículos seleccionados ya se encontraban presentes en la lista de compras.');
+      notify('Los artículos seleccionados ya se encontraban presentes en la lista de compras.');
       onClose();
       return;
     }
@@ -101,10 +102,10 @@ export default function WeeklyStaplesModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-xl bg-[#1C1814] border border-[#3D3630] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header Modal */}
-        <div className="p-6 border-b border-[#2A2521] bg-gradient-to-r from-[#1C1814] via-[#2A2016] to-[#1C1814] flex items-center justify-between">
+        <div className="p-6 border-b border-[var(--border-soft)] bg-gradient-to-r from-[var(--bg-elevated)] via-[var(--bg-elevated)] to-[var(--bg-elevated)] flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
               <ShoppingBag className="w-6 h-6" />
@@ -113,7 +114,7 @@ export default function WeeklyStaplesModal({
               <h3 className="font-display text-xl font-bold text-white tracking-tight">
                 🧺 Canasta Básica Semanal del Hogar
               </h3>
-              <p className="text-xs text-[#B8AFA3] mt-0.5">
+              <p className="text-xs text-[var(--ink-secondary)] mt-0.5">
                 Insumos esenciales recurrentes para llenar la lista en 1 toque sin escribir
               </p>
             </div>
@@ -127,13 +128,13 @@ export default function WeeklyStaplesModal({
         </div>
 
         {/* Action Subbar */}
-        <div className="px-6 py-3 border-b border-[#2A2521] bg-white/5 flex items-center justify-between text-xs">
+        <div className="px-6 py-3 border-b border-[var(--border-soft)] bg-white/5 flex items-center justify-between text-xs">
           <button
             onClick={handleToggleAll}
-            className="flex items-center gap-2 font-bold text-[#E0B441] hover:text-[#f3c859] transition-all"
+            className="flex items-center gap-2 font-bold text-[var(--gold)] hover:text-[var(--gold)] transition-all"
           >
             {selectedIds.size === RECURRING_HOUSEHOLD_STAPLES.length ? (
-              <CheckSquare className="w-4 h-4 text-[#E0B441]" />
+              <CheckSquare className="w-4 h-4 text-[var(--gold)]" />
             ) : (
               <Square className="w-4 h-4 text-gray-400" />
             )}
@@ -142,7 +143,7 @@ export default function WeeklyStaplesModal({
             </span>
           </button>
 
-          <span className="text-[#8B8378]">
+          <span className="text-[var(--ink-tertiary)]">
             {selectedCount} seleccionados ({newToAddCount} nuevos a agregar)
           </span>
         </div>
@@ -158,8 +159,8 @@ export default function WeeklyStaplesModal({
                 onClick={() => handleToggleStaple(staple.id)}
                 className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                   isSelected 
-                    ? 'bg-[#E0B441]/10 border-[#E0B441]/40 text-white' 
-                    : 'bg-white/5 border-white/5 text-[#8B8378] hover:bg-white/10'
+                    ? 'bg-[var(--gold)]/10 border-[var(--gold)]/40 text-white' 
+                    : 'bg-white/5 border-white/5 text-[var(--ink-tertiary)] hover:bg-white/10'
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -180,7 +181,7 @@ export default function WeeklyStaplesModal({
                         </span>
                       )}
                     </div>
-                    <span className="text-[11px] text-[#B8AFA3] block mt-0.5">
+                    <span className="text-[11px] text-[var(--ink-secondary)] block mt-0.5">
                       {staple.quantity} {staple.unit} · {staple.store} · ~${staple.estimatedPriceMxn.toFixed(2)} MXN
                     </span>
                   </div>
@@ -188,7 +189,7 @@ export default function WeeklyStaplesModal({
 
                 <div className="shrink-0">
                   {isSelected ? (
-                    <div className="w-6 h-6 rounded-lg bg-[#E0B441] text-black flex items-center justify-center font-bold">
+                    <div className="w-6 h-6 rounded-lg bg-[var(--gold)] text-black flex items-center justify-center font-bold">
                       <Check className="w-4 h-4 stroke-[3]" />
                     </div>
                   ) : (
@@ -201,8 +202,8 @@ export default function WeeklyStaplesModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-6 border-t border-[#2A2521] bg-[#12100E] flex items-center justify-between gap-3">
-          <span className="text-xs text-[#B8AFA3]">
+        <div className="p-6 border-t border-[var(--border-soft)] bg-[var(--bg-base)] flex items-center justify-between gap-3">
+          <span className="text-xs text-[var(--ink-secondary)]">
             {newToAddCount > 0 ? `Se sumarán ${newToAddCount} insumos a la lista` : 'Sin artículos nuevos'}
           </span>
 

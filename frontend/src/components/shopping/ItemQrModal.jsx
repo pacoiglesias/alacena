@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { getItemScanUrl } from '../../services/qrPdfService';
+import { notify } from '../../services/notice';
 
 export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpdateProduct }) {
   const [nfcWriting, setNfcWriting] = useState(false);
@@ -152,7 +153,7 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
       img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
     } catch (e) {
       console.warn('Error al exportar PNG:', e);
-      alert('Se descargará en formato SVG vectorial.');
+      notify('Se descargará en formato SVG vectorial.');
       const svgData = new XMLSerializer().serializeToString(qrSvgRef.current.querySelector('svg'));
       const blob = new Blob([svgData], { type: 'image/svg+xml' });
       const url = URL.createObjectURL(blob);
@@ -166,7 +167,7 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
   // Grabar directamente en Sticker NFC físico
   const handleWriteNfc = async () => {
     if (!('NDEFReader' in window)) {
-      alert('La grabación NFC directa requiere Google Chrome en Android. En iPhone, puedes copiar el link y usar la app Atajos o NFC Tools.');
+      notify('La grabación NFC directa requiere Google Chrome en Android. En iPhone, puedes copiar el link y usar la app Atajos o NFC Tools.');
       return;
     }
 
@@ -240,20 +241,20 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
         }
       `}</style>
 
-      <div className="relative w-full max-w-md max-h-[94vh] overflow-hidden flex flex-col rounded-3xl bg-[#14110F] border border-[#E0B441]/35 shadow-2xl p-4 sm:p-6 space-y-4 print:border-none print:shadow-none print:p-0 print:bg-white">
+      <div className="relative w-full max-w-md max-h-[94vh] overflow-hidden flex flex-col rounded-3xl bg-[var(--bg-base)] border border-[var(--gold)]/35 shadow-2xl p-4 sm:p-6 space-y-4 print:border-none print:shadow-none print:p-0 print:bg-white">
         
         {/* Header (Hidden in print) */}
-        <div className="flex items-center justify-between border-b border-[#2A2521] pb-3 print:hidden no-print">
+        <div className="flex items-center justify-between border-b border-[var(--border-soft)] pb-3 print:hidden no-print">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-[#E0B441]/15 text-[#E0B441] border border-[#E0B441]/30">
+            <div className="p-2 rounded-xl bg-[var(--gold)]/15 text-[var(--gold)] border border-[var(--gold)]/30">
               <QrCode className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-sm sm:text-base font-bold text-white font-display">
                 Etiqueta QR & Sticker del Hogar
               </h3>
-              <span className="text-[10px] text-[#B8AFA3]">
-                Código optimizado: <strong className="text-[#E0B441] font-mono">{activeBarcode}</strong>
+              <span className="text-[10px] text-[var(--ink-secondary)]">
+                Código optimizado: <strong className="text-[var(--gold)] font-mono">{activeBarcode}</strong>
               </span>
             </div>
           </div>
@@ -269,13 +270,13 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
         </div>
 
         {/* Selector de Formato de Etiqueta (Pantalla) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 rounded-2xl bg-[#1C1814] border border-[#2A2521] print:hidden no-print">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-soft)] print:hidden no-print">
           <button
             onClick={() => { audio.click(); setLabelSize('STANDARD'); }}
             className={`py-1.5 px-2 rounded-xl text-xs font-semibold transition-all text-center ${
               labelSize === 'STANDARD'
-                ? 'bg-[#E0B441] text-[#12100E] font-bold shadow-sm'
-                : 'text-[#B8AFA3] hover:text-white'
+                ? 'bg-[var(--gold)] text-[var(--on-gold)] font-bold shadow-sm'
+                : 'text-[var(--ink-secondary)] hover:text-white'
             }`}
           >
             🏷️ Estándar
@@ -284,8 +285,8 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
             onClick={() => { audio.click(); setLabelSize('JAR_POUCH'); }}
             className={`py-1.5 px-2 rounded-xl text-xs font-semibold transition-all text-center ${
               labelSize === 'JAR_POUCH'
-                ? 'bg-[#E5724A] text-white font-bold shadow-sm'
-                : 'text-[#B8AFA3] hover:text-white'
+                ? 'bg-[var(--ember)] text-white font-bold shadow-sm'
+                : 'text-[var(--ink-secondary)] hover:text-white'
             }`}
           >
             📦 Bote / Sobre
@@ -294,8 +295,8 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
             onClick={() => { audio.click(); setLabelSize('MINI'); }}
             className={`py-1.5 px-2 rounded-xl text-xs font-semibold transition-all text-center ${
               labelSize === 'MINI'
-                ? 'bg-[#E0B441] text-[#12100E] font-bold shadow-sm'
-                : 'text-[#B8AFA3] hover:text-white'
+                ? 'bg-[var(--gold)] text-[var(--on-gold)] font-bold shadow-sm'
+                : 'text-[var(--ink-secondary)] hover:text-white'
             }`}
           >
             🧂 Especiero
@@ -304,8 +305,8 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
             onClick={() => { audio.click(); setLabelSize('WINE_COLLAR'); }}
             className={`py-1.5 px-2 rounded-xl text-xs font-semibold transition-all text-center ${
               labelSize === 'WINE_COLLAR'
-                ? 'bg-[#A83A50] text-white font-bold shadow-sm'
-                : 'text-[#B8AFA3] hover:text-white'
+                ? 'bg-[var(--wine-bright)] text-white font-bold shadow-sm'
+                : 'text-[var(--ink-secondary)] hover:text-white'
             }`}
           >
             🍷 Collar Cava
@@ -341,7 +342,7 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
 
           {/* Header de la etiqueta */}
           <div className="text-center border-b border-gray-200 pb-2">
-            <span className="text-[8px] font-black uppercase tracking-widest text-[#6B1F2E] block">
+            <span className="text-[8px] font-black uppercase tracking-widest text-[var(--wine)] block">
               ALACENA • {item.zone || item.targetZone || 'DESPENSA'}
             </span>
             <h4 className="text-base font-extrabold text-gray-900 leading-tight mt-0.5">
@@ -407,7 +408,7 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
         )}
 
         {/* Action buttons (Hidden in print) */}
-        <div className="flex flex-col gap-2 pt-2 border-t border-[#2A2521] print:hidden no-print">
+        <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border-soft)] print:hidden no-print">
           <div className="grid grid-cols-3 gap-2">
             {/* 1. Grabar NFC */}
             <button
@@ -423,7 +424,7 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
             {/* 2. Descargar PNG para Rotuladora Térmica Bluetooth */}
             <button
               onClick={handleDownloadPng}
-              className="flex items-center justify-center gap-1 py-2 px-2 text-[11px] font-bold text-[#E0B441] bg-[#E0B441]/15 hover:bg-[#E0B441]/25 border border-[#E0B441]/35 rounded-xl transition-all shadow-md active:scale-95"
+              className="flex items-center justify-center gap-1 py-2 px-2 text-[11px] font-bold text-[var(--gold)] bg-[var(--gold)]/15 hover:bg-[var(--gold)]/25 border border-[var(--gold)]/35 rounded-xl transition-all shadow-md active:scale-95"
               title="Descargar imagen lista para rotuladoras Niimbot, Brother o Dymo"
             >
               <Download className="w-3.5 h-3.5" />
@@ -433,7 +434,7 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
             {/* 3. Imprimir Etiqueta Limpia */}
             <button
               onClick={handlePrint}
-              className="flex items-center justify-center gap-1 py-2 px-2 text-[11px] font-bold text-white bg-gradient-to-r from-[#C8542A] to-[#E0B441] hover:brightness-110 rounded-xl transition-all shadow-md active:scale-95"
+              className="flex items-center justify-center gap-1 py-2 px-2 text-[11px] font-bold text-white bg-gradient-to-r from-[var(--terracotta)] to-[var(--gold)] hover:brightness-110 rounded-xl transition-all shadow-md active:scale-95"
               title="Mandar a imprimir hoja con guía de corte limpia"
             >
               <Printer className="w-3.5 h-3.5" />
@@ -444,7 +445,7 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
           {/* Botón para Copiar Enlace Directo (Para iPhone / Atajos / NFC Tools) */}
           <button
             onClick={handleCopyLink}
-            className="w-full py-2 px-3 rounded-xl bg-[#1A2030] hover:bg-[#252E42] border border-[#252E42] text-xs font-semibold text-[#94A3B8] hover:text-white flex items-center justify-center gap-2 transition-all cursor-pointer"
+            className="w-full py-2 px-3 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-xs font-semibold text-[var(--ink-secondary)] hover:text-white flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <span>{copiedLink ? '✓ ¡Enlace copiado al portapapeles!' : '🔗 Copiar Enlace de Escaneo Directo (iPhone / Atajos)'}</span>
           </button>
@@ -454,7 +455,7 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
               audio.click();
               onClose();
             }}
-            className="w-full py-1.5 text-xs font-semibold text-[#B8AFA3] hover:text-white transition-all text-center"
+            className="w-full py-1.5 text-xs font-semibold text-[var(--ink-secondary)] hover:text-white transition-all text-center"
           >
             Cerrar
           </button>

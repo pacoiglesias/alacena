@@ -12,6 +12,7 @@ import { parseRawShoppingText } from '../../services/smartListParser';
 import { extractShoppingListFromImage, extractTextFromFile } from '../../services/ocrService';
 import { isCavaZone, sanitizeCavaProduct } from '../../utils/cavaGuard';
 import { analyzeTicketPriceIntelligence, recordPricePoints } from '../../services/priceIntelligenceService';
+import { notify } from '../../services/notice';
 
 export default function SmartListImportModal({ 
   isOpen, 
@@ -383,7 +384,7 @@ TOTAL $ 2345.68`;
       .filter((i) => selectedItemIds.has(i.id))
       .map((item) => sanitizeCavaProduct(item, zones));
     if (itemsToImport.length === 0) {
-      alert('Por favor selecciona al menos un artículo para importar.');
+      notify('Por favor selecciona al menos un artículo para importar.');
       return;
     }
 
@@ -402,19 +403,19 @@ TOTAL $ 2345.68`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-4xl rounded-3xl bg-[#14110F] border border-[#E0B441]/35 shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
+      <div className="relative w-full max-w-4xl rounded-3xl bg-[var(--bg-base)] border border-[var(--gold)]/35 shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[#2A2521] bg-[#1C1814]">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[var(--border-soft)] bg-[var(--bg-elevated)]">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-gradient-to-br from-[#E0B441]/20 to-[#E5724A]/20 text-[#E0B441] border border-[#E0B441]/40">
+            <div className="p-2.5 rounded-2xl bg-gradient-to-br from-[var(--gold)]/20 to-[var(--ember)]/20 text-[var(--gold)] border border-[var(--gold)]/40">
               <Sparkles className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-display font-bold text-[#F2EDE4]">
+              <h2 className="text-lg sm:text-xl font-display font-bold text-[var(--ink-primary)]">
                 Importador Bidireccional Inteligente & OCR
               </h2>
-              <p className="text-xs text-[#B8AFA3]">
+              <p className="text-xs text-[var(--ink-secondary)]">
                 Pega notas de WhatsApp, toma foto a una libreta/ticket o sube archivos para poblar tu lista al instante
               </p>
             </div>
@@ -424,14 +425,14 @@ TOTAL $ 2345.68`;
               audio.click();
               onClose();
             }}
-            className="p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/10 transition-colors"
+            className="p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/10 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Sub-Tabs: Texto / Foto OCR / Archivo */}
-        <div className="flex items-center gap-2 px-4 sm:px-6 pt-3 pb-2 border-b border-[#2A2521] bg-[#171412] overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2 px-4 sm:px-6 pt-3 pb-2 border-b border-[var(--border-soft)] bg-[var(--bg-base)] overflow-x-auto no-scrollbar">
           <button
             onClick={() => {
               audio.click();
@@ -439,8 +440,8 @@ TOTAL $ 2345.68`;
             }}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
               activeSubTab === 'text'
-                ? 'bg-[#E0B441] text-[#12100E] shadow-md shadow-[#E0B441]/20 font-bold'
-                : 'text-[#B8AFA3] hover:text-white hover:bg-white/5'
+                ? 'bg-[var(--gold)] text-[var(--on-gold)] shadow-md shadow-[var(--gold)]/20 font-bold'
+                : 'text-[var(--ink-secondary)] hover:text-white hover:bg-white/5'
             }`}
           >
             <FileText className="w-4 h-4" />
@@ -454,8 +455,8 @@ TOTAL $ 2345.68`;
             }}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
               activeSubTab === 'ocr'
-                ? 'bg-[#E5724A] text-white shadow-md shadow-[#E5724A]/20'
-                : 'text-[#B8AFA3] hover:text-white hover:bg-white/5'
+                ? 'bg-[var(--ember)] text-white shadow-md shadow-[var(--ember)]/20'
+                : 'text-[var(--ink-secondary)] hover:text-white hover:bg-white/5'
             }`}
           >
             <Camera className="w-4 h-4" />
@@ -469,8 +470,8 @@ TOTAL $ 2345.68`;
             }}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
               activeSubTab === 'file'
-                ? 'bg-[#3D8B6E] text-white shadow-md shadow-[#3D8B6E]/20'
-                : 'text-[#B8AFA3] hover:text-white hover:bg-white/5'
+                ? 'bg-[var(--success-bright)] text-white shadow-md shadow-[var(--success-bright)]/20'
+                : 'text-[var(--ink-secondary)] hover:text-white hover:bg-white/5'
             }`}
           >
             <Upload className="w-4 h-4" />
@@ -504,30 +505,30 @@ TOTAL $ 2345.68`;
           {activeSubTab === 'text' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <label className="text-xs font-bold text-[#E0B441] uppercase tracking-wider flex items-center gap-1.5">
+                <label className="text-xs font-bold text-[var(--gold)] uppercase tracking-wider flex items-center gap-1.5">
                   <FileText className="w-3.5 h-3.5" />
                   Escribe o Pega tu Lista (Una por renglón o separada por comas)
                 </label>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-[#B8AFA3]">Probar con:</span>
+                  <span className="text-[11px] text-[var(--ink-secondary)]">Probar con:</span>
                   <button
                     type="button"
                     onClick={() => handleLoadSampleText('cocinera')}
-                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-[#E0B441] border border-[#E0B441]/30 transition-all"
+                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-[var(--gold)] border border-[var(--gold)]/30 transition-all"
                   >
                     WhatsApp Cocinera
                   </button>
                   <button
                     type="button"
                     onClick={() => handleLoadSampleText('lacomer')}
-                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-[#E0B441] border border-[#E0B441]/30 transition-all font-bold"
+                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-[var(--gold)] border border-[var(--gold)]/30 transition-all font-bold"
                   >
                     🇲🇽 La Comer
                   </button>
                   <button
                     type="button"
                     onClick={() => handleLoadSampleText('costco')}
-                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-[#E5724A] border border-[#E5724A]/30 transition-all"
+                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-[var(--ember)] border border-[var(--ember)]/30 transition-all"
                   >
                     Costco Bulk
                   </button>
@@ -546,17 +547,17 @@ TOTAL $ 2345.68`;
                 onChange={(e) => setRawText(e.target.value)}
                 rows={6}
                 placeholder="Ejemplo:&#10;- 2 kg de jitomate saladet&#10;- 1 aceite de oliva extra virgen&#10;- 4 aguacates hass&#10;- 3 latas de atún dolores&#10;- 2 botellas vino tinto rioja&#10;- 1 paquete papel de baño regio luxury"
-                className="w-full p-3.5 rounded-2xl bg-[#1C1814] border border-[#3D3630] focus:border-[#E0B441] text-sm text-[#F2EDE4] font-mono placeholder:text-[#6E655F] outline-none transition-all resize-y"
+                className="w-full p-3.5 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] focus:border-[var(--gold)] text-sm text-[var(--ink-primary)] font-mono placeholder:text-[var(--ink-tertiary)] outline-none transition-all resize-y"
               />
 
               <div className="flex items-center justify-between pt-1">
-                <span className="text-xs text-[#8B8378]">
+                <span className="text-xs text-[var(--ink-tertiary)]">
                   Detecta automáticamente cantidades, fracciones (1/2 kg), departamentos y tiendas.
                 </span>
                 <button
                   type="button"
                   onClick={handleProcessText}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#E0B441] to-[#E5724A] text-[#12100E] font-bold text-xs sm:text-sm hover:brightness-110 shadow-lg shadow-[#E0B441]/20 transition-all"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[var(--gold)] to-[var(--ember)] text-[var(--on-gold)] font-bold text-xs sm:text-sm hover:brightness-110 shadow-lg shadow-[var(--gold)]/20 transition-all"
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>Analizar y Extraer Artículos</span>
@@ -568,7 +569,7 @@ TOTAL $ 2345.68`;
           {/* TAB 2: FOTO DE LIBRETA / TICKET (OCR) */}
           {activeSubTab === 'ocr' && (
             <div className="space-y-4">
-              <div className="p-4 rounded-2xl bg-[#1C1814] border border-[#3D3630] flex flex-col sm:flex-row items-center gap-4">
+              <div className="p-4 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] flex flex-col sm:flex-row items-center gap-4">
                 
                 {/* Inputs de Cámara y Archivo */}
                 <input
@@ -591,7 +592,7 @@ TOTAL $ 2345.68`;
                   <button
                     type="button"
                     onClick={() => cameraInputRef.current?.click()}
-                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#E5724A] to-[#C9552E] text-white font-bold text-xs sm:text-sm hover:brightness-110 shadow-md transition-all"
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[var(--ember)] to-[var(--terracotta)] text-white font-bold text-xs sm:text-sm hover:brightness-110 shadow-md transition-all"
                   >
                     <Camera className="w-4 h-4" />
                     <span>Tomar Foto con Cámara</span>
@@ -599,21 +600,21 @@ TOTAL $ 2345.68`;
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-medium text-xs sm:text-sm border border-[#3D3630] transition-all"
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-medium text-xs sm:text-sm border border-[var(--border-strong)] transition-all"
                   >
                     <Upload className="w-4 h-4" />
                     <span>Subir de Galería</span>
                   </button>
                 </div>
 
-                <div className="text-xs text-[#8B8378] flex-1">
+                <div className="text-xs text-[var(--ink-tertiary)] flex-1">
                   💡 <strong>Tip pro:</strong> Coloca la nota o ticket sobre una superficie plana y bien iluminada. El sistema aplica corrección de sombras y filtro de contraste automáticamente.
                 </div>
               </div>
 
               {/* Barra de Pruebas de Tickets 1-Clic */}
-              <div className="p-3 rounded-2xl bg-[#1C1814] border border-[#3D3630] flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-bold text-[#E0B441] flex items-center gap-1.5">
+              <div className="p-3 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold text-[var(--gold)] flex items-center gap-1.5">
                   <Receipt className="w-3.5 h-3.5" />
                   Probar Tickets Reales (1-Clic):
                 </span>
@@ -621,7 +622,7 @@ TOTAL $ 2345.68`;
                   <button
                     type="button"
                     onClick={() => handleLoadSampleTicket('lacomer')}
-                    className="px-2.5 py-1 rounded-lg bg-[#E0B441]/15 hover:bg-[#E0B441]/25 text-xs text-[#E0B441] border border-[#E0B441]/30 transition-all font-semibold"
+                    className="px-2.5 py-1 rounded-lg bg-[var(--gold)]/15 hover:bg-[var(--gold)]/25 text-xs text-[var(--gold)] border border-[var(--gold)]/30 transition-all font-semibold"
                   >
                     🇲🇽 Ticket La Comer (Puebla)
                   </button>
@@ -635,7 +636,7 @@ TOTAL $ 2345.68`;
                   <button
                     type="button"
                     onClick={() => handleLoadSampleTicket('costco')}
-                    className="px-2.5 py-1 rounded-lg bg-[#E5724A]/15 hover:bg-[#E5724A]/25 text-xs text-[#E5724A] border border-[#E5724A]/30 transition-all font-semibold"
+                    className="px-2.5 py-1 rounded-lg bg-[var(--ember)]/15 hover:bg-[var(--ember)]/25 text-xs text-[var(--ember)] border border-[var(--ember)]/30 transition-all font-semibold"
                   >
                     🇲🇽 Ticket Costco / Súper ($)
                   </button>
@@ -644,8 +645,8 @@ TOTAL $ 2345.68`;
 
               {/* Vista previa y botón de procesamiento */}
               {imagePreviewUrl && (
-                <div className="p-4 rounded-2xl bg-[#1C1814] border border-[#3D3630] flex flex-col md:flex-row items-center gap-5 animate-fade-in">
-                  <div className="w-full md:w-48 h-48 rounded-xl overflow-hidden bg-black/50 border border-[#3D3630] shrink-0 flex items-center justify-center">
+                <div className="p-4 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] flex flex-col md:flex-row items-center gap-5 animate-fade-in">
+                  <div className="w-full md:w-48 h-48 rounded-xl overflow-hidden bg-black/50 border border-[var(--border-strong)] shrink-0 flex items-center justify-center">
                     <img
                       src={imagePreviewUrl}
                       alt="Captura a procesar"
@@ -655,23 +656,23 @@ TOTAL $ 2345.68`;
 
                   <div className="flex-1 w-full space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-[#F2EDE4]">
+                      <span className="text-sm font-semibold text-[var(--ink-primary)]">
                         {selectedImage?.name || 'Foto capturada'}
                       </span>
-                      <span className="text-xs text-[#B8AFA3]">
+                      <span className="text-xs text-[var(--ink-secondary)]">
                         {Math.round((selectedImage?.size || 0) / 1024)} KB
                       </span>
                     </div>
 
                     {isOcrProcessing ? (
-                      <div className="space-y-2 p-3 rounded-xl bg-[#14110F] border border-[#E5724A]/30">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-[#E5724A]">
+                      <div className="space-y-2 p-3 rounded-xl bg-[var(--bg-base)] border border-[var(--ember)]/30">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--ember)]">
                           <Loader2 className="w-4 h-4 animate-spin" />
                           <span>{ocrProgress?.status || 'Procesando OCR con visión artificial...'}</span>
                         </div>
                         <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
                           <div 
-                            className="h-full bg-gradient-to-r from-[#E5724A] to-[#E0B441] transition-all duration-300"
+                            className="h-full bg-gradient-to-r from-[var(--ember)] to-[var(--gold)] transition-all duration-300"
                             style={{ width: `${ocrProgress?.progress || 25}%` }}
                           />
                         </div>
@@ -680,7 +681,7 @@ TOTAL $ 2345.68`;
                       <button
                         type="button"
                         onClick={handleRunOcr}
-                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#E5724A] to-[#E0B441] text-[#12100E] font-bold text-sm hover:brightness-110 shadow-lg shadow-[#E5724A]/25 transition-all"
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[var(--ember)] to-[var(--gold)] text-[var(--on-gold)] font-bold text-sm hover:brightness-110 shadow-lg shadow-[var(--ember)]/25 transition-all"
                       >
                         <Sparkles className="w-4 h-4" />
                         <span>Extraer Texto y Productos con OCR</span>
@@ -692,16 +693,16 @@ TOTAL $ 2345.68`;
 
               {/* Inspector Desplegable del Texto Reconocido por OCR */}
               {lastOcrRawText && (
-                <div className="p-3.5 rounded-2xl bg-[#1C1814] border border-[#3D3630] space-y-2 animate-fade-in">
+                <div className="p-3.5 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] space-y-2 animate-fade-in">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[#E0B441] flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-[var(--gold)] flex items-center gap-1.5">
                       <Receipt className="w-3.5 h-3.5" />
                       Texto Reconocido por OCR ({lastOcrRawText.length} caracteres)
                     </span>
                     <button
                       type="button"
                       onClick={() => setShowRawOcrText(!showRawOcrText)}
-                      className="text-xs text-[#B8AFA3] hover:text-white flex items-center gap-1 px-2 py-1 rounded bg-white/5 border border-white/10"
+                      className="text-xs text-[var(--ink-secondary)] hover:text-white flex items-center gap-1 px-2 py-1 rounded bg-white/5 border border-white/10"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       <span>{showRawOcrText ? 'Ocultar' : 'Ver / Editar Texto'}</span>
@@ -715,12 +716,12 @@ TOTAL $ 2345.68`;
                         value={rawText}
                         onChange={(e) => setRawText(e.target.value)}
                         rows={6}
-                        className="w-full p-3 rounded-xl bg-[#12100E] border border-[#2A2521] text-xs font-mono text-[#F2EDE4] outline-none resize-y"
+                        className="w-full p-3 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-xs font-mono text-[var(--ink-primary)] outline-none resize-y"
                       />
                       <button
                         type="button"
                         onClick={handleProcessText}
-                        className="px-3.5 py-1.5 rounded-lg bg-[#E0B441] hover:brightness-110 text-[#12100E] font-bold text-xs shadow transition-all"
+                        className="px-3.5 py-1.5 rounded-lg bg-[var(--gold)] hover:brightness-110 text-[var(--on-gold)] font-bold text-xs shadow transition-all"
                       >
                         Re-analizar Texto con Inteligencia
                       </button>
@@ -744,21 +745,21 @@ TOTAL $ 2345.68`;
 
               <div 
                 onClick={() => fileDocInputRef.current?.click()}
-                className="p-8 rounded-3xl border-2 border-dashed border-[#3D3630] hover:border-[#3D8B6E] bg-[#1C1814]/50 hover:bg-[#1C1814] flex flex-col items-center justify-center gap-3 cursor-pointer transition-all text-center group"
+                className="p-8 rounded-3xl border-2 border-dashed border-[var(--border-strong)] hover:border-[var(--success-bright)] bg-[var(--bg-elevated)]/50 hover:bg-[var(--bg-elevated)] flex flex-col items-center justify-center gap-3 cursor-pointer transition-all text-center group"
               >
-                <div className="p-4 rounded-2xl bg-[#3D8B6E]/15 text-[#3D8B6E] group-hover:scale-110 transition-transform">
+                <div className="p-4 rounded-2xl bg-[var(--success-bright)]/15 text-[var(--success-bright)] group-hover:scale-110 transition-transform">
                   <Upload className="w-8 h-8" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-[#F2EDE4]">
+                  <h4 className="text-sm font-bold text-[var(--ink-primary)]">
                     Haz clic aquí o arrastra tu archivo (.TXT, .CSV o .PDF)
                   </h4>
-                  <p className="text-xs text-[#8B8378] mt-1">
+                  <p className="text-xs text-[var(--ink-tertiary)] mt-1">
                     Ideal para notas de pedido de proveedores, listas de supermercado digital o respaldos
                   </p>
                 </div>
                 {isReadingFile && (
-                  <div className="flex items-center gap-2 text-xs text-[#3D8B6E] font-medium mt-2">
+                  <div className="flex items-center gap-2 text-xs text-[var(--success-bright)] font-medium mt-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span>Leyendo y analizando archivo...</span>
                   </div>
@@ -769,18 +770,18 @@ TOTAL $ 2345.68`;
 
           {/* TABLA DE REVISIÓN Y EDICIÓN PREVIA (PRE-IMPORT) */}
           {extractedItems.length > 0 && (
-            <div className="space-y-3 pt-4 border-t border-[#2A2521] animate-fade-in">
+            <div className="space-y-3 pt-4 border-t border-[var(--border-soft)] animate-fade-in">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={toggleSelectAll}
-                    className="text-xs font-semibold text-[#E0B441] hover:underline flex items-center gap-1.5"
+                    className="text-xs font-semibold text-[var(--gold)] hover:underline flex items-center gap-1.5"
                   >
                     <Check className="w-3.5 h-3.5" />
                     {selectedItemIds.size === extractedItems.length ? 'Deseleccionar Todos' : 'Seleccionar Todos'}
                   </button>
-                  <span className="text-xs text-[#8B8378]">
+                  <span className="text-xs text-[var(--ink-tertiary)]">
                     ({selectedItemIds.size} de {extractedItems.length} seleccionados)
                   </span>
                 </div>
@@ -788,19 +789,19 @@ TOTAL $ 2345.68`;
                 <button
                   type="button"
                   onClick={handleAddManualRow}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-semibold text-[#F2EDE4] border border-[#3D3630] transition-all"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-semibold text-[var(--ink-primary)] border border-[var(--border-strong)] transition-all"
                 >
-                  <Plus className="w-3.5 h-3.5 text-[#E0B441]" />
+                  <Plus className="w-3.5 h-3.5 text-[var(--gold)]" />
                   <span>Agregar Fila</span>
                 </button>
               </div>
 
               {/* Banner de Inteligencia de Precios & Asesor Multitienda */}
               {priceIntelligence && (priceIntelligence.priceDropsCount > 0 || priceIntelligence.priceHikesCount > 0 || priceIntelligence.totalCrossStoreSavingsPotential > 0) && (
-                <div className="p-3 rounded-2xl bg-gradient-to-r from-[#1C1814] via-[#261E18] to-[#1C1814] border border-[#E0B441]/35 text-xs space-y-1.5 animate-fade-in">
-                  <div className="flex items-center justify-between font-bold text-[#E0B441]">
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-[var(--bg-elevated)] via-[var(--bg-elevated)] to-[var(--bg-elevated)] border border-[var(--gold)]/35 text-xs space-y-1.5 animate-fade-in">
+                  <div className="flex items-center justify-between font-bold text-[var(--gold)]">
                     <span className="flex items-center gap-1.5">
-                      <Award className="w-4 h-4 text-[#E0B441]" />
+                      <Award className="w-4 h-4 text-[var(--gold)]" />
                       Auditoría de Precios del Ticket & Asesor Multitienda:
                     </span>
                     {priceIntelligence.totalCrossStoreSavingsPotential > 0 && (
@@ -823,7 +824,7 @@ TOTAL $ 2345.68`;
                       </span>
                     )}
                     {priceIntelligence.recommendations.length > 0 && (
-                      <span className="px-2 py-0.5 rounded-lg bg-[#E0B441]/10 text-[#E0B441] border border-[#E0B441]/25 font-semibold">
+                      <span className="px-2 py-0.5 rounded-lg bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/25 font-semibold">
                         💡 En {priceIntelligence.recommendations[0]?.cheapestStore}: "{priceIntelligence.recommendations[0]?.productName}" cuesta ${priceIntelligence.recommendations[0]?.cheapestPrice.toFixed(2)} (-${priceIntelligence.recommendations[0]?.lineSavings.toFixed(2)})
                       </span>
                     )}
@@ -844,8 +845,8 @@ TOTAL $ 2345.68`;
                       key={item.id}
                       className={`p-3 rounded-2xl border transition-all flex flex-col sm:flex-row items-start sm:items-center gap-3 ${
                         isChecked 
-                          ? 'bg-[#1C1814] border-[#E0B441]/40 shadow-sm' 
-                          : 'bg-[#14110F]/60 border-[#2A2521] opacity-60'
+                          ? 'bg-[var(--bg-elevated)] border-[var(--gold)]/40 shadow-sm' 
+                          : 'bg-[var(--bg-base)]/60 border-[var(--border-soft)] opacity-60'
                       }`}
                     >
                       {/* Checkbox */}
@@ -854,8 +855,8 @@ TOTAL $ 2345.68`;
                         onClick={() => toggleItemSelection(item.id)}
                         className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition-colors ${
                           isChecked 
-                            ? 'bg-[#E0B441] border-[#E0B441] text-[#12100E]' 
-                            : 'border-[#3D3630] hover:border-[#E0B441]'
+                            ? 'bg-[var(--gold)] border-[var(--gold)] text-[var(--on-gold)]' 
+                            : 'border-[var(--border-strong)] hover:border-[var(--gold)]'
                         }`}
                       >
                         {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
@@ -867,7 +868,7 @@ TOTAL $ 2345.68`;
                           type="text"
                           value={item.name}
                           onChange={(e) => handleUpdateItem(item.id, 'name', e.target.value)}
-                          className="w-full bg-transparent text-sm font-semibold text-[#F2EDE4] focus:bg-[#14110F] px-2 py-1 rounded-lg border border-transparent focus:border-[#E0B441] outline-none transition-all"
+                          className="w-full bg-transparent text-sm font-semibold text-[var(--ink-primary)] focus:bg-[var(--bg-base)] px-2 py-1 rounded-lg border border-transparent focus:border-[var(--gold)] outline-none transition-all"
                         />
                         <div className="flex flex-wrap items-center gap-1.5 pt-0.5 pl-2">
                           {item.matchedInPantry && (
@@ -888,7 +889,7 @@ TOTAL $ 2345.68`;
                             </span>
                           )}
                           {crossStore && !crossStore.isBestPrice && crossStore.savings > 0 && (
-                            <span className="px-1.5 py-0.2 rounded bg-[#E0B441]/15 text-[#E0B441] border border-[#E0B441]/25 text-[9px]">
+                            <span className="px-1.5 py-0.2 rounded bg-[var(--gold)]/15 text-[var(--gold)] border border-[var(--gold)]/25 text-[9px]">
                               💡 Más barato en {crossStore.cheapestStore} (${crossStore.cheapestPrice.toFixed(2)})
                             </span>
                           )}
@@ -908,12 +909,12 @@ TOTAL $ 2345.68`;
                           min="0.1"
                           value={item.quantity}
                           onChange={(e) => handleUpdateItem(item.id, 'quantity', parseFloat(e.target.value) || 1)}
-                          className="w-16 p-1.5 rounded-lg bg-[#14110F] border border-[#3D3630] text-center text-xs font-mono font-bold text-[#E0B441] outline-none"
+                          className="w-16 p-1.5 rounded-lg bg-[var(--bg-base)] border border-[var(--border-strong)] text-center text-xs font-mono font-bold text-[var(--gold)] outline-none"
                         />
                         <select
                           value={item.unit}
                           onChange={(e) => handleUpdateItem(item.id, 'unit', e.target.value)}
-                          className="p-1.5 rounded-lg bg-[#14110F] border border-[#3D3630] text-xs font-medium text-[#B8AFA3] outline-none"
+                          className="p-1.5 rounded-lg bg-[var(--bg-base)] border border-[var(--border-strong)] text-xs font-medium text-[var(--ink-secondary)] outline-none"
                         >
                           <option value="kg">kg</option>
                           <option value="litros">litros</option>
@@ -938,7 +939,7 @@ TOTAL $ 2345.68`;
                       <select
                         value={item.store}
                         onChange={(e) => handleUpdateItem(item.id, 'store', e.target.value)}
-                        className="p-1.5 rounded-lg bg-[#14110F] border border-[#3D3630] text-xs text-[#E5724A] font-medium outline-none shrink-0"
+                        className="p-1.5 rounded-lg bg-[var(--bg-base)] border border-[var(--border-strong)] text-xs text-[var(--ember)] font-medium outline-none shrink-0"
                       >
                         <option value="Mercadona">🇪🇸 Mercadona</option>
                         <option value="El Corte Inglés">🇪🇸 El Corte Inglés</option>
@@ -963,7 +964,7 @@ TOTAL $ 2345.68`;
                             handleUpdateItem(item.id, 'unit', 'botellas');
                           }
                         }}
-                        className="p-1.5 rounded-lg bg-[#14110F] border border-[#3D3630] text-xs text-[#E0B441] font-medium outline-none shrink-0"
+                        className="p-1.5 rounded-lg bg-[var(--bg-base)] border border-[var(--border-strong)] text-xs text-[var(--gold)] font-medium outline-none shrink-0"
                       >
                         {zones.map((z) => (
                           <option key={z.id} value={z.name}>
@@ -976,7 +977,7 @@ TOTAL $ 2345.68`;
                       <button
                         type="button"
                         onClick={() => handleRemoveItem(item.id)}
-                        className="p-1.5 rounded-lg text-[#8B8378] hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0"
+                        className="p-1.5 rounded-lg text-[var(--ink-tertiary)] hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0"
                         title="Eliminar de la lista previa"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -992,14 +993,14 @@ TOTAL $ 2345.68`;
 
         {showTicketReview && <div className="p-4 overflow-y-auto"><TicketReview items={extractedItems} setItems={setExtractedItems} selectedIds={selectedItemIds} setSelectedIds={setSelectedItemIds} rawText={lastOcrRawText || rawText} store={detectedStore || ''} setStore={setDetectedStore} currency={activeHouse?.currency || 'MXN'} onSave={onImportDirectToPantry} onClose={onClose} /></div>}
         {/* Footer Actions */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-t border-[#2A2521] bg-[#1C1814] flex-wrap gap-3">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-t border-[var(--border-soft)] bg-[var(--bg-elevated)] flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <span className="text-xs text-[#B8AFA3]">
+            <span className="text-xs text-[var(--ink-secondary)]">
               Seleccionados: <strong className="text-white font-mono">{selectedItemIds.size}</strong> artículos
             </span>
             {totalCost > 0 && (
-              <span className="text-xs text-[#B8AFA3] border-l border-[#3D3630] pl-3">
-                Costo estimado: <strong className="text-[#E0B441] font-mono">${totalCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</strong>
+              <span className="text-xs text-[var(--ink-secondary)] border-l border-[var(--border-strong)] pl-3">
+                Costo estimado: <strong className="text-[var(--gold)] font-mono">${totalCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</strong>
               </span>
             )}
           </div>
@@ -1011,7 +1012,7 @@ TOTAL $ 2345.68`;
                 audio.click();
                 onClose();
               }}
-              className="px-4 py-2.5 rounded-xl border border-[#3D3630] text-xs sm:text-sm font-semibold text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all"
+              className="px-4 py-2.5 rounded-xl border border-[var(--border-strong)] text-xs sm:text-sm font-semibold text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all"
             >
               Cancelar
             </button>
@@ -1025,7 +1026,7 @@ TOTAL $ 2345.68`;
                     .filter((i) => selectedItemIds.has(i.id))
                     .map((item) => sanitizeCavaProduct(item, zones));
                   if (itemsToImport.length === 0) {
-                    alert('Selecciona al menos un artículo.');
+                    notify('Selecciona al menos un artículo.');
                     return;
                   }
                   setShowTicketReview(true);
@@ -1049,7 +1050,7 @@ TOTAL $ 2345.68`;
               disabled={selectedItemIds.size === 0}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-xl transition-all ${
                 selectedItemIds.size > 0
-                  ? 'bg-gradient-to-r from-[#E0B441] to-[#E5724A] text-[#12100E] hover:brightness-110 shadow-[#E0B441]/25 active:scale-95'
+                  ? 'bg-gradient-to-r from-[var(--gold)] to-[var(--ember)] text-[var(--on-gold)] hover:brightness-110 shadow-[var(--gold)]/25 active:scale-95'
                   : 'bg-white/10 text-white/30 cursor-not-allowed border border-white/5'
               }`}
             >

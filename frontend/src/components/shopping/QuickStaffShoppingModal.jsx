@@ -82,10 +82,10 @@ export default function QuickStaffShoppingModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-3xl bg-[#0F172A] border border-white/10 shadow-2xl">
+      <div className="relative w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-3xl bg-[var(--bg-sunken)] border border-white/10 shadow-2xl">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10 bg-[#162137] sticky top-0 z-10">
+        <div className="flex items-center justify-between p-6 border-b border-white/10 bg-[var(--bg-elevated)] sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-2xl bg-amber-500/20 border border-amber-500/30 text-amber-300">
               <ShoppingCart className="w-6 h-6" />
@@ -208,7 +208,7 @@ export default function QuickStaffShoppingModal({
               <select
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
-                className="w-full h-11 px-3 rounded-xl bg-[#1E293B] border border-white/10 text-white text-sm"
+                className="w-full h-11 px-3 rounded-xl bg-[var(--bg-elevated)] border border-white/10 text-white text-sm"
               >
                 <option value="piezas">piezas</option>
                 <option value="litros">litros</option>
@@ -229,7 +229,7 @@ export default function QuickStaffShoppingModal({
             <select
               value={reportedBy}
               onChange={(e) => setReportedBy(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl bg-[#1E293B] border border-white/10 text-white text-sm"
+              className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-elevated)] border border-white/10 text-white text-sm"
             >
               {staffList.map((s) => (
                 <option key={s.id} value={s.name}>

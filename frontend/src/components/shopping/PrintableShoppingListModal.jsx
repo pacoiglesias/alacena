@@ -20,6 +20,7 @@ import {
 import { audio } from '../../services/audioService';
 import { SUPERMARKET_DEPARTMENTS, getDepartmentForItem } from './ShoppingListView';
 import { generateShoppingListPdf } from '../../services/pdfGenerator';
+import { notify } from '../../services/notice';
 
 export default function PrintableShoppingListModal({
   isOpen,
@@ -132,7 +133,7 @@ export default function PrintableShoppingListModal({
       audio.success();
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      alert('Lista copiada.');
+      notify('Lista copiada.');
     }
   };
 
@@ -238,25 +239,25 @@ export default function PrintableShoppingListModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in print:bg-white print:p-0 print:static print:inset-auto">
       
       {/* Contenedor Principal del Modal */}
-      <div className="relative w-full max-w-4xl max-h-[94vh] flex flex-col rounded-3xl bg-[#12100E] border border-white/10 shadow-2xl overflow-hidden print:border-none print:shadow-none print:bg-white print:max-h-none print:rounded-none">
+      <div className="relative w-full max-w-4xl max-h-[94vh] flex flex-col rounded-3xl bg-[var(--bg-base)] border border-white/10 shadow-2xl overflow-hidden print:border-none print:shadow-none print:bg-white print:max-h-none print:rounded-none">
         
         {/* ======================================================== */}
         {/* BARRA SUPERIOR DE CONTROLES (OCULTA AL IMPRIMIR) */}
         {/* ======================================================== */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 border-b border-white/10 bg-[#1A1614] gap-4 print:hidden">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 border-b border-white/10 bg-[var(--on-gold)] gap-4 print:hidden">
           
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#6B1F2E]/30 border border-[#6B1F2E]/50 flex items-center justify-center text-[#E5724A]">
+            <div className="w-10 h-10 rounded-2xl bg-[var(--wine)]/30 border border-[var(--wine)]/50 flex items-center justify-center text-[var(--ember)]">
               <Printer className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-bold font-display text-[#F2EDE4] flex items-center gap-2">
+              <h3 className="text-base sm:text-lg font-bold font-display text-[var(--ink-primary)] flex items-center gap-2">
                 Hoja de Compras Oficial & PDF
-                <span className="text-xs px-2 py-0.5 rounded-full bg-[#C8542A]/20 text-[#E5724A] font-sans font-medium">
+                <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--terracotta)]/20 text-[var(--ember)] font-sans font-medium">
                   {filteredItems.length} insumos
                 </span>
               </h3>
-              <p className="text-xs text-[#B8AFA3]">
+              <p className="text-xs text-[var(--ink-secondary)]">
                 Vista previa de impresión en blanco y negro • Apta para papel o PDF
               </p>
             </div>
@@ -268,10 +269,10 @@ export default function PrintableShoppingListModal({
             {/* Copiar WhatsApp / Texto */}
             <button
               onClick={handleCopyText}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#F2EDE4] bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--ink-primary)] bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
               title="Copiar lista en texto para WhatsApp"
             >
-              {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-[#B8AFA3]" />}
+              {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-[var(--ink-secondary)]" />}
               <span>{copied ? '¡Copiado!' : 'Copiar Texto'}</span>
             </button>
 
@@ -288,7 +289,7 @@ export default function PrintableShoppingListModal({
             {/* Imprimir en Papel */}
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#F2EDE4] bg-white/10 hover:bg-white/20 border border-white/20 transition-all active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[var(--ink-primary)] bg-white/10 hover:bg-white/20 border border-white/20 transition-all active:scale-95"
               title="Mandar a imprimir directamente a tu impresora"
             >
               <Printer className="w-4 h-4 text-blue-400" />
@@ -301,7 +302,7 @@ export default function PrintableShoppingListModal({
                 audio.click();
                 onClose();
               }}
-              className="p-2 text-[#B8AFA3] hover:text-white rounded-xl hover:bg-white/10 transition-all"
+              className="p-2 text-[var(--ink-secondary)] hover:text-white rounded-xl hover:bg-white/10 transition-all"
             >
               <X className="w-5 h-5" />
             </button>
@@ -311,10 +312,10 @@ export default function PrintableShoppingListModal({
         {/* ======================================================== */}
         {/* BARRA DE PREFERENCIAS Y FILTROS (OCULTA AL IMPRIMIR) */}
         {/* ======================================================== */}
-        <div className="px-4 py-3 border-b border-white/10 bg-[#141210] flex flex-wrap items-center justify-between gap-3 text-xs print:hidden">
+        <div className="px-4 py-3 border-b border-white/10 bg-[var(--bg-sunken)] flex flex-wrap items-center justify-between gap-3 text-xs print:hidden">
           
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[#B8AFA3] flex items-center gap-1 font-medium">
+            <span className="text-[var(--ink-secondary)] flex items-center gap-1 font-medium">
               <SlidersHorizontal className="w-3.5 h-3.5" />
               Organizar por:
             </span>
@@ -323,13 +324,13 @@ export default function PrintableShoppingListModal({
             <div className="flex rounded-lg bg-black/40 p-0.5 border border-white/10">
               <button
                 onClick={() => { audio.click(); setGroupBy('dept'); }}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${groupBy === 'dept' ? 'bg-[#6B1F2E] text-white shadow-sm' : 'text-[#B8AFA3] hover:text-white'}`}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${groupBy === 'dept' ? 'bg-[var(--wine)] text-white shadow-sm' : 'text-[var(--ink-secondary)] hover:text-white'}`}
               >
                 🥩 Pasillos del Súper
               </button>
               <button
                 onClick={() => { audio.click(); setGroupBy('store'); }}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${groupBy === 'store' ? 'bg-[#6B1F2E] text-white shadow-sm' : 'text-[#B8AFA3] hover:text-white'}`}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${groupBy === 'store' ? 'bg-[var(--wine)] text-white shadow-sm' : 'text-[var(--ink-secondary)] hover:text-white'}`}
               >
                 🏪 Proveedor / Tienda
               </button>
@@ -339,13 +340,13 @@ export default function PrintableShoppingListModal({
             <div className="flex rounded-lg bg-black/40 p-0.5 border border-white/10 ml-2">
               <button
                 onClick={() => { audio.click(); setFilterStatus('pending'); }}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${filterStatus === 'pending' ? 'bg-[#C8542A] text-white shadow-sm' : 'text-[#B8AFA3] hover:text-white'}`}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${filterStatus === 'pending' ? 'bg-[var(--terracotta)] text-white shadow-sm' : 'text-[var(--ink-secondary)] hover:text-white'}`}
               >
                 Solo Pendientes ({shoppingList.filter(i => !i.checked).length})
               </button>
               <button
                 onClick={() => { audio.click(); setFilterStatus('all'); }}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${filterStatus === 'all' ? 'bg-[#C8542A] text-white shadow-sm' : 'text-[#B8AFA3] hover:text-white'}`}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${filterStatus === 'all' ? 'bg-[var(--terracotta)] text-white shadow-sm' : 'text-[var(--ink-secondary)] hover:text-white'}`}
               >
                 Todos ({shoppingList.length})
               </button>
@@ -353,13 +354,13 @@ export default function PrintableShoppingListModal({
           </div>
 
           {/* Opciones de la hoja */}
-          <div className="flex items-center gap-4 text-[#B8AFA3]">
+          <div className="flex items-center gap-4 text-[var(--ink-secondary)]">
             <label className="flex items-center gap-1.5 cursor-pointer hover:text-white select-none">
               <input
                 type="checkbox"
                 checked={showPrices}
                 onChange={(e) => setShowPrices(e.target.checked)}
-                className="rounded border-white/20 text-[#C8542A] focus:ring-0"
+                className="rounded border-white/20 text-[var(--terracotta)] focus:ring-0"
               />
               <span>Mostrar Precios</span>
             </label>
@@ -369,7 +370,7 @@ export default function PrintableShoppingListModal({
                 type="checkbox"
                 checked={showQrCode}
                 onChange={(e) => setShowQrCode(e.target.checked)}
-                className="rounded border-white/20 text-[#C8542A] focus:ring-0"
+                className="rounded border-white/20 text-[var(--terracotta)] focus:ring-0"
               />
               <span>Código QR</span>
             </label>
@@ -379,7 +380,7 @@ export default function PrintableShoppingListModal({
                 type="checkbox"
                 checked={showSignatures}
                 onChange={(e) => setShowSignatures(e.target.checked)}
-                className="rounded border-white/20 text-[#C8542A] focus:ring-0"
+                className="rounded border-white/20 text-[var(--terracotta)] focus:ring-0"
               />
               <span>Firmas</span>
             </label>

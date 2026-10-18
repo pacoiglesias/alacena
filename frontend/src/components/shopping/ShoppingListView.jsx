@@ -1,4 +1,4 @@
-import React, { useState, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
 import { 
   ShoppingCart, Plus, Check, Trash2, Share2, 
   Sparkles, Store, CheckSquare, Square, Camera, 
@@ -7,8 +7,8 @@ import {
   Beef, Milk, Apple, Package, Wine, Coffee, Layers, ChevronDown, BookOpen, ShoppingBag,
   MoreHorizontal, Receipt, Award, Search, ArrowUpRight, Undo2, FileText
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
+import ProductPhoto from '../common/ProductPhoto';
 const ItemQrModal = lazy(() => import('./ItemQrModal'));
 const ShoppingListQrTicketModal = lazy(() => import('./ShoppingListQrTicketModal'));
 const PantryQrBookletModal = lazy(() => import('./PantryQrBookletModal'));
@@ -22,6 +22,7 @@ import { getCatalogs } from '../../services/catalogsService';
 import { belongsToHouse, positiveQuantity } from '../../utils/householdShopping';
 import { readLocalState, writeLocalState } from '../../services/localState';
 import { normalizeItemName, areItemsEquivalent, deduplicateShoppingItems } from '../../utils/deduplication';
+import { notify, confirmDialog } from '../../services/notice';
 
 // Departamentos estándar de supermercado físico
 export const SUPERMARKET_DEPARTMENTS = [
@@ -46,6 +47,118 @@ export function getDepartmentForItem(item) {
   }
   return 'ABARROTES';
 }
+
+
+// ─── Tarjeta de artículo memoizada: solo re-renderiza si cambian sus props ───
+const ShoppingItemCard = React.memo(function ShoppingItemCard({
+  item, onToggle, onUpdateQuantity, onRemove, onShowQr, money,
+}) {
+  const step = ['kg', 'l', 'litros'].includes(item.unit) ? 0.25 : 1;
+  const changeQty = (delta) => {
+    audio.click();
+    const next = parseFloat(
+      (Math.max(0.01, (parseFloat(item.quantity) || 1) + delta)).toFixed(2)
+    );
+    onUpdateQuantity(item.id, next);
+  };
+  return (
+    <div
+      onClick={() => { audio.superCheck(); onToggle(item.id); }}
+      className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between select-none active:scale-[0.98] ${
+        item.checked
+          ? 'bg-emerald-500/15 border-emerald-500/40 text-gray-400 shadow-sm'
+          : 'bg-white/[0.03] border-white/10 hover:border-emerald-500/30 hover:bg-white/[0.05] text-white'
+      }`}
+    >
+      {/* Casilla Táctil Grande & Datos */}
+      <div className="flex items-center gap-3.5 min-w-0">
+        <ProductPhoto photo={item.photo} alt={item.name} size={44} />
+        <button
+          type="button"
+          role="checkbox" aria-checked={Boolean(item.checked)} aria-label={`Marcar ${item.name}`}
+          onClick={(e) => { e.stopPropagation(); audio.superCheck(); onToggle(item.id); }}
+          className={`w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center border transition-all shrink-0 ${
+            item.checked
+              ? 'bg-emerald-500 border-emerald-500 text-white shadow-md'
+              : 'border-white/30 bg-white/5 hover:border-emerald-400'
+          }`}
+        >
+          {item.checked && <Check className="w-6 h-6 stroke-[3] animate-check-pop" />}
+        </button>
+
+        <div className="min-w-0">
+          <span className={`text-sm font-bold block truncate ${
+            item.checked ? 'line-through text-gray-400 font-normal' : 'text-white'
+          }`}>
+            {item.name}
+          </span>
+          <div className="flex items-center gap-2 text-xs text-gray-400 mt-1 flex-wrap">
+            <div
+              className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg px-1 py-0.5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => changeQty(-step)}
+                className="min-w-[40px] min-h-[40px] flex items-center justify-center text-sm text-gray-300 hover:text-white font-bold cursor-pointer rounded-md active:bg-white/10"
+                title="Restar"
+                aria-label={`Quitar ${step} ${item.unit || ''}`}
+              >−</button>
+              <span className="font-mono text-emerald-300 font-bold text-xs px-1">
+                {item.quantity} {item.unit}
+              </span>
+              <button
+                type="button"
+                onClick={() => changeQty(step)}
+                className="min-w-[40px] min-h-[40px] flex items-center justify-center text-sm text-gray-300 hover:text-white font-bold cursor-pointer rounded-md active:bg-white/10"
+                title="Sumar"
+                aria-label={`Agregar ${step} ${item.unit || ''}`}
+              >+</button>
+            </div>
+            <span>•</span>
+            <span className="truncate">{item.store || 'Supermercado'}</span>
+            {item.targetZone && (
+              <>
+                <span className="hidden sm:inline">•</span>
+                <span className="text-gray-500 hidden sm:inline">Destino: {item.targetZone}</span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Precio & Botón Etiqueta QR */}
+      <div className="flex items-center gap-2 shrink-0 ml-2">
+        {item.estimatedPriceMxn > 0 && (
+          <div className="text-right font-mono text-xs">
+            <span className="text-emerald-300 font-bold block">
+              {money((item.estimatedPriceMxn || 0) * (item.quantity || 1))}
+            </span>
+            <span className="text-[10px] text-gray-500">MXN</span>
+          </div>
+        )}
+
+        <button
+          onClick={(e) => { e.stopPropagation(); audio.click(); onShowQr(item); }}
+          className="min-w-[44px] min-h-[44px] p-2.5 flex items-center justify-center text-gray-400 hover:text-emerald-300 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all"
+          title="Ver código QR para recipientes / frascos"
+          aria-label={`QR de ${item.name}`}
+        >
+          <QrCode className="w-4 h-4 text-emerald-400" />
+        </button>
+
+        <button
+          onClick={(e) => { e.stopPropagation(); audio.delete(); onRemove(item); }}
+          className="min-w-[44px] min-h-[44px] p-2.5 flex items-center justify-center text-gray-500 hover:text-rose-400 rounded-xl hover:bg-rose-500/10 transition-colors"
+          title="Quitar de la lista"
+          aria-label={`Quitar ${item.name} de la lista`}
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+});
 
 export default function ShoppingListView({
   shoppingList,
@@ -73,7 +186,12 @@ export default function ShoppingListView({
   const [isQrBookletOpen, setIsQrBookletOpen] = useState(false);
   const [isQuickStaffOpen, setIsQuickStaffOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-  const [isWalkingMode, setIsWalkingMode] = useState(false);
+  const [isWalkingMode, setIsWalkingMode] = useState(() => {
+    try { return localStorage.getItem('alacena:walkingMode') === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('alacena:walkingMode', isWalkingMode ? '1' : '0'); } catch { /* sin almacenamiento */ }
+  }, [isWalkingMode]);
   const [isSmartImportOpen, setIsSmartImportOpen] = useState(false);
   const [isReconciliationOpen, setIsReconciliationOpen] = useState(false);
   const [isWeeklyStaplesOpen, setIsWeeklyStaplesOpen] = useState(false);
@@ -88,8 +206,16 @@ export default function ShoppingListView({
   const [budgets, setBudgets] = useState(() => readLocalState('alacena_budgets', {}));
   const budget = Number(budgets[budgetKey]) || 0;
   const currency = activeHouse?.currency || 'MXN';
-  const money = (value) => new Intl.NumberFormat(currency === 'EUR' ? 'es-ES' : 'es-MX', { style: 'currency', currency }).format(value);
+  const money = useCallback((value) => new Intl.NumberFormat(currency === 'EUR' ? 'es-ES' : 'es-MX', { style: 'currency', currency }).format(value), [currency]);
   const removeItem = (item) => { setRemovedItem(item); onRemoveItem(item.id); setNotice('Artículo eliminado.'); };
+  // Callbacks estables para las tarjetas memoizadas
+  const handleToggleItem = useCallback((id) => onToggleItem(id), [onToggleItem]);
+  const handleUpdateItemQuantity = useCallback(
+    (id, qty) => { if (onUpdateItemQuantity) onUpdateItemQuantity(id, qty); },
+    [onUpdateItemQuantity]
+  );
+  const handleRemoveItem = useCallback((item) => removeItem(item), [onRemoveItem]);
+  const handleShowQrItem = useCallback((item) => setSelectedQrItem(item), []);
   const quickAdd = (e) => {
     e.preventDefault();
     if (!quickName.trim()) return;
@@ -206,7 +332,7 @@ export default function ShoppingListView({
     audio.click();
     const pending = enrichedList.filter((i) => !i.checked);
     if (pending.length === 0) {
-      alert('No hay artículos pendientes por comprar.');
+      notify('No hay artículos pendientes por comprar.');
       return;
     }
 
@@ -275,7 +401,7 @@ export default function ShoppingListView({
   const handleFinishPurchase = () => {
     const checkedItems = enrichedList.filter((i) => i.checked);
     if (checkedItems.length === 0) {
-      alert('Toca los artículos que ya compraste para marcarlos con palomita verde antes de guardar.');
+      notify('Toca los artículos que ya compraste para marcarlos con palomita verde antes de guardar.');
       return;
     }
     audio.click();
@@ -370,10 +496,10 @@ export default function ShoppingListView({
               audio.superCheck();
               setIsWalkingMode(!isWalkingMode);
             }}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-md cursor-pointer ${
+            className={`flex items-center gap-2 px-4 sm:px-5 py-3 rounded-2xl text-sm sm:text-base font-extrabold transition-all shadow-lg cursor-pointer ${
               isWalkingMode
-                ? 'bg-gradient-to-r from-amber-500 to-[#C8542A] text-white ring-2 ring-amber-400 shadow-amber-950/40 animate-pulse'
-                : 'bg-gradient-to-r from-[#C8542A] to-[#E5724A] text-white hover:brightness-110 shadow-[#C8542A]/30'
+                ? 'bg-gradient-to-r from-amber-500 to-[var(--terracotta)] text-white ring-2 ring-amber-400 shadow-amber-950/40 animate-pulse'
+                : 'bg-gradient-to-r from-[var(--terracotta)] to-[var(--ember)] text-white hover:brightness-110 hover:scale-[1.03] shadow-[var(--terracotta)]/40 ring-2 ring-[var(--ember)]/50'
             }`}
             title="Activar vista táctil gigante para caminar en el supermercado"
           >
@@ -416,10 +542,10 @@ export default function ShoppingListView({
               audio.click();
               setIsPriceComparisonOpen(true);
             }}
-            className="flex items-center gap-1.5 px-3 sm:px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-[#E0B441] bg-[#E0B441]/15 hover:bg-[#E0B441]/25 border border-[#E0B441]/35 transition-all shadow-md cursor-pointer"
+            className="flex items-center gap-1.5 px-3 sm:px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-[var(--gold)] bg-[var(--gold)]/15 hover:bg-[var(--gold)]/25 border border-[var(--gold)]/35 transition-all shadow-md cursor-pointer"
             title="Comparador multitienda y asesor de dónde comprar más barato"
           >
-            <Award className="w-4 h-4 text-[#E0B441]" />
+            <Award className="w-4 h-4 text-[var(--gold)]" />
             <span className="hidden sm:inline">⚖️ Precios</span>
             <span className="sm:hidden">⚖️</span>
           </button>
@@ -434,8 +560,8 @@ export default function ShoppingListView({
               }}
               className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
                 isMoreMenuOpen
-                  ? 'bg-[#E0B441]/20 border-[#E0B441] text-[#E0B441]'
-                  : 'bg-white/5 border-white/10 text-[#94A3B8] hover:text-white hover:bg-white/10'
+                  ? 'bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)]'
+                  : 'bg-white/5 border-white/10 text-[var(--ink-secondary)] hover:text-white hover:bg-white/10'
               }`}
               title="Más herramientas y opciones"
             >
@@ -444,10 +570,10 @@ export default function ShoppingListView({
 
             {isMoreMenuOpen && (
               <div 
-                className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#161310] border border-[#2A2521] shadow-2xl p-2 z-50 animate-fade-in space-y-1 text-xs"
+                className="absolute right-0 mt-2 w-64 rounded-2xl bg-[var(--bg-sunken)] border border-[var(--border-soft)] shadow-2xl p-2 z-50 animate-fade-in space-y-1 text-xs"
                 onClick={() => setIsMoreMenuOpen(false)}
               >
-                <div className="px-2.5 py-1 text-[10px] font-mono font-bold text-[#E0B441] uppercase tracking-wider border-b border-white/5 mb-1">
+                <div className="px-2.5 py-1 text-[10px] font-mono font-bold text-[var(--gold)] uppercase tracking-wider border-b border-white/5 mb-1">
                   Herramientas del Súper
                 </div>
 
@@ -455,9 +581,9 @@ export default function ShoppingListView({
                 <button
                   type="button"
                   onClick={() => setIsPriceComparisonOpen(true)}
-                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
                 >
-                  <Award className="w-4 h-4 text-[#E0B441]" />
+                  <Award className="w-4 h-4 text-[var(--gold)]" />
                   <span>⚖️ Comparador Multitienda & Ahorro</span>
                 </button>
 
@@ -465,7 +591,7 @@ export default function ShoppingListView({
                 <button
                   type="button"
                   onClick={handleShareWhatsAppByDept}
-                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
                 >
                   <Share2 className="w-4 h-4 text-emerald-400" />
                   <span>Compartir por WhatsApp</span>
@@ -475,7 +601,7 @@ export default function ShoppingListView({
                 <button
                   type="button"
                   onClick={() => setIsPrintModalOpen(true)}
-                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
                 >
                   <Printer className="w-4 h-4 text-blue-400" />
                   <span>Imprimir Lista en PDF</span>
@@ -485,7 +611,7 @@ export default function ShoppingListView({
                 <button
                   type="button"
                   onClick={() => setIsWeeklyStaplesOpen(true)}
-                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
                 >
                   <ShoppingBag className="w-4 h-4 text-amber-300" />
                   <span>Canasta Básica Semanal</span>
@@ -495,7 +621,7 @@ export default function ShoppingListView({
                 <button
                   type="button"
                   onClick={() => setIsQuickStaffOpen(true)}
-                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
                 >
                   <Sparkles className="w-4 h-4 text-orange-400" />
                   <span>¿Qué Falta en Casa? (Personal)</span>
@@ -505,9 +631,9 @@ export default function ShoppingListView({
                 <button
                   type="button"
                   onClick={() => setIsSmartImportOpen(true)}
-                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
                 >
-                  <FileText className="w-4 h-4 text-[#E0B441]" />
+                  <FileText className="w-4 h-4 text-[var(--gold)]" />
                   <span>Importar Texto / WhatsApp</span>
                 </button>
 
@@ -515,7 +641,7 @@ export default function ShoppingListView({
                 <button
                   type="button"
                   onClick={() => setIsQrBookletOpen(true)}
-                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
                 >
                   <BookOpen className="w-4 h-4 text-purple-400" />
                   <span>Librito QR de Cocina</span>
@@ -525,7 +651,7 @@ export default function ShoppingListView({
                 <button
                   type="button"
                   onClick={() => setIsOrderTicketQrOpen(true)}
-                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
                 >
                   <QrCode className="w-4 h-4 text-gray-300" />
                   <span>Ticket QR Digital</span>
@@ -536,9 +662,9 @@ export default function ShoppingListView({
                   <button
                     type="button"
                     onClick={onDeduplicateList}
-                    className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                    className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
                   >
-                    <Sparkles className="w-4 h-4 text-[#E0B441]" />
+                    <Sparkles className="w-4 h-4 text-[var(--gold)]" />
                     <span>Desduplicar y Consolidar</span>
                   </button>
                 )}
@@ -548,7 +674,7 @@ export default function ShoppingListView({
                   <button
                     type="button"
                     onClick={onOpenPurchaseHistory}
-                    className="w-full flex items-center justify-between p-2 rounded-xl text-[#B8AFA3] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                    className="w-full flex items-center justify-between p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
                   >
                     <div className="flex items-center gap-2.5">
                       <Receipt className="w-4 h-4 text-emerald-400" />
@@ -697,9 +823,9 @@ export default function ShoppingListView({
 
               {onClearChecked && (
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     audio.click();
-                    if (confirm(`¿Deseas eliminar de la lista los ${metrics.inCartCount} artículos marcados sin guardarlos en el inventario?`)) {
+                    if (await confirmDialog(`¿Deseas eliminar de la lista los ${metrics.inCartCount} artículos marcados sin guardarlos en el inventario?`)) {
                       onClearChecked();
                     }
                   }}
@@ -748,14 +874,14 @@ export default function ShoppingListView({
 
       {/* 5. Lista Agrupada por Departamentos con Tarjetas Táctiles Gigantes */}
       {enrichedList.length === 0 ? (
-        <div className="card-luxe text-center py-20 border border-dashed border-[#3D3630] rounded-3xl bg-[#1C1916]/40 p-6">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#C8542A]/15 border border-[#C8542A]/30 flex items-center justify-center text-[#E5724A] shadow-md">
+        <div className="card-luxe text-center py-20 border border-dashed border-[var(--border-strong)] rounded-3xl bg-[var(--bg-elevated)]/40 p-6">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--terracotta)]/15 border border-[var(--terracotta)]/30 flex items-center justify-center text-[var(--ember)] shadow-md">
             <ShoppingCart className="w-8 h-8" />
           </div>
-          <h4 className="font-display text-xl sm:text-2xl font-bold text-[#F2EDE4]">
+          <h4 className="font-display text-xl sm:text-2xl font-bold text-[var(--ink-primary)]">
             🛒 Tu carrito está limpio. Añade lo que falta en casa.
           </h4>
-          <p className="text-xs text-[#8B8378] mt-2 max-w-md mx-auto">
+          <p className="text-xs text-[var(--ink-tertiary)] mt-2 max-w-md mx-auto">
             El personal de servicio puede agregar faltantes con 1 toque o el sistema detecta lo que está por agotarse en la alacena.
           </p>
           <div className="flex flex-wrap justify-center gap-3 mt-6">
@@ -764,7 +890,7 @@ export default function ShoppingListView({
                 audio.success();
                 setIsQuickStaffOpen(true);
               }}
-              className="px-6 py-3 text-sm font-bold text-white bg-gradient-to-r from-[#C8542A] to-[#E5724A] hover:brightness-110 rounded-2xl transition-all shadow-lg shadow-[#C8542A]/30 active:scale-95"
+              className="px-6 py-3 text-sm font-bold text-white bg-gradient-to-r from-[var(--terracotta)] to-[var(--ember)] hover:brightness-110 rounded-2xl transition-all shadow-lg shadow-[var(--terracotta)]/30 active:scale-95"
             >
               📝 ¿Qué Falta en Casa?
             </button>
@@ -773,7 +899,7 @@ export default function ShoppingListView({
                 audio.success();
                 onAutoGenerateFromPantry();
               }}
-              className="px-5 py-3 text-xs font-bold text-[#E0B441] bg-[#E0B441]/10 hover:bg-[#E0B441]/20 border border-[#E0B441]/30 rounded-2xl transition-all"
+              className="px-5 py-3 text-xs font-bold text-[var(--gold)] bg-[var(--gold)]/10 hover:bg-[var(--gold)]/20 border border-[var(--gold)]/30 rounded-2xl transition-all"
             >
               ⚡ Auto-Detectar Faltantes de Casa
             </button>
@@ -809,119 +935,15 @@ export default function ShoppingListView({
                 {/* Tarjetas Táctiles Gigantes de Artículos en este pasillo */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {items.map((item) => (
-                    <div
+                    <ShoppingItemCard
                       key={item.id}
-                      onClick={() => {
-                        audio.superCheck();
-                        onToggleItem(item.id);
-                      }}
-                      className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between select-none ${
-                        item.checked
-                          ? 'bg-emerald-500/15 border-emerald-500/40 text-gray-400 shadow-sm'
-                          : 'bg-white/[0.03] border-white/10 hover:border-emerald-500/30 hover:bg-white/[0.05] text-white'
-                      }`}
-                    >
-                      {/* Casilla Táctil Grande & Datos */}
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <button
-                          type="button"
-                          role="checkbox" aria-checked={Boolean(item.checked)} aria-label={`Marcar ${item.name}`}
-                          className={`w-7 h-7 rounded-xl flex items-center justify-center border transition-all shrink-0 ${
-                            item.checked
-                              ? 'bg-emerald-500 border-emerald-500 text-white shadow-md'
-                              : 'border-white/30 bg-white/5 hover:border-emerald-400'
-                          }`}
-                        >
-                          {item.checked && <Check className="w-5 h-5 stroke-[3]" />}
-                        </button>
-
-                        <div className="min-w-0">
-                          <span className={`text-sm font-bold block truncate ${
-                            item.checked ? 'line-through text-gray-400 font-normal' : 'text-white'
-                          }`}>
-                            {item.name}
-                          </span>
-                          <div className="flex items-center gap-2 text-xs text-gray-400 mt-1 flex-wrap">
-                            <div 
-                              className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg px-1.5 py-0.5" 
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <button 
-                                type="button"
-                                onClick={() => {
-                                  audio.click();
-                                  if (onUpdateItemQuantity) {
-                                    const next = Math.max(0.01, parseFloat(((parseFloat(item.quantity) || 1) - (['kg', 'l', 'litros'].includes(item.unit) ? 0.25 : 1)).toFixed(2)));
-                                    onUpdateItemQuantity(item.id, next);
-                                  }
-                                }}
-                                className="text-xs text-gray-400 hover:text-white px-1.5 font-bold cursor-pointer"
-                                title="Restar 1"
-                              >-</button>
-                              <span className="font-mono text-emerald-300 font-bold text-xs px-1">
-                                {item.quantity} {item.unit}
-                              </span>
-                              <button 
-                                type="button"
-                                onClick={() => {
-                                  audio.click();
-                                  if (onUpdateItemQuantity) {
-                                    const next = parseFloat(((parseFloat(item.quantity) || 1) + (['kg', 'l', 'litros'].includes(item.unit) ? 0.25 : 1)).toFixed(2));
-                                    onUpdateItemQuantity(item.id, next);
-                                  }
-                                }}
-                                className="text-xs text-gray-400 hover:text-white px-1.5 font-bold cursor-pointer"
-                                title="Sumar 1"
-                              >+</button>
-                            </div>
-                            <span>•</span>
-                            <span className="truncate">{item.store || 'Supermercado'}</span>
-                            {item.targetZone && (
-                              <>
-                                <span className="hidden sm:inline">•</span>
-                                <span className="text-gray-500 hidden sm:inline">Destino: {item.targetZone}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Precio & Botón Etiqueta QR */}
-                      <div className="flex items-center gap-2 shrink-0 ml-2">
-                        {item.estimatedPriceMxn > 0 && (
-                          <div className="text-right font-mono text-xs">
-                            <span className="text-emerald-300 font-bold block">
-                              {money((item.estimatedPriceMxn || 0) * (item.quantity || 1))}
-                            </span>
-                            <span className="text-[10px] text-gray-500">MXN</span>
-                          </div>
-                        )}
-
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            audio.click();
-                            setSelectedQrItem(item);
-                          }}
-                          className="p-2 text-gray-400 hover:text-emerald-300 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all"
-                          title="Ver código QR para recipientes / frascos"
-                        >
-                          <QrCode className="w-4 h-4 text-emerald-400" />
-                        </button>
-
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            audio.delete();
-                            removeItem(item);
-                          }}
-                          className="p-2 text-gray-500 hover:text-rose-400 rounded-xl hover:bg-rose-500/10 transition-colors"
-                          title="Quitar de la lista"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
+                      item={item}
+                      onToggle={handleToggleItem}
+                      onUpdateQuantity={handleUpdateItemQuantity}
+                      onRemove={handleRemoveItem}
+                      onShowQr={handleShowQrItem}
+                      money={money}
+                    />
                   ))}
                 </div>
               </div>
@@ -933,7 +955,7 @@ export default function ShoppingListView({
       {/* 6. Botón Flotante Gigante al Finalizar para Guardar en Casa */}
       {metrics.inCartCount > 0 && (
         <div className="sticky bottom-24 md:bottom-6 z-30">
-          <div className="max-w-xl mx-auto p-2 bg-[#090D14]/90 backdrop-blur-xl rounded-2xl border border-emerald-500/40 shadow-2xl">
+          <div className="max-w-xl mx-auto p-2 bg-[var(--bg-elevated)]/90 backdrop-blur-xl rounded-2xl border border-emerald-500/40 shadow-2xl">
             <button
               onClick={handleFinishPurchase}
               className="w-full py-4 px-6 rounded-xl text-sm font-extrabold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 transition-all flex items-center justify-center gap-3 shadow-lg shadow-emerald-950/60"
@@ -948,7 +970,7 @@ export default function ShoppingListView({
       {/* Modal: Agregar Artículo Manual a la Lista */}
       {isManualAddOpen && (
         <div role="dialog" aria-modal="true" aria-label="Agregar artículo" onKeyDown={(e) => { if (e.key === 'Escape') setIsManualAddOpen(false); }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-3xl bg-[#0F172A] border border-white/10 shadow-2xl p-6 space-y-4">
+          <div className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-3xl bg-[var(--bg-sunken)] border border-white/10 shadow-2xl p-6 space-y-4">
             <h3 className="text-base font-bold text-white">
               Agregar Artículo a la Lista de Compras
             </h3>
@@ -976,7 +998,7 @@ export default function ShoppingListView({
                 <select
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-[#1E293B] border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-elevated)] border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500"
                 >
                   {SUPERMARKET_DEPARTMENTS.filter(d => d.id !== 'ALL').map((d) => (
                     <option key={d.id} value={d.id}>{d.name}</option>
@@ -1006,7 +1028,7 @@ export default function ShoppingListView({
                   <select
                     value={unit}
                     onChange={(e) => setUnit(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#1E293B] border border-white/10 text-white text-sm"
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--bg-elevated)] border border-white/10 text-white text-sm"
                   >
                     <option value="kg">kg</option>
                     <option value="g">g</option>
@@ -1060,7 +1082,7 @@ export default function ShoppingListView({
                 <select
                   value={targetZone}
                   onChange={(e) => setTargetZone(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#1E293B] border border-white/10 text-white text-sm"
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--bg-elevated)] border border-white/10 text-white text-sm"
                 >
                   {zones.map((z) => (
                     <option key={z.id} value={z.name}>
@@ -1196,7 +1218,7 @@ export default function ShoppingListView({
             audio.superCheck();
             setIsWalkingMode(true);
           }}
-          className="fixed bottom-24 md:bottom-6 right-6 z-30 flex items-center gap-2.5 px-5 py-3.5 rounded-full bg-gradient-to-r from-[#C8542A] to-[#E5724A] text-white font-bold text-sm shadow-xl shadow-[#C8542A]/40 hover:scale-105 active:scale-95 transition-all border border-white/20"
+          className="fixed bottom-24 md:bottom-6 right-6 z-30 flex items-center gap-2.5 px-5 py-3.5 rounded-full bg-gradient-to-r from-[var(--terracotta)] to-[var(--ember)] text-white font-bold text-sm shadow-xl shadow-[var(--terracotta)]/40 hover:scale-105 active:scale-95 transition-all border border-white/20"
           title="Abrir modo táctil caminando por el súper"
         >
           <span className="text-lg">👟</span>
@@ -1206,13 +1228,13 @@ export default function ShoppingListView({
 
       {/* MODO CAMINANDO POR EL SÚPER (Fase 8.5 - Experiencia Táctil Inmersiva) */}
       {isWalkingMode && (
-        <div className="fixed inset-0 z-50 bg-[#0A0908] text-[#F2EDE4] overflow-y-auto p-4 sm:p-6 pb-28 animate-modal-in">
+        <div className="fixed inset-0 z-50 bg-[var(--bg-sunken)] text-[var(--ink-primary)] overflow-y-auto p-4 sm:p-6 pb-28 animate-modal-in">
           {/* Header Sticky con Contador y Barra de Progreso */}
-          <div className="sticky top-0 z-20 bg-[#12100E]/95 backdrop-blur-md -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 px-4 py-3 sm:px-6 border-b border-[#2A2521] shadow-xl">
+          <div className="sticky top-0 z-20 bg-[var(--bg-base)]/95 backdrop-blur-md -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 px-4 py-3 sm:px-6 border-b border-[var(--border-soft)] shadow-xl">
             {/* Barra de progreso full-width 6px --accent-super */}
-            <div className="w-full bg-[#1C1916] h-1.5 rounded-full overflow-hidden mb-3">
+            <div className="w-full bg-[var(--bg-elevated)] h-1.5 rounded-full overflow-hidden mb-3">
               <div 
-                className="bg-[#E5724A] h-full transition-all duration-300"
+                className="bg-[var(--ember)] h-full transition-all duration-300"
                 style={{ width: `${metrics.progressPercent}%` }}
               />
             </div>
@@ -1222,7 +1244,7 @@ export default function ShoppingListView({
                 <span className="font-display text-xl sm:text-2xl font-bold text-white block">
                   {metrics.inCartCount} de {metrics.totalItems} ✓
                 </span>
-                <span className="font-mono-num text-xs sm:text-sm text-[#E0B441] font-semibold">
+                <span className="font-mono-num text-xs sm:text-sm text-[var(--gold)] font-semibold">
                   ${metrics.totalEstimatedMxn.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN estimado
                 </span>
               </div>
@@ -1238,7 +1260,7 @@ export default function ShoppingListView({
                   className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1 border ${
                     hideChecked
                       ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm'
-                      : 'bg-[#1C1916] text-gray-300 border-[#3D3630]'
+                      : 'bg-[var(--bg-elevated)] text-gray-300 border-[var(--border-strong)]'
                   }`}
                   title="Ocultar los artículos ya metidos al carrito"
                 >
@@ -1248,7 +1270,7 @@ export default function ShoppingListView({
                 {metrics.inCartCount > 0 && (
                   <button
                     onClick={handleFinishPurchase}
-                    className="px-3 sm:px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#2F7D5C] hover:bg-[#2F7D5C]/90 shadow-md flex items-center gap-1.5"
+                    className="px-3 sm:px-4 py-2 rounded-xl text-xs font-bold text-white bg-[var(--success)] hover:bg-[var(--success)]/90 shadow-md flex items-center gap-1.5"
                   >
                     <Warehouse className="w-4 h-4" />
                     <span>Guardar ({metrics.inCartCount})</span>
@@ -1259,7 +1281,7 @@ export default function ShoppingListView({
                     audio.click();
                     setIsWalkingMode(false);
                   }}
-                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-[#F2EDE4] bg-[#1C1916] hover:bg-[#2A2521] border border-[#3D3630]"
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-[var(--ink-primary)] bg-[var(--bg-elevated)] hover:bg-[var(--border-soft)] border border-[var(--border-strong)]"
                 >
                   ✕ Salir
                 </button>
@@ -1276,11 +1298,11 @@ export default function ShoppingListView({
               return (
                 <section key={dept.id} className="space-y-4">
                   {/* Encabezado sticky por pasillo */}
-                  <div className="sticky top-16 z-10 py-2.5 px-4 rounded-2xl bg-[#1C1916]/90 backdrop-blur-md border border-[#3D3630] flex items-center justify-between shadow-md">
+                  <div className="sticky top-16 z-10 py-2.5 px-4 rounded-2xl bg-[var(--bg-elevated)]/90 backdrop-blur-md border border-[var(--border-strong)] flex items-center justify-between shadow-md">
                     <h3 className="font-display text-lg sm:text-xl font-bold text-white flex items-center gap-2">
                       <span>{dept.name}</span>
                     </h3>
-                    <span className="font-mono-num text-xs font-bold text-[#E5724A] bg-[#E5724A]/10 px-2.5 py-0.5 rounded-full border border-[#E5724A]/25">
+                    <span className="font-mono-num text-xs font-bold text-[var(--ember)] bg-[var(--ember)]/10 px-2.5 py-0.5 rounded-full border border-[var(--ember)]/25">
                       {items.filter(i => !i.checked).length} pendientes
                     </span>
                   </div>
@@ -1294,16 +1316,16 @@ export default function ShoppingListView({
                         onClick={() => handleToggleWalkingItem(item.id)}
                         className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer flex items-center gap-4 select-none ${
                           item.checked
-                            ? 'bg-[#2F7D5C]/15 border-[#2F7D5C]/50 text-[#7A7268]'
-                            : 'bg-[#1C1916] border-[#2A2521] hover:border-[#E5724A]/50 text-[#F2EDE4] shadow-sm'
+                            ? 'bg-[var(--success)]/15 border-[var(--success)]/50 text-[var(--ink-tertiary)]'
+                            : 'bg-[var(--bg-elevated)] border-[var(--border-soft)] hover:border-[var(--ember)]/50 text-[var(--ink-primary)] shadow-sm'
                         }`}
                       >
                         {/* Checkbox cuadrado 56x56 con borde 3px */}
                         <div
                           className={`w-14 h-14 min-w-[56px] min-h-[56px] rounded-2xl border-[3px] flex items-center justify-center transition-all shrink-0 ${
                             item.checked
-                              ? 'bg-[#2F7D5C] border-[#2F7D5C] text-white shadow-lg'
-                              : 'border-[#F2EDE4] bg-[#0A0908] hover:border-[#E5724A]'
+                              ? 'bg-[var(--success)] border-[var(--success)] text-white shadow-lg'
+                              : 'border-[var(--ink-primary)] bg-[var(--bg-sunken)] hover:border-[var(--ember)]'
                           }`}
                         >
                           {item.checked && (
@@ -1313,15 +1335,18 @@ export default function ShoppingListView({
                           )}
                         </div>
 
+                        {/* Foto del producto */}
+                        <ProductPhoto photo={item.photo} alt={item.name} size={56} />
+
                         {/* Datos del producto en tamaño 2xl */}
                         <div className="min-w-0 flex-1">
                           <span className={`font-display text-xl sm:text-2xl font-bold block leading-snug ${
-                            item.checked ? 'line-through text-[#7A7268]' : 'text-white'
+                            item.checked ? 'line-through text-[var(--ink-tertiary)]' : 'text-white'
                           }`}>
                             {item.name}
                           </span>
-                          <div className="flex items-center gap-3 mt-1 text-sm text-[#B8AFA3]">
-                            <span className="font-mono-num font-bold text-[#E5724A] bg-[#E5724A]/10 px-2.5 py-0.5 rounded-lg border border-[#E5724A]/25">
+                          <div className="flex items-center gap-3 mt-1 text-sm text-[var(--ink-secondary)]">
+                            <span className="font-mono-num font-bold text-[var(--ember)] bg-[var(--ember)]/10 px-2.5 py-0.5 rounded-lg border border-[var(--ember)]/25">
                               {item.quantity} {item.unit}
                             </span>
                             <span>•</span>
@@ -1329,7 +1354,7 @@ export default function ShoppingListView({
                             {item.estimatedPriceMxn > 0 && (
                               <>
                                 <span>•</span>
-                                <span className="font-mono-num text-[#E0B441] font-bold">
+                                <span className="font-mono-num text-[var(--gold)] font-bold">
                                   ${((item.estimatedPriceMxn || 0) * (item.quantity || 1)).toFixed(2)} MXN
                                 </span>
                               </>

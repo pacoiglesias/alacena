@@ -166,12 +166,12 @@ export default function ShoppingListQrTicketModal({
         }
       `}</style>
 
-      <div className="relative w-full max-w-md max-h-[94vh] overflow-y-auto rounded-3xl bg-[#14110F] border border-[#E0B441]/35 shadow-2xl p-4 sm:p-6 space-y-4 print:border-none print:shadow-none print:p-0 print:bg-white">
+      <div className="relative w-full max-w-md max-h-[94vh] overflow-y-auto rounded-3xl bg-[var(--bg-base)] border border-[var(--gold)]/35 shadow-2xl p-4 sm:p-6 space-y-4 print:border-none print:shadow-none print:p-0 print:bg-white">
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#2A2521] pb-3 print:hidden no-print">
+        <div className="flex items-center justify-between border-b border-[var(--border-soft)] pb-3 print:hidden no-print">
           <div className="flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-[#E0B441]" />
+            <ShoppingCart className="w-5 h-5 text-[var(--gold)]" />
             <h3 className="text-base font-bold text-white font-display">
               Ticket QR de Orden para el Súper
             </h3>
@@ -190,7 +190,7 @@ export default function ShoppingListQrTicketModal({
         {/* Printable Ticket */}
         <div id="printable-shopping-ticket" className="p-5 rounded-2xl bg-white text-gray-900 border-2 border-dashed border-gray-400 space-y-4">
           <div className="text-center border-b border-gray-200 pb-2">
-            <span className="text-[9px] font-black uppercase tracking-widest text-[#6B1F2E] block">
+            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--wine)] block">
               ORDEN DE COMPRA • {activeHouse?.name || 'RESIDENCIA'}
             </span>
             <h4 className="text-base font-extrabold text-gray-900 mt-0.5">
@@ -245,10 +245,10 @@ export default function ShoppingListQrTicketModal({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-2 pt-2 border-t border-[#2A2521] print:hidden no-print">
+        <div className="flex gap-2 pt-2 border-t border-[var(--border-soft)] print:hidden no-print">
           <button
             onClick={handlePrint}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold text-[#12100E] bg-gradient-to-r from-[#E0B441] to-[#E5724A] hover:brightness-110 rounded-xl transition-all shadow-md active:scale-95"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold text-[var(--on-gold)] bg-gradient-to-r from-[var(--gold)] to-[var(--ember)] hover:brightness-110 rounded-xl transition-all shadow-md active:scale-95"
           >
             <Printer className="w-4 h-4" />
             <span>Imprimir Ticket Limpio</span>
@@ -258,7 +258,7 @@ export default function ShoppingListQrTicketModal({
               audio.click();
               onClose();
             }}
-            className="py-2.5 px-4 text-xs font-bold text-[#B8AFA3] hover:text-white bg-white/5 rounded-xl transition-all"
+            className="py-2.5 px-4 text-xs font-bold text-[var(--ink-secondary)] hover:text-white bg-white/5 rounded-xl transition-all"
           >
             Cerrar
           </button>

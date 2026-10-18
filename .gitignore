@@ -77,3 +77,6 @@ backups/
 *.zip
 frontend/public/ocr/
 frontend/lint-results.json
+
+# Backups locales (no commitear zips)
+backups/
