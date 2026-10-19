@@ -43,7 +43,7 @@ export default function CameraScannerModal({
   useEffect(() => {
     if (!scannerActive) return;
     const t = setTimeout(() => {
-      const container = document.getElementById(scannerContainerId);
+      const container = document.getElementById('alacena-qr-barcode-viewport');
       const video = container?.querySelector('video');
       if (video) {
         video.muted = true;
@@ -55,7 +55,7 @@ export default function CameraScannerModal({
       }
     }, 500);
     return () => clearTimeout(t);
-  }, [scannerActive, scannerContainerId]);
+  }, [scannerActive]);
   const [cameras, setCameras] = useState([]);
   const [selectedCameraId, setSelectedCameraId] = useState('');
   const [torchOn, setTorchOn] = useState(false);
