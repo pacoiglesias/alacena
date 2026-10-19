@@ -39,6 +39,23 @@ export default function CameraScannerModal({
   // Estado del Escáner de Códigos de Barras
   const [scannerActive, setScannerActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
+  // iOS: forzar play() en el video de la librería (a veces queda en negro aunque el stream esté activo).
+  useEffect(() => {
+    if (!scannerActive) return;
+    const t = setTimeout(() => {
+      const container = document.getElementById(scannerContainerId);
+      const video = container?.querySelector('video');
+      if (video) {
+        video.muted = true;
+        video.setAttribute('muted', 'true');
+        video.setAttribute('playsinline', 'true');
+        video.playsInline = true;
+        const p = video.play();
+        if (p?.catch) p.catch(() => {});
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [scannerActive, scannerContainerId]);
   const [cameras, setCameras] = useState([]);
   const [selectedCameraId, setSelectedCameraId] = useState('');
   const [torchOn, setTorchOn] = useState(false);
