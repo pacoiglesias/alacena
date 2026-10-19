@@ -123,11 +123,10 @@ export default function CameraScannerModal({
     }
 
     if (activeTab === 'BARCODE') {
-      const timer = setTimeout(() => {
-        startBarcodeScanner();
-      }, 250);
+      // Iniciar de inmediato (sin retardo): en iOS el retardo rompe la cadena del gesto
+      // y causa que la cámara se apague. El contenedor ya existe porque el modal está montado.
+      startBarcodeScanner();
       return () => {
-        clearTimeout(timer);
         requestRef.current++;
         stopAllCameras();
       };
