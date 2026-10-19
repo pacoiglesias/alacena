@@ -137,19 +137,7 @@ export default function App() {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  // iOS exige que el permiso de cámara se solicite directamente desde el gesto
-  // del usuario (sin setTimeout). Lo pedimos aquí al tocar el botón y abrimos el modal.
-  const handleOpenScanner = async () => {
-    try {
-      if (navigator.mediaDevices?.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach((t) => t.stop());
-      }
-    } catch {
-      // Si el usuario deniega o no hay cámara, el modal muestra el mensaje correspondiente.
-    }
-    setIsScannerOpen(true);
-  };
+  const handleOpenScanner = () => setIsScannerOpen(true);
   const [isCommandCenterOpen, setIsCommandCenterOpen] = useState(false);
   const [isAddWineOpen, setIsAddWineOpen] = useState(false);
   const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
