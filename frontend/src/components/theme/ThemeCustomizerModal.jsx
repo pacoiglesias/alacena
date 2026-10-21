@@ -45,7 +45,7 @@ export default function ThemeCustomizerModal({ isOpen, onClose }) {
               </p>
             </div>
           </div>
-          <button
+          <button aria-label="Cerrar ajustes"
             onClick={() => {
               audio.click();
               onClose();

@@ -105,7 +105,7 @@ export default function KitchenDaySummaryModal({
               </p>
             </div>
           </div>
-          <button
+          <button aria-label="Cerrar ajustes"
             onClick={() => { audio.click(); onClose(); }}
             className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all"
           >

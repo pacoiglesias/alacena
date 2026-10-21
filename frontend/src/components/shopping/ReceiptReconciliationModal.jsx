@@ -6,6 +6,7 @@ import {
 import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
 import { getCatalogs } from '../../services/catalogsService';
+import DialogLayer from '../layout/DialogLayer';
 
 export default function ReceiptReconciliationModal({
   isOpen,
@@ -29,6 +30,9 @@ export default function ReceiptReconciliationModal({
     return defaultStaff;
   });
   const [ticketNotes, setTicketNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const submitting = React.useRef(false);
 
   // Sincronizar precio real inicial cuando abre
   React.useEffect(() => {
@@ -46,30 +50,39 @@ export default function ReceiptReconciliationModal({
   const isOverBudget = varianceMxn > 0.01;
   const isUnderBudget = varianceMxn < -0.01;
 
-  const handleConfirm = () => {
-    if (!validTotal) return;
-    audio.cook();
-    audio.haptic(50);
+  const handleConfirm = async () => {
+    if (!validTotal || !checkedItems.length || submitting.current) return;
+    submitting.current = true;
+    setSaving(true);
+    setError('');
     try {
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 },
+      const result = await onConfirmPurchase({
+        checkedItems,
+        realTotalMxn: parsedRealTotal,
+        buyerName: buyerName || 'Administrador',
+        ticketNotes: ticketNotes.trim(),
+        varianceMxn,
       });
-    } catch (_) {}
-
-    onConfirmPurchase({
-      checkedItems,
-      realTotalMxn: parsedRealTotal,
-      buyerName: buyerName || 'Administrador',
-      ticketNotes: ticketNotes.trim(),
-      varianceMxn,
-    });
-    onClose();
+      if (result === false) {
+        setError('No se pudo registrar la compra. Revisa los artículos y vuelve a intentarlo; tu selección se conserva.');
+        return;
+      }
+      audio.cook();
+      audio.haptic(50);
+      try {
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      } catch (_) {}
+      onClose();
+    } catch {
+      setError('No se pudo registrar la compra. Tu selección se conserva; vuelve a intentarlo.');
+    } finally {
+      submitting.current = false;
+      setSaving(false);
+    }
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Guardar mi compra" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+    <DialogLayer label="Guardar mi compra" onClose={() => { if (!submitting.current) onClose(); }}>
       <div className="relative w-full max-w-lg bg-[#1C1814] border border-[#3D3630] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header Modal */}
@@ -88,7 +101,7 @@ export default function ReceiptReconciliationModal({
             </div>
           </div>
           <button
-            onClick={() => { audio.click(); onClose(); }}
+            aria-label="Cerrar confirmación de compra" disabled={saving} onClick={() => { audio.click(); onClose(); }}
             className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all"
           >
             <X className="w-5 h-5" />
@@ -127,7 +140,7 @@ export default function ReceiptReconciliationModal({
               <div className="text-xl font-display font-bold text-gray-300 mt-1 font-mono">
                 ${totalEstimatedMxn.toFixed(2)}
               </div>
-              <span className="text-[10px] text-gray-400">Precios promedio de catálogo</span>
+              <span className="text-[10px] text-gray-400">Precios registrados en tu lista</span>
             </div>
 
             {/* Cobro real en caja */}
@@ -184,7 +197,7 @@ export default function ReceiptReconciliationModal({
               <User className="w-3.5 h-3.5" />
               <span>Personal que realizó la compra</span>
             </label>
-            <select
+            <select aria-label="Persona que realizó la compra"
               value={buyerName}
               onChange={(e) => setBuyerName(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#E0B441]"
@@ -214,25 +227,26 @@ export default function ReceiptReconciliationModal({
 
         </div>
 
+        {error && <p role="alert" className="px-6 py-3 text-sm text-amber-200">{error}</p>}
         {/* Footer Actions */}
         <div className="p-6 border-t border-[#2A2521] bg-[#12100E] flex items-center justify-end gap-3">
           <button
-            onClick={() => { audio.click(); onClose(); }}
+            disabled={saving} onClick={() => { audio.click(); onClose(); }}
             className="px-4 py-2.5 rounded-xl text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/5 transition-all"
           >
             Cancelar
           </button>
           
           <button
-            disabled={!validTotal} onClick={handleConfirm}
+            disabled={!validTotal || saving || !checkedItems.length} onClick={handleConfirm}
             className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-950/50 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-            <span>Confirmar e Ingresar a Despensa</span>
+            <span>{saving ? 'Registrando compra…' : 'Confirmar e Ingresar a Despensa'}</span>
           </button>
         </div>
 
       </div>
-    </div>
+    </DialogLayer>
   );
 }

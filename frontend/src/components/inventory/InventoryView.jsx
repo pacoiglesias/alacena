@@ -52,10 +52,12 @@ export default function InventoryView({
   recipes = [],
   activeHouse,
   onOpenScanner,
+  initialZone = null,
+  initialCategory = 'ALL',
 }) {
   const [search, setSearch] = useState('');
-  const [selectedZone, setSelectedZone] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [selectedZone, setSelectedZone] = useState(initialZone);
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, OPTIMAL, LOW, OUT, EXPIRING
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
   const [quickAddedId, setQuickAddedId] = useState(null);

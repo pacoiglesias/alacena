@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
+import DialogLayer from '../layout/DialogLayer';
+import { useDismissablePopover } from '../../hooks/useDismissablePopover';
 const ItemQrModal = lazy(() => import('./ItemQrModal'));
 const ShoppingListQrTicketModal = lazy(() => import('./ShoppingListQrTicketModal'));
 const PantryQrBookletModal = lazy(() => import('./PantryQrBookletModal'));
@@ -79,6 +81,7 @@ export default function ShoppingListView({
   const [isWeeklyStaplesOpen, setIsWeeklyStaplesOpen] = useState(false);
   const [isPriceComparisonOpen, setIsPriceComparisonOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const moreMenuRef = useDismissablePopover(isMoreMenuOpen, () => setIsMoreMenuOpen(false));
   const [hideChecked, setHideChecked] = useState(false);
   const [search, setSearch] = useState('');
   const [quickName, setQuickName] = useState('');
@@ -425,7 +428,7 @@ export default function ShoppingListView({
           </button>
 
           {/* 5. Menú Desplegable: Más Herramientas */}
-          <div className="relative">
+          <div className="relative" ref={moreMenuRef}>
             <button
               type="button"
               onClick={() => {
@@ -437,14 +440,14 @@ export default function ShoppingListView({
                   ? 'bg-[#E0B441]/20 border-[#E0B441] text-[#E0B441]'
                   : 'bg-white/5 border-white/10 text-[#94A3B8] hover:text-white hover:bg-white/10'
               }`}
-              title="Más herramientas y opciones"
+              aria-expanded={isMoreMenuOpen} aria-controls="shopping-more-tools" title="Más herramientas y opciones"
             >
               <MoreHorizontal className="w-5 h-5" />
             </button>
 
             {isMoreMenuOpen && (
               <div 
-                className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#161310] border border-[#2A2521] shadow-2xl p-2 z-50 animate-fade-in space-y-1 text-xs"
+                id="shopping-more-tools" className="absolute right-0 mt-2 w-64 max-h-[65vh] overflow-y-auto rounded-2xl bg-[#161310] border border-[#2A2521] shadow-2xl p-2 z-50 animate-fade-in space-y-1 text-xs"
                 onClick={() => setIsMoreMenuOpen(false)}
               >
                 <div className="px-2.5 py-1 text-[10px] font-mono font-bold text-[#E0B441] uppercase tracking-wider border-b border-white/5 mb-1">
@@ -1156,13 +1159,13 @@ export default function ShoppingListView({
       </Suspense>}
 
       {/* Modal: Reconciliación de Ticket y Costo Real de Compra */}
-      {isReconciliationOpen && <Suspense fallback={<div role="status" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center text-white">Abriendo herramienta…</div>}><ReceiptReconciliationModal
+      {isReconciliationOpen && <Suspense fallback={<DialogLayer label="Abriendo confirmación de compra" onClose={() => setIsReconciliationOpen(false)}><p role="status" className="text-white">Abriendo confirmación de compra…</p></DialogLayer>}><ReceiptReconciliationModal
         currency={currency}
         isOpen={isReconciliationOpen}
         onClose={() => setIsReconciliationOpen(false)}
         checkedItems={enrichedList.filter((i) => i.checked)}
         onConfirmPurchase={(purchasePayload) => {
-          onCompletePurchaseToPantry(purchasePayload);
+          return onCompletePurchaseToPantry(purchasePayload);
         }}
       />
       </Suspense>}
@@ -1206,7 +1209,7 @@ export default function ShoppingListView({
 
       {/* MODO CAMINANDO POR EL SÚPER (Fase 8.5 - Experiencia Táctil Inmersiva) */}
       {isWalkingMode && (
-        <div className="fixed inset-0 z-50 bg-[#0A0908] text-[#F2EDE4] overflow-y-auto p-4 sm:p-6 pb-28 animate-modal-in">
+        <div role="dialog" aria-modal="true" aria-label="Modo Súper" aria-hidden={isReconciliationOpen || undefined} className="fixed inset-0 z-50 bg-[#0A0908] text-[#F2EDE4] overflow-y-auto p-4 sm:p-6 pb-28 animate-modal-in">
           {/* Header Sticky con Contador y Barra de Progreso */}
           <div className="sticky top-0 z-20 bg-[#12100E]/95 backdrop-blur-md -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 px-4 py-3 sm:px-6 border-b border-[#2A2521] shadow-xl">
             {/* Barra de progreso full-width 6px --accent-super */}
@@ -1217,13 +1220,13 @@ export default function ShoppingListView({
               />
             </div>
             
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <span className="font-display text-xl sm:text-2xl font-bold text-white block">
                   {metrics.inCartCount} de {metrics.totalItems} ✓
                 </span>
                 <span className="font-mono-num text-xs sm:text-sm text-[#E0B441] font-semibold">
-                  ${metrics.totalEstimatedMxn.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN estimado
+                  {money(metrics.cartTotalMxn)} en carrito · {money(metrics.totalEstimatedMxn)} estimado
                 </span>
               </div>
               
@@ -1291,6 +1294,8 @@ export default function ShoppingListView({
                       <div
                         key={item.id}
                         data-walk-unchecked={!item.checked ? "true" : undefined}
+                        role="checkbox" aria-label={`En carrito: ${item.name}`} aria-checked={Boolean(item.checked)} tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); handleToggleWalkingItem(item.id); } }}
                         onClick={() => handleToggleWalkingItem(item.id)}
                         className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer flex items-center gap-4 select-none ${
                           item.checked
@@ -1330,7 +1335,7 @@ export default function ShoppingListView({
                               <>
                                 <span>•</span>
                                 <span className="font-mono-num text-[#E0B441] font-bold">
-                                  ${((item.estimatedPriceMxn || 0) * (item.quantity || 1)).toFixed(2)} MXN
+                                  {money((item.estimatedPriceMxn || 0) * (item.quantity || 1))}
                                 </span>
                               </>
                             )}

@@ -1,6 +1,6 @@
 # ALACENA · La lista de compras de tu casa
 
-Versión web **3.8.0**, React + Vite + Firebase.
+Versión web **3.8.1**, React + Vite + Firebase. [Revisión de Modo Súper, compras y menús](docs/REVISION-FLUJOS-3.8.1.md).
 
 Producción: [alacena.cobertores.com](https://alacena.cobertores.com/) · [Firebase Hosting](https://alacena-enterprise-prod.web.app/).
 Proyecto Firebase: `alacena-enterprise-prod`, target: `alacena-app`. `alacena.bolsas.com` no está configurado.
@@ -14,6 +14,7 @@ Requiere Node 24 y Firebase CLI autenticado para publicar. Desde `frontend`:
 ```sh
 npm ci
 npm test
+npm run test:ui
 npm run lint -- --quiet
 npm run build
 npm run preview -- --host 127.0.0.1 --port 4174

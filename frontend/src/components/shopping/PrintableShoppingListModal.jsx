@@ -296,7 +296,7 @@ export default function PrintableShoppingListModal({
             </button>
 
             {/* Cerrar modal */}
-            <button
+            <button aria-label="Cerrar herramienta"
               onClick={() => {
                 audio.click();
                 onClose();

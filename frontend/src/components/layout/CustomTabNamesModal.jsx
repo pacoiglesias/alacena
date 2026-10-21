@@ -174,7 +174,7 @@ export default function CustomTabNamesModal({
               </p>
             </div>
           </div>
-          <button
+          <button aria-label="Cerrar ajustes"
             onClick={() => {
               audio.click();
               onClose();

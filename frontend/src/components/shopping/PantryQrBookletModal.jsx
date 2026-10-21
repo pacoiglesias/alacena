@@ -573,7 +573,7 @@ export default function PantryQrBookletModal({
               <Printer className="w-4 h-4" />
               <span>🖨️ Imprimir ({printableList.length})</span>
             </button>
-            <button
+            <button aria-label="Cerrar herramienta"
               onClick={() => {
                 audio.click();
                 onClose();

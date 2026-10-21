@@ -99,7 +99,7 @@ export default function QuickStaffShoppingModal({
               </p>
             </div>
           </div>
-          <button
+          <button aria-label="Cerrar herramienta"
             onClick={() => {
               audio.click();
               onClose();

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Sparkles, Volume2, VolumeX, MapPin, 
   ChevronDown, Utensils, History, Layers, RefreshCw, 
@@ -7,6 +8,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { APP_VERSION } from '../../version';
+import { useDismissablePopover } from '../../hooks/useDismissablePopover';
 import CustomTabNamesModal, { DEFAULT_MENU_TABS, ICON_MAP } from './CustomTabNamesModal';
 import SystemManualModal from '../manual/SystemManualModal';
 import CatalogsConfigModal from '../catalogs/CatalogsConfigModal';
@@ -50,6 +52,8 @@ export default function Header({
   });
   const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const roleMenuRef = useDismissablePopover(isRoleMenuOpen, () => setIsRoleMenuOpen(false));
+  const settingsMenuRef = useDismissablePopover(isSettingsMenuOpen, () => setIsSettingsMenuOpen(false));
   const [isTabConfigModalOpen, setIsTabConfigModalOpen] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
@@ -210,10 +214,11 @@ export default function Header({
             </div>
 
             {/* Selector de Rol Doméstico */}
-            <div className="relative">
+              <div className="relative" ref={roleMenuRef}>
               <button
                 onClick={() => {
                   audio.click();
+                  setIsSettingsMenuOpen(false);
                   setIsRoleMenuOpen(!isRoleMenuOpen);
                 }}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
@@ -221,7 +226,7 @@ export default function Header({
                     ? 'bg-[#1A2030] border-emerald-500/50 text-white' 
                     : 'bg-[#121622] border-[#1E2638] text-[#94A3B8] hover:text-white'
                 }`}
-                title="Cambiar Rol de Operación en el Hogar" data-home-role
+                aria-expanded={isRoleMenuOpen} title="Cambiar Rol de Operación en el Hogar" data-home-role
               >
                 {React.createElement(activeRole.icon, { className: 'w-3.5 h-3.5 text-emerald-400' })}
                 <span className="hidden sm:inline font-medium">{activeRole.label}</span>
@@ -269,10 +274,11 @@ export default function Header({
             </button>
 
             {/* Menú Desplegable: Ajustes, Herramientas & Hogar */}
-            <div className="relative">
+            <div className="relative" ref={settingsMenuRef}>
               <button
                 onClick={() => {
                   audio.click();
+                  setIsRoleMenuOpen(false);
                   setIsSettingsMenuOpen(!isSettingsMenuOpen);
                 }}
                 className={`relative flex items-center gap-1.5 p-2 rounded-xl border transition-all cursor-pointer ${
@@ -280,7 +286,7 @@ export default function Header({
                     ? 'bg-[#1A2030] border-emerald-500/50 text-white'
                     : 'bg-[#121622] border-[#1E2638] text-[#94A3B8] hover:text-white hover:bg-white/5'
                 }`}
-                title="Menú de Ajustes, Hogar y Herramientas"
+                aria-expanded={isSettingsMenuOpen} title="Menú de Ajustes, Hogar y Herramientas"
               >
                 <Settings className="w-4 h-4 text-emerald-400" />
                 {criticalAlertCount > 0 && (
@@ -290,7 +296,7 @@ export default function Header({
 
               {isSettingsMenuOpen && (
                 <div 
-                  className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#121622] border border-[#2A364E] shadow-2xl p-2 z-50 animate-fade-in space-y-1 text-xs"
+                  className="absolute right-0 mt-2 w-64 max-h-[70vh] overflow-y-auto rounded-2xl bg-[#121622] border border-[#2A364E] shadow-2xl p-2 z-50 animate-fade-in space-y-1 text-xs"
                   onClick={() => setIsSettingsMenuOpen(false)}
                 >
                   <div className="px-2.5 py-1 text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider border-b border-[#1E2638] mb-1 flex items-center justify-between">
@@ -440,6 +446,7 @@ export default function Header({
 
         </nav>
 
+        {createPortal(<>
         {/* Modal para Renombrar, Ocultar y Agregar Pestañas */}
         <CustomTabNamesModal
           isOpen={isTabConfigModalOpen}
@@ -478,6 +485,7 @@ export default function Header({
           onAddMissingToShoppingList={onAddMissingToShoppingList}
           onCookRecipe={onCookRecipe}
         />
+        </>, document.body)}
 
       </div>
     </header>

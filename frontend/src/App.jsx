@@ -132,6 +132,7 @@ export default function App() {
 
   // UI state
   const [activeTab, setActiveTab] = useState('shopping'); // 'inventory' | 'shopping' | 'recipes' | 'audit'
+  const [inventoryNavigation, setInventoryNavigation] = useState(null);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -678,7 +679,10 @@ export default function App() {
       `Importe cobrado en ticket: $${finalRecordedTotal.toFixed(2)} MXN (Estimado: $${totalEstimatedPurchasedMxn.toFixed(2)} MXN)${notes ? ` · Notas: ${notes}` : ''}`
     );
 
+    setOperationNotice(`Compra registrada: ${checkedItems.length} artículos ingresados a la despensa. Puedes revisarla en el historial de compras.`);
+    setInventoryNavigation(null);
     setActiveTab('inventory');
+    return true;
   };
 
   // Ingreso masivo al inventario desde Tickets (Foto, PDF, o importación OCR)
@@ -993,8 +997,10 @@ export default function App() {
 
       {/* Top Header */}
       <Header
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        activeTab={activeTab === 'inventory' && inventoryNavigation?.category === 'Vinos & Licores' ? 'cava' : activeTab}
+        setActiveTab={(tab) => { setInventoryNavigation(null); setActiveTab(tab); }}
+        onFilterWines={() => setInventoryNavigation({ id: crypto.randomUUID(), category: 'Vinos & Licores' })}
+        onSelectZoneFilter={(zone) => setInventoryNavigation({ id: crypto.randomUUID(), zone })}
         activeHouse={activeHouse}
         onOpenHouseModal={() => setIsHouseModalOpen(true)}
         onOpenChangelog={() => setIsChangelogOpen(true)}
@@ -1023,6 +1029,9 @@ export default function App() {
         {/* Tab 1: Inventario & Zonas */}
         {activeTab === 'inventory' && (
           <InventoryView
+            key={inventoryNavigation?.id || 'all-inventory'}
+            initialCategory={inventoryNavigation?.category || 'ALL'}
+            initialZone={inventoryNavigation?.zone || null}
             products={products.filter((p) => belongsToHouse(p, activeHouse.id))}
             zones={zones}
             onOpenManualModal={() => {

@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.8.0-Casa';
+export const SYSTEM_VERSION = 'v3.8.1-Casa';
 export const RELEASE_DATE = '16 Octubre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
