@@ -69,7 +69,7 @@ export default function ReceiptReconciliationModal({
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Guardar mi compra" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+    <div role="dialog" aria-modal="true" aria-label="Guardar mi compra" className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-lg bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header Modal */}

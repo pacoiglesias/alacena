@@ -1185,6 +1185,7 @@ export default function ShoppingListView({
         checkedItems={enrichedList.filter((i) => i.checked)}
         onConfirmPurchase={(purchasePayload) => {
           onCompletePurchaseToPantry(purchasePayload);
+          setIsWalkingMode(false);
         }}
       />
       </Suspense>}

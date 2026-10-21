@@ -39,22 +39,28 @@ export default function CameraScannerModal({
   // Estado del Escáner de Códigos de Barras
   const [scannerActive, setScannerActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
-  // iOS: forzar play() en el video de la librería (a veces queda en negro aunque el stream esté activo).
+  // iOS y Móviles: forzar play(), playsinline y webkit-playsinline para evitar video negro o congelado
   useEffect(() => {
     if (!scannerActive) return;
-    const t = setTimeout(() => {
+    const applyVideoFixes = () => {
       const container = document.getElementById('alacena-qr-barcode-viewport');
       const video = container?.querySelector('video');
       if (video) {
         video.muted = true;
         video.setAttribute('muted', 'true');
         video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
         video.playsInline = true;
-        const p = video.play();
-        if (p?.catch) p.catch(() => {});
+        if (video.paused) {
+          const p = video.play();
+          if (p?.catch) p.catch(() => {});
+        }
       }
-    }, 500);
-    return () => clearTimeout(t);
+    };
+    applyVideoFixes();
+    const t1 = setTimeout(applyVideoFixes, 200);
+    const t2 = setTimeout(applyVideoFixes, 500);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [scannerActive]);
   const [cameras, setCameras] = useState([]);
   const [selectedCameraId, setSelectedCameraId] = useState('');
@@ -96,7 +102,8 @@ export default function CameraScannerModal({
   const html5QrCodeRef = useRef(null);
 
   const fileBarcodeRef = useRef(null);
-  const fileReceiptRef = useRef(null);
+  const fileReceiptCameraRef = useRef(null);
+  const fileReceiptUploadRef = useRef(null);
   const scannerContainerId = 'alacena-qr-barcode-viewport';
 
   // Inicializar zona destino por defecto
@@ -170,8 +177,13 @@ export default function CameraScannerModal({
         verbose: false,
       });
       html5QrCodeRef.current = scanner;
-      // Read the entire frame: a narrow barcode crop can exclude part of a QR.
-      const config = { fps: 12, disableFlip: false, aspectRatio: 1.333333 };
+      // Adaptar aspect ratio dinámicamente: evitar forzar formato horizontal rígido en móvil vertical
+      const isMobilePortrait = typeof window !== 'undefined' && window.innerWidth < 640 && window.innerHeight > window.innerWidth;
+      const config = {
+        fps: 15,
+        disableFlip: false,
+        aspectRatio: isMobilePortrait ? undefined : 1.333333,
+      };
       try {
         await scanner.start(forcedDeviceId ? { deviceId: { exact: forcedDeviceId } } : { facingMode: 'environment' },
           config, (code) => scanCallbackRef.current?.(code), () => {});
@@ -182,6 +194,20 @@ export default function CameraScannerModal({
       }
       if (session !== cameraSessionRef.current || !document.getElementById(scannerContainerId)) {
         if (scanner.isScanning) await scanner.stop(); scanner.clear(); return;
+      }
+      // Asegurar reproducción inmediata en Safari iOS y navegadores móviles
+      const container = document.getElementById(scannerContainerId);
+      const v = container?.querySelector('video');
+      if (v) {
+        v.muted = true;
+        v.setAttribute('muted', 'true');
+        v.setAttribute('playsinline', 'true');
+        v.setAttribute('webkit-playsinline', 'true');
+        v.playsInline = true;
+        if (v.paused) {
+          const p = v.play();
+          if (p?.catch) p.catch(() => {});
+        }
       }
       setScannerActive(true);
       const settings = scanner.getRunningTrackSettings();
@@ -202,6 +228,9 @@ export default function CameraScannerModal({
     if (!armedRef.current || processingRef.current) return;
     armedRef.current = false; setScanLocked(true);
     audio.tripleFeedback(880, 35);
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate([40, 60, 40]); } catch (_) {}
+    }
     await processBarcode(code);
   };
 
@@ -214,7 +243,9 @@ export default function CameraScannerModal({
     try {
       await html5QrCodeRef.current?.applyVideoConstraints({ advanced: [{ torch: !torchOn }] });
       setTorchOn(!torchOn);
-    } catch { setCameraError('No pudimos activar la linterna. Acerca el código a una fuente de luz.'); }
+    } catch {
+      notify('No pudimos activar la linterna en este dispositivo.');
+    }
   };
 
   // Alternar entre cámaras disponibles
@@ -252,6 +283,12 @@ export default function CameraScannerModal({
       if (scanDirectionMode !== 'INTERACTIVE') {
         executeDirectAction(targetProd, scanDirectionMode);
         setIsSearching(false); processingRef.current = false;
+        setTimeout(() => {
+          if (armedRef.current === false) {
+            armedRef.current = true;
+            setScanLocked(false);
+          }
+        }, 1200);
         return;
       }
 
@@ -292,12 +329,24 @@ export default function CameraScannerModal({
       if (!lookup?.needsName && scanDirectionMode === 'RESTOCK_SUPER') {
         executeDirectAction(newProd, 'RESTOCK_SUPER');
         setIsSearching(false); processingRef.current = false;
+        setTimeout(() => {
+          if (armedRef.current === false) {
+            armedRef.current = true;
+            setScanLocked(false);
+          }
+        }, 1200);
         return;
       }
 
       if (!lookup?.needsName && scanDirectionMode === 'ADD_ENTRY') {
         executeDirectAction(newProd, 'ADD_ENTRY');
         setIsSearching(false); processingRef.current = false;
+        setTimeout(() => {
+          if (armedRef.current === false) {
+            armedRef.current = true;
+            setScanLocked(false);
+          }
+        }, 1200);
         return;
       }
 
@@ -313,7 +362,7 @@ export default function CameraScannerModal({
       setScannedResult({
         barcode: cleanCode,
         product: {
-          name: `Código ${cleanCode}`,
+          name: '',
           barcode: cleanCode,
           category: isWine ? 'Vinos & Licores' : 'Abarrotes',
           unit: isWine ? 'botellas' : 'piezas',
@@ -441,12 +490,12 @@ export default function CameraScannerModal({
         setReceiptImage(dataUrl);
         await processReceiptImage(dataUrl);
       } else {
-        // Fallback a input de cámara nativa
-        fileReceiptRef.current?.click();
+        // Fallback a input de cámara nativa con captura ambiental directa
+        fileReceiptCameraRef.current?.click();
       }
     } catch (err) {
       console.warn('Error capturando ticket de cámara:', err);
-      fileReceiptRef.current?.click();
+      fileReceiptCameraRef.current?.click();
     }
   };
 
@@ -460,13 +509,18 @@ export default function CameraScannerModal({
     setReceiptImage(file);
     const isPdf = file.name?.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
 
-    if (isPdf) {
-      setReceiptPreviewUrl(null);
-      await processReceiptPdf(file);
-    } else {
-      const url = URL.createObjectURL(file);
-      setReceiptPreviewUrl(url);
-      await processReceiptImage(file);
+    try {
+      if (isPdf) {
+        setReceiptPreviewUrl(null);
+        await processReceiptPdf(file);
+      } else {
+        const url = URL.createObjectURL(file);
+        setReceiptPreviewUrl(url);
+        await processReceiptImage(file);
+      }
+    } finally {
+      if (fileReceiptCameraRef.current) fileReceiptCameraRef.current.value = '';
+      if (fileReceiptUploadRef.current) fileReceiptUploadRef.current.value = '';
     }
   };
 
@@ -806,7 +860,8 @@ TOTAL MXN                    $2,303.00`;
 
                     <button
                       type="button"
-                      onClick={() => setScannedResult(null)}
+                      aria-label="Cerrar ficha de producto"
+                      onClick={() => scanNext()}
                       className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10"
                     >
                       <X className="w-4 h-4" />
@@ -820,9 +875,9 @@ TOTAL MXN                    $2,303.00`;
                       type="button"
                       onClick={() => {
                         executeDirectAction(scannedResult.product, 'ADD_ENTRY');
-                        setScannedResult(null);
+                        scanNext();
                       }}
-                      className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all"
+                      className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all active:scale-95"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>Ingresar</span>
@@ -832,9 +887,9 @@ TOTAL MXN                    $2,303.00`;
                       type="button"
                       disabled={!scannedResult.isExisting || Number(scannedResult.product.quantity) < Number(actionQuantity)} onClick={() => {
                         executeDirectAction(scannedResult.product, 'CONSUME_EXIT');
-                        setScannedResult(null);
+                        scanNext();
                       }}
-                      className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md transition-all"
+                      className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-xs font-bold shadow-md transition-all active:scale-95"
                     >
                       <Minus className="w-3.5 h-3.5" />
                       <span>Consumir</span>
@@ -844,9 +899,9 @@ TOTAL MXN                    $2,303.00`;
                       type="button"
                       onClick={() => {
                         executeDirectAction(scannedResult.product, 'RESTOCK_SUPER');
-                        setScannedResult(null);
+                        scanNext();
                       }}
-                      className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold shadow-md transition-all"
+                      className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold shadow-md transition-all active:scale-95"
                     >
                       <ShoppingCart className="w-3.5 h-3.5" />
                       <span>Al Súper</span>
@@ -1031,9 +1086,18 @@ TOTAL MXN                    $2,303.00`;
               
               <input
                 type="file"
-                ref={fileReceiptRef}
-                accept="image/*,application/pdf,.pdf"
+                ref={fileReceiptCameraRef}
+                accept="image/*"
                 capture="environment"
+                aria-label="Tomar foto al ticket con cámara nativa"
+                onChange={handleReceiptFileSelected}
+                className="hidden"
+              />
+              <input
+                type="file"
+                ref={fileReceiptUploadRef}
+                accept="image/*,application/pdf,.pdf"
+                aria-label="Cargar foto o archivo PDF del ticket"
                 onChange={handleReceiptFileSelected}
                 className="hidden"
               />
@@ -1043,8 +1107,8 @@ TOTAL MXN                    $2,303.00`;
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <button
                     type="button"
-                    onClick={handleCaptureLiveCameraForReceipt}
-                    className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-gradient-to-r from-[var(--terracotta)] to-[var(--ember)] text-white font-bold text-xs sm:text-sm hover:brightness-110 shadow-lg shadow-[var(--terracotta)]/30 transition-all"
+                    onClick={() => fileReceiptCameraRef.current?.click()}
+                    className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-gradient-to-r from-[var(--terracotta)] to-[var(--ember)] text-white font-bold text-xs sm:text-sm hover:brightness-110 shadow-lg shadow-[var(--terracotta)]/30 transition-all active:scale-95"
                   >
                     <Camera className="w-4 h-4" />
                     <span>📸 Tomar Foto al Ticket</span>
@@ -1052,8 +1116,8 @@ TOTAL MXN                    $2,303.00`;
 
                   <button
                     type="button"
-                    onClick={() => fileReceiptRef.current?.click()}
-                    className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold text-xs sm:text-sm border border-white/10 transition-all"
+                    onClick={() => fileReceiptUploadRef.current?.click()}
+                    className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold text-xs sm:text-sm border border-white/10 transition-all active:scale-95"
                   >
                     <ImageIcon className="w-4 h-4" />
                     <span>🖼️ Foto de Galería</span>
@@ -1061,8 +1125,8 @@ TOTAL MXN                    $2,303.00`;
 
                   <button
                     type="button"
-                    onClick={() => fileReceiptRef.current?.click()}
-                    className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 font-semibold text-xs sm:text-sm border border-emerald-500/40 transition-all"
+                    onClick={() => fileReceiptUploadRef.current?.click()}
+                    className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 font-semibold text-xs sm:text-sm border border-emerald-500/40 transition-all active:scale-95"
                   >
                     <FileText className="w-4 h-4" />
                     <span>📄 Cargar Ticket PDF</span>
