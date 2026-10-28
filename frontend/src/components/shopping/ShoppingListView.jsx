@@ -193,6 +193,9 @@ export default function ShoppingListView({
     try { localStorage.setItem('alacena:walkingMode', isWalkingMode ? '1' : '0'); } catch { /* sin almacenamiento */ }
   }, [isWalkingMode]);
   const [isSmartImportOpen, setIsSmartImportOpen] = useState(false);
+  // Con qué pestaña y modo abre el importador: la entrada "Foto de lista"
+  // lo abre directo en la pestaña de foto con el modo foto-lista activo.
+  const [smartImportInitial, setSmartImportInitial] = useState({ subTab: 'text', photoListMode: false });
   const [isReconciliationOpen, setIsReconciliationOpen] = useState(false);
   const [isWeeklyStaplesOpen, setIsWeeklyStaplesOpen] = useState(false);
   const [isPriceComparisonOpen, setIsPriceComparisonOpen] = useState(false);
@@ -630,11 +633,21 @@ export default function ShoppingListView({
                 {/* Importador WhatsApp / Texto */}
                 <button
                   type="button"
-                  onClick={() => setIsSmartImportOpen(true)}
+                  onClick={() => { setSmartImportInitial({ subTab: 'text', photoListMode: false }); setIsSmartImportOpen(true); }}
                   className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
                 >
                   <FileText className="w-4 h-4 text-[var(--gold)]" />
                   <span>Importar Texto / WhatsApp</span>
+                </button>
+
+                {/* Foto de lista manuscrita */}
+                <button
+                  type="button"
+                  onClick={() => { setSmartImportInitial({ subTab: 'ocr', photoListMode: true }); setIsSmartImportOpen(true); }}
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                >
+                  <Camera className="w-4 h-4 text-emerald-300" />
+                  <span>📸 Foto de lista (manuscrita)</span>
                 </button>
 
                 {/* Librito QR de Despensa */}
@@ -1163,6 +1176,8 @@ export default function ShoppingListView({
       {isSmartImportOpen && <Suspense fallback={<div role="status" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center text-white">Abriendo herramienta…</div>}><SmartListImportModal
         isOpen={isSmartImportOpen}
         onClose={() => setIsSmartImportOpen(false)}
+        initialSubTab={smartImportInitial.subTab}
+        initialPhotoListMode={smartImportInitial.photoListMode}
         onImportItems={handleBatchImportItems}
         onImportDirectToPantry={(items) => {
           if (onCompletePurchaseToPantry) {

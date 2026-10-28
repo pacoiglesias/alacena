@@ -23,13 +23,13 @@ export const UNIT_SYNONYMS = {
 };
 
 export const DEPT_KEYWORDS = {
-  'Frutas & Verduras': ['jitomate', 'tomate', 'cebolla', 'aguacate', 'limon', 'limón', 'manzana', 'platano', 'plátano', 'papa', 'cilantro', 'lechuga', 'zanahoria', 'calabaza', 'chile', 'serrano', 'jalapeño', 'fresa', 'uva', 'naranja', 'espinaca', 'apio', 'ajo', 'ajos', 'puerro', 'poro', 'elote', 'castaña', 'castana', 'pepino', 'morrón', 'morron', 'laurel', 'champignon', 'champiñon', 'moras', 'mango', 'pera', 'melon', 'sandia', 'kiwi'],
+  'Frutas & Verduras': ['jitomate', 'tomate', 'cebolla', 'cebollita', 'cebollitas', 'cambray', 'aguacate', 'limon', 'limón', 'manzana', 'platano', 'plátano', 'papa', 'cilantro', 'lechuga', 'zanahoria', 'calabaza', 'chile', 'serrano', 'jalapeño', 'fresa', 'uva', 'naranja', 'toronja', 'frutos rojos', 'espinaca', 'arugula', 'arúgula', 'seta', 'setas', 'nopal', 'nopales', 'coliflor', 'esparrago', 'espárrago', 'esparragos', 'espárragos', 'apio', 'ajo', 'ajos', 'puerro', 'poro', 'elote', 'castaña', 'castana', 'pepino', 'morrón', 'morron', 'laurel', 'champignon', 'champiñon', 'moras', 'mango', 'pera', 'melon', 'sandia', 'kiwi'],
   'Carnes & Proteínas': ['carne', 'pollo', 'res', 'pechuga', 'ribeye', 'arrachera', 'molida', 'salmon', 'salmón', 'atun', 'atún', 'pescado', 'camaron', 'camarón', 'tocino', 'jamon', 'jamón', 'lomo', 'costilla', 'chuleta', 'filete', 'chorizo', 'morcilla', 'compango', 'chistorra', 'panceta', 'merluza', 'bacalao', 'dorada', 'lubina', 'calamar', 'gambas', 'pavo', 'ternera', 'cerdo'],
   'Lácteos & Huevos': ['huevo', 'huevos', 'leche', 'queso', 'crema', 'mantequilla', 'yogurt', 'yoghurt', 'yogur', 'parmesano', 'manchego', 'gouda', 'oaxaca', 'mozzarella', 'nata', 'cuajada'],
   'Vinos & Licores': ['vino', 'tinto', 'blanco', 'cabernet', 'malbec', 'tequila', 'mezcal', 'ron', 'whisky', 'whiskey', 'gin', 'ginebra', 'cerveza', 'champagne', 'cava', 'prosecco', 'bodega', 'ribera', 'rioja', 'reserva', 'crianza'],
   'Aceites & Condimentos': ['aceite', 'oliva', 'sal', 'pimienta', 'vinagre', 'oregano', 'orégano', 'comino', 'canela', 'soya', 'mayonesa', 'mostaza', 'catsup', 'pimentón', 'pimenton', 'azafran', 'azafrán', 'curry'],
   'Abarrotes': ['arroz', 'frijol', 'frijoles', 'negritos', 'alubia', 'alubias', 'legumbres', 'pasta', 'harina', 'empanizador', 'empzanizador', 'azucar', 'azúcar', 'cereal', 'avena', 'galletas', 'pan', 'cafe', 'café', 'te', 'té', 'miel', 'mermelada', 'lenteja', 'garbanzo', 'espagueti', 'macarrones'],
-  'Limpieza & Hogar': ['jabon', 'jabón', 'detergente', 'suavizante', 'cloro', 'papel', 'higienico', 'higiénico', 'servilleta', 'servilletas', 'bolsas de basura', 'trapeador', 'escoba', 'fabuloso', 'pinol', 'lavatrastes', 'esponja', 'aluminio', 'kleenex', 'lavavajillas', 'lejia', 'fregasuelos'],
+  'Limpieza & Hogar': ['jabon', 'jabón', 'detergente', 'suavizante', 'cloro', 'papel', 'higienico', 'higiénico', 'servilleta', 'servilletas', 'bolsas de basura', 'trapeador', 'escoba', 'fabuloso', 'musculo', 'músculo', 'pinol', 'lavatrastes', 'esponja', 'aluminio', 'kleenex', 'lavavajillas', 'lejia', 'fregasuelos'],
   'Bebidas & Refrescos': ['agua', 'refresco', 'coca', 'coca-cola', 'coca cola', 'mundet', 'canada dry', 'mineral', 'peñafiel', 'jugo', 'tehuacan', 'squirt', 'sprite', 'tonica', 'tónica', 'fanta', 'aquarius', 'gaseosa'],
 };
 
@@ -126,6 +126,32 @@ export function detectStoreFromText(rawText) {
     }
   }
   return null;
+}
+
+/**
+ * Infiere el departamento de un nombre de producto (ya normalizado) por
+ * palabras clave. Se usa dentro del parser general y, para foto-listas,
+ * después de normalizar variantes manuscritas (urugula -> arúgula), porque
+ * la variante sin normalizar no casa con ninguna palabra clave.
+ */
+export function inferDepartment(productName, matchedPantryProd = null, currentDeptContext = null) {
+  let department = currentDeptContext || 'Abarrotes';
+  if (matchedPantryProd?.category) {
+    return matchedPantryProd.category;
+  }
+  const prodLower = (productName || '').toLowerCase();
+  for (const [deptName, keywords] of Object.entries(DEPT_KEYWORDS)) {
+    const matchesKeyword = keywords.some((k) => {
+      if (k.length <= 4) {
+        return new RegExp(`(?:^|[\\s,\\/\\-\\(\\)])${k}(?:$|[\\s,\\/\\-\\(\\)])`, 'i').test(prodLower);
+      }
+      return prodLower.includes(k);
+    });
+    if (matchesKeyword) {
+      return deptName;
+    }
+  }
+  return department;
 }
 
 /**
@@ -333,23 +359,7 @@ export function parseRawShoppingText(rawText, existingProducts = []) {
     });
 
     // Inferencia de Departamento
-    let department = currentDeptContext || 'Abarrotes';
-    if (matchedPantryProd?.category) {
-      department = matchedPantryProd.category;
-    } else {
-      for (const [deptName, keywords] of Object.entries(DEPT_KEYWORDS)) {
-        const matchesKeyword = keywords.some((k) => {
-          if (k.length <= 4) {
-            return new RegExp(`(?:^|[\\s,\\/\\-\\(\\)])${k}(?:$|[\\s,\\/\\-\\(\\)])`, 'i').test(prodLower);
-          }
-          return prodLower.includes(k);
-        });
-        if (matchesKeyword) {
-          department = deptName;
-          break;
-        }
-      }
-    }
+    const department = inferDepartment(productName, matchedPantryProd, currentDeptContext);
 
     // Inferencia de Tienda
     let store = explicitStore || matchedPantryProd?.store || 'Supermercado';

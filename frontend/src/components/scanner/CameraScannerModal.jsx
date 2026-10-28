@@ -39,28 +39,33 @@ export default function CameraScannerModal({
   // Estado del Escáner de Códigos de Barras
   const [scannerActive, setScannerActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
-  // iOS y Móviles: forzar play(), playsinline y webkit-playsinline para evitar video negro o congelado
+  // iOS: el video de la librería a veces queda en negro aunque el stream esté
+  // activo. Un observador aplica muted/playsinline/webkit-playsinline/play()
+  // a CUALQUIER video que aparezca en el contenedor, en cuanto aparece, y
+  // solo si está pausado (cubre también si la librería reemplaza el <video>,
+  // caso que los temporizadores no alcanzaban).
   useEffect(() => {
-    if (!scannerActive) return;
-    const applyVideoFixes = () => {
-      const container = document.getElementById('alacena-qr-barcode-viewport');
-      const video = container?.querySelector('video');
-      if (video) {
-        video.muted = true;
-        video.setAttribute('muted', 'true');
-        video.setAttribute('playsinline', 'true');
-        video.setAttribute('webkit-playsinline', 'true');
-        video.playsInline = true;
-        if (video.paused) {
-          const p = video.play();
-          if (p?.catch) p.catch(() => {});
-        }
+    if (!scannerActive) return undefined;
+    const container = document.getElementById('alacena-qr-barcode-viewport');
+    if (!container) return undefined;
+    const hardenVideo = (video) => {
+      if (!video) return;
+      video.muted = true;
+      video.setAttribute('muted', 'true');
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('webkit-playsinline', 'true');
+      video.playsInline = true;
+      if (video.paused) {
+        const p = video.play();
+        if (p?.catch) p.catch(() => {});
       }
     };
-    applyVideoFixes();
-    const t1 = setTimeout(applyVideoFixes, 200);
-    const t2 = setTimeout(applyVideoFixes, 500);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    container.querySelectorAll('video').forEach(hardenVideo);
+    const observer = new MutationObserver(() => {
+      container.querySelectorAll('video').forEach(hardenVideo);
+    });
+    observer.observe(container, { childList: true, subtree: true });
+    return () => observer.disconnect();
   }, [scannerActive]);
   const [cameras, setCameras] = useState([]);
   const [selectedCameraId, setSelectedCameraId] = useState('');
@@ -101,6 +106,27 @@ export default function CameraScannerModal({
   const requestRef = useRef(0);
   const html5QrCodeRef = useRef(null);
 
+  // Espejos de estado para el vigilante y el retorno de segundo plano.
+  const isOpenRef = useRef(isOpen);
+  const activeTabRef = useRef(activeTab);
+  const scannerActiveRef = useRef(false);
+  const cameraStartingRef = useRef(false);
+  const cameraErrorRef = useRef(null);
+  const wasActiveBeforeHiddenRef = useRef(false);
+  // Reintentos automáticos acotados: si un arranque muere SIN error
+  // (carrera de sesión, aviso del sistema), el vigilante lo reintenta
+  // solo unas veces; con error real no se insiste (lo decide el usuario
+  // con "Reintentar").
+  const autoAttemptsRef = useRef(0);
+  const MAX_AUTO_ATTEMPTS = 3;
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+    activeTabRef.current = activeTab;
+    scannerActiveRef.current = scannerActive;
+    cameraStartingRef.current = cameraStarting;
+    cameraErrorRef.current = cameraError;
+  });
+
   const fileBarcodeRef = useRef(null);
   const fileReceiptCameraRef = useRef(null);
   const fileReceiptUploadRef = useRef(null);
@@ -132,6 +158,7 @@ export default function CameraScannerModal({
     if (activeTab === 'BARCODE') {
       // Iniciar de inmediato (sin retardo): en iOS el retardo rompe la cadena del gesto
       // y causa que la cámara se apague. El contenedor ya existe porque el modal está montado.
+      autoAttemptsRef.current = 0;
       startBarcodeScanner();
       return () => {
         requestRef.current++;
@@ -143,12 +170,46 @@ export default function CameraScannerModal({
   }, [isOpen, activeTab]);
 
   useEffect(() => {
-    const onHidden = () => { if (document.hidden) { requestRef.current++; stopAllCameras(); } };
+    // Antes, cualquier "hidden" (aviso del sistema, permiso de cámara,
+    // cambio de app) MATABA la sesión para siempre y dejaba la pantalla
+    // en negro sin error: esa es la "cámara que se apaga sola". Ahora
+    // al ocultarse solo se recuerda si estaba activa y al volver se
+    // reintenta si hace falta; nunca se destruye la sesión por ocultarse.
+    const onVisibility = () => {
+      if (document.hidden) {
+        wasActiveBeforeHiddenRef.current = scannerActiveRef.current;
+        return;
+      }
+      if (wasActiveBeforeHiddenRef.current && isOpenRef.current && activeTabRef.current === 'BARCODE'
+        && !scannerActiveRef.current && !cameraStartingRef.current && !cameraErrorRef.current) {
+        wasActiveBeforeHiddenRef.current = false;
+        startBarcodeScanner();
+      }
+    };
     const onKey = (event) => { if (event.key === 'Escape') onClose(); };
-    document.addEventListener('visibilitychange', onHidden);
+    document.addEventListener('visibilitychange', onVisibility);
     document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('visibilitychange', onHidden); document.removeEventListener('keydown', onKey); };
+    return () => { document.removeEventListener('visibilitychange', onVisibility); document.removeEventListener('keydown', onKey); };
   }, [onClose]);
+
+  // Vigilante: si la cámara quedó inactiva SIN error (arranque abortado
+  // por una carrera de sesión, aviso del sistema, pista detenida por el
+  // SO), reintenta solo hasta 3 veces en vez de dejar la pantalla negra.
+  // Con error real (permiso denegado, sin cámara) no se insiste: el
+  // usuario decide con "Reintentar".
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'BARCODE' || scannerActive || cameraStarting || cameraError) return undefined;
+    if (autoAttemptsRef.current >= MAX_AUTO_ATTEMPTS) return undefined;
+    const t = setTimeout(() => {
+      if (isOpenRef.current && activeTabRef.current === 'BARCODE'
+        && !scannerActiveRef.current && !cameraStartingRef.current && !cameraErrorRef.current
+        && autoAttemptsRef.current < MAX_AUTO_ATTEMPTS && !startingRef.current) {
+        autoAttemptsRef.current += 1;
+        startBarcodeScanner();
+      }
+    }, 800);
+    return () => clearTimeout(t);
+  }, [isOpen, activeTab, scannerActive, cameraStarting, cameraError]);
 
   const stopAllCameras = async () => {
     cameraSessionRef.current++;
@@ -210,6 +271,7 @@ export default function CameraScannerModal({
         }
       }
       setScannerActive(true);
+      autoAttemptsRef.current = 0;
       const settings = scanner.getRunningTrackSettings();
       setSelectedCameraId(settings.deviceId || forcedDeviceId || '');
       const capabilities = scanner.getRunningTrackCapabilities();
@@ -1035,7 +1097,7 @@ TOTAL MXN                    $2,303.00`;
                     <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
                       <button
                         type="button"
-                        disabled={cameraStarting} onClick={() => startBarcodeScanner()}
+                        disabled={cameraStarting} onClick={() => { autoAttemptsRef.current = 0; startBarcodeScanner(); }}
                         className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all"
                       >
                         🔄 Reintentar Cámara

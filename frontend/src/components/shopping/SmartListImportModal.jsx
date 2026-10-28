@@ -9,6 +9,7 @@ import {
 import TicketReview from './TicketReview';
 import { audio } from '../../services/audioService';
 import { parseRawShoppingText } from '../../services/smartListParser';
+import { parsePhotoList } from '../../services/photoListParser';
 import { extractShoppingListFromImage, extractTextFromFile } from '../../services/ocrService';
 import { isCavaZone, sanitizeCavaProduct } from '../../utils/cavaGuard';
 import { analyzeTicketPriceIntelligence, recordPricePoints } from '../../services/priceIntelligenceService';
@@ -21,10 +22,15 @@ export default function SmartListImportModal({
   onImportDirectToPantry,
   existingProducts = [],
   zones = [],
-  activeHouse
+  activeHouse,
+  initialSubTab = 'text',
+  initialPhotoListMode = false,
 }) {
   const [showTicketReview, setShowTicketReview] = useState(false);
-  const [activeSubTab, setActiveSubTab] = useState('text'); // 'text' | 'ocr' | 'file'
+  const [activeSubTab, setActiveSubTab] = useState(initialSubTab); // 'text' | 'ocr' | 'file'
+  // Modo foto-lista: un renglón puede traer varios productos separados por
+  // comas y la escritura trae variantes (urugula -> arúgula, zetas -> setas).
+  const [photoListMode, setPhotoListMode] = useState(initialPhotoListMode);
   
   // Text Tab State
   const [rawText, setRawText] = useState('');
@@ -179,14 +185,19 @@ TOTAL $ 2345.68`;
     }
   };
 
-  // Procesar texto libre
+  // Procesar texto libre (o texto OCR re-analizado). En modo foto-lista
+  // cada renglón puede traer varios productos separados por comas.
+  const parseForImport = (text) => photoListMode
+    ? parsePhotoList(text, existingProducts)
+    : parseRawShoppingText(text, existingProducts);
+
   const handleProcessText = () => {
     audio.click();
     if (!rawText.trim()) {
       setImportNotice({ type: 'warning', text: 'Por favor pega o escribe texto antes de analizar.' });
       return;
     }
-    const items = parseRawShoppingText(rawText, existingProducts);
+    const items = parseForImport(rawText);
     if (items.length === 0) {
       setImportNotice({ type: 'warning', text: 'No se detectaron artículos válidos en el texto ingresado.' });
       return;
@@ -264,8 +275,9 @@ TOTAL $ 2345.68`;
       );
 
       setLastOcrRawText(result.rawText || '');
+      setRawText(result.rawText || '');
 
-      if (result.items.length === 0) {
+      if (result.items.length === 0 && !photoListMode) {
         setImportNotice({ 
           type: 'warning', 
           text: 'Se procesó la imagen del ticket/nota. No se detectaron productos estructurados directamente, pero puedes desplegar el texto abajo y revisarlo.' 
@@ -273,13 +285,27 @@ TOTAL $ 2345.68`;
         setShowRawOcrText(true);
         setRawText(result.rawText);
       } else {
-        setExtractedItems(result.items);
-        setSelectedItemIds(new Set(result.items.map((i) => i.id)));
-        setImportNotice({ 
-          type: 'success', 
-          text: `🧾 ¡OCR Exitoso! Se extrajeron ${result.items.length} artículos del ticket con ${Math.round(result.confidence || 85)}% de fiabilidad.` 
-        });
-        audio.success();
+        // En modo foto-lista se vuelve a trocear el texto OCR renglón por
+        // renglón (varios productos por línea, separados por comas), porque
+        // el parseo de tickets toma cada línea como un solo artículo.
+        const items = photoListMode
+          ? parsePhotoList(result.rawText || '', existingProducts)
+          : result.items;
+        if (items.length === 0) {
+          setImportNotice({
+            type: 'warning',
+            text: 'Se procesó la foto pero no se reconoció ningún producto. Revisa el texto abajo, corrígelo y vuelve a analizar.',
+          });
+          setShowRawOcrText(true);
+        } else {
+          setExtractedItems(items);
+          setSelectedItemIds(new Set(items.map((i) => i.id)));
+          setImportNotice({
+            type: 'success',
+            text: `🧾 ¡OCR Exitoso! Se extrajeron ${items.length} artículos de la foto con ${Math.round(result.confidence || 85)}% de fiabilidad. Revísalos abajo antes de importar: el OCR de manuscrita puede leer mal algún nombre.`,
+          });
+          audio.success();
+        }
       }
     } catch (err) {
       console.error('Error OCR:', err);
@@ -478,6 +504,25 @@ TOTAL $ 2345.68`;
             <span>📄 Subir Archivo (PDF / TXT)</span>
           </button>
         </div>
+
+        {/* Modo foto-lista: renglones con varios productos separados por comas */}
+        {activeSubTab !== 'file' && (
+          <div className="mx-4 sm:mx-6 mt-3 p-3 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] flex items-start gap-2.5">
+            <input
+              type="checkbox"
+              id="photo-list-mode"
+              checked={photoListMode}
+              onChange={(e) => setPhotoListMode(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-[var(--gold)] shrink-0"
+            />
+            <label htmlFor="photo-list-mode" className="text-xs text-[var(--ink-secondary)] leading-relaxed cursor-pointer">
+              <span className="font-bold text-[var(--ink-primary)]">📝 Es una lista manuscrita: </span>
+              cada renglón puede traer varios productos separados por comas y la escritura trae
+              variantes que se corrigen solas (urugula → arúgula, zetas → setas). Revisa la lista
+              abajo antes de importar: el OCR de manuscrita puede leer mal algún nombre.
+            </label>
+          </div>
+        )}
 
         {/* Body Container */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 custom-scrollbar">
