@@ -38,6 +38,9 @@ export default function SmartListImportModal({
   // OCR Tab State
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+  // Cancelación del OCR automático: el worker sigue en fondo, pero su
+  // resultado se descarta y el usuario puede elegir otra foto o reintentar.
+  const ocrCancelRef = useRef(false);
   const [ocrProgress, setOcrProgress] = useState(null); // { status, progress }
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
   const [lastOcrRawText, setLastOcrRawText] = useState('');
@@ -208,7 +211,9 @@ TOTAL $ 2345.68`;
     audio.success();
   };
 
-  // Manejar selección de imagen para OCR
+  // Manejar selección de imagen para OCR: la foto confirmada arranca el
+  // OCR sola (antes exigía otro toque en "Extraer"); ese botón queda
+  // solo como reintento.
   const handleImageSelected = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -221,12 +226,16 @@ TOTAL $ 2345.68`;
     setLastOcrRawText('');
     setDetectedStore(null);
     audio.click();
+    handleRunOcr(file);
   };
 
-  // Ejecutar OCR o Decodificación QR
-  const handleRunOcr = async () => {
-    if (!selectedImage) return;
+  // Ejecutar OCR o Decodificación QR (fileOverride = foto recién elegida,
+  // porque el estado selectedImage aún no se actualizó en ese render).
+  const handleRunOcr = async (fileOverride) => {
+    const image = fileOverride || selectedImage;
+    if (!image) return;
 
+    ocrCancelRef.current = false;
     setIsOcrProcessing(true);
     audio.click();
     try {
@@ -235,7 +244,7 @@ TOTAL $ 2345.68`;
         const bufferEl = document.getElementById('qr-detection-buffer');
         if (bufferEl) {
           const qrDetector = new Html5Qrcode('qr-detection-buffer');
-          const decodedQr = await qrDetector.scanFile(selectedImage, false);
+          const decodedQr = await qrDetector.scanFile(image, false);
           try { qrDetector.clear(); } catch (_) {}
           if (decodedQr && decodedQr.trim()) {
             let textToParse = decodedQr.trim();
@@ -250,6 +259,7 @@ TOTAL $ 2345.68`;
             }
             const qrItems = parseRawShoppingText(textToParse, existingProducts);
             if (qrItems.length > 0) {
+              if (ocrCancelRef.current) return;
               setExtractedItems(qrItems);
               setSelectedItemIds(new Set(qrItems.map((i) => i.id)));
               setLastOcrRawText(textToParse);
@@ -269,10 +279,14 @@ TOTAL $ 2345.68`;
 
       // 2. Reconocimiento Óptico (OCR) con Tesseract en español para recetas, notas manuscritas y tickets
       const result = await extractShoppingListFromImage(
-        selectedImage, 
+        image, 
         (progress) => setOcrProgress(progress),
         existingProducts
       );
+
+      // Si el usuario canceló mientras el OCR corría, se descarta el
+      // resultado por completo: ni texto ni lista se aplican.
+      if (ocrCancelRef.current) return;
 
       setLastOcrRawText(result.rawText || '');
       setRawText(result.rawText || '');
@@ -408,7 +422,11 @@ TOTAL $ 2345.68`;
   const handleConfirmImport = () => {
     const itemsToImport = extractedItems
       .filter((i) => selectedItemIds.has(i.id))
-      .map((item) => sanitizeCavaProduct(item, zones));
+      .map((item) => ({
+        ...sanitizeCavaProduct(item, zones),
+        // La tienda es la del ticket cuando se detectó; nunca inventar una.
+        store: item.store || detectedStore || 'Supermercado',
+      }));
     if (itemsToImport.length === 0) {
       notify('Por favor selecciona al menos un artículo para importar.');
       return;
@@ -721,15 +739,27 @@ TOTAL $ 2345.68`;
                             style={{ width: `${ocrProgress?.progress || 25}%` }}
                           />
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            ocrCancelRef.current = true;
+                            setIsOcrProcessing(false);
+                            setOcrProgress(null);
+                            setImportNotice({ type: 'warning', text: 'OCR cancelado. Puedes elegir otra foto o reintentar la extracción.' });
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-semibold text-[var(--ink-secondary)] hover:text-white border border-white/10 transition-all"
+                        >
+                          Cancelar OCR
+                        </button>
                       </div>
                     ) : (
                       <button
                         type="button"
-                        onClick={handleRunOcr}
+                        onClick={() => handleRunOcr()}
                         className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[var(--ember)] to-[var(--gold)] text-[var(--on-gold)] font-bold text-sm hover:brightness-110 shadow-lg shadow-[var(--ember)]/25 transition-all"
                       >
                         <Sparkles className="w-4 h-4" />
-                        <span>Extraer Texto y Productos con OCR</span>
+                        <span>{lastOcrRawText ? 'Reintentar extracción con OCR' : 'Extraer Texto y Productos con OCR'}</span>
                       </button>
                     )}
                   </div>

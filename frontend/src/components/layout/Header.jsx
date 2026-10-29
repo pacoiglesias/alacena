@@ -6,6 +6,7 @@ import {
   BookOpen, Palette, Store, Sun, QrCode, Settings
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
+import { notify } from '../../services/notice';
 import { APP_VERSION } from '../../version';
 import CustomTabNamesModal, { DEFAULT_MENU_TABS, ICON_MAP } from './CustomTabNamesModal';
 import SystemManualModal from '../manual/SystemManualModal';
@@ -110,6 +111,11 @@ export default function Header({
     localStorage.setItem('alacena_active_role', JSON.stringify(role));
     audio.click();
     setIsRoleMenuOpen(false);
+    // Los roles no-admin ven un menú reducido sin avisar: advertirlo al
+    // cambiar y decir cómo volver a Admin.
+    if (role.id !== 'admin') {
+      notify(`Menú reducido con el rol ${role.label}: Centro Sommelier, Catálogo QR, Personalizar pestañas, Tema y Catálogos solo se ven como Admin. Para volver, abre este selector y elige Patrón / Admin.`);
+    }
   };
 
   // Manejar click en una pestaña (sistema o personalizada)

@@ -74,7 +74,7 @@ export default function ZoneModal({ isOpen, onClose, onSave, onDelete, initialZo
   };
 
   const handleDelete = async () => {
-    if (await confirmDialog(`¿Estás seguro de eliminar la ubicación "${name}"? Los productos asignados conservarán su historial.`)) {
+    if (await confirmDialog(`¿Estás seguro de eliminar la ubicación "${name}"? Los productos que estaban aquí se moverán a la primera ubicación restante, para que ninguno quede huérfano.`)) {
       audio.delete();
       onDelete(initialZone.id);
       onClose();

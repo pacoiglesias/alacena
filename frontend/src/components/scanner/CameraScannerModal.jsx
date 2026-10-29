@@ -79,7 +79,24 @@ export default function CameraScannerModal({
   const [manualCode, setManualCode] = useState('');
   
   // Modos de Dirección: 'INTERACTIVE' | 'ADD_ENTRY' | 'CONSUME_EXIT' | 'RESTOCK_SUPER'
-  const [scanDirectionMode, setScanDirectionMode] = useState('INTERACTIVE');
+  // El último modo elegido se recuerda en localStorage: el escáner ya no
+  // exige volver a elegirlo en cada artículo. INTERACTIVE solo la primera vez.
+  const SCAN_DIRECTION_MODES = ['INTERACTIVE', 'ADD_ENTRY', 'CONSUME_EXIT', 'RESTOCK_SUPER'];
+  const [scanDirectionMode, setScanDirectionMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('alacena:scan_direction');
+      return SCAN_DIRECTION_MODES.includes(saved) ? saved : 'INTERACTIVE';
+    } catch {
+      return 'INTERACTIVE';
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem('alacena:scan_direction', scanDirectionMode);
+    } catch {
+      // Sin almacenamiento local: el modo solo vive en esta sesión.
+    }
+  }, [scanDirectionMode]);
   const [selectedTargetZone, setSelectedTargetZone] = useState('');
   const [lastBatchMessage, setLastBatchMessage] = useState(null);
   const [batchCount, setBatchCount] = useState(0);
@@ -1159,6 +1176,7 @@ TOTAL MXN                    $2,303.00`;
                 type="file"
                 ref={fileBarcodeRef}
                 accept="image/*"
+                capture="environment"
                 aria-label="Subir foto de un QR o código de barras"
                 onChange={handleBarcodeFileUpload}
                 className="hidden"

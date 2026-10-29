@@ -238,7 +238,7 @@ export default function ShoppingListView({
         quantity: item.quantity || 1,
         unit: item.unit || 'piezas',
         department: getDepartmentForItem(item),
-        store: item.store || 'Costco',
+        store: item.store || 'Supermercado',
         estimatedPriceMxn: item.estimatedPriceMxn || 0,
         targetZone: item.targetZone || zones[0]?.name || 'Alacena Principal',
       });
@@ -522,6 +522,21 @@ export default function ShoppingListView({
           >
             <Camera className="w-4 h-4 text-emerald-200" />
             <span>Escanear / Ticket</span>
+          </button>
+
+          {/* 2b. Foto de lista manuscrita (acción diaria, fuera del menú "…") */}
+          <button
+            type="button"
+            onClick={() => {
+              audio.click();
+              setSmartImportInitial({ subTab: 'ocr', photoListMode: true });
+              setIsSmartImportOpen(true);
+            }}
+            className="flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-amber-600 hover:bg-amber-500 transition-all shadow-md shadow-amber-950/40 cursor-pointer"
+            title="Fotografiar tu lista manuscrita y pasarla al Súper con OCR"
+          >
+            <Camera className="w-4 h-4 text-amber-100" />
+            <span>📸 Foto de lista</span>
           </button>
 
           {/* 3. Agregar Artículo Manual Rápido */}

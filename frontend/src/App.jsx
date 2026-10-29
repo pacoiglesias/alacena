@@ -11,6 +11,8 @@ import Header from './components/layout/Header';
 import BottomNavBar from './components/layout/BottomNavBar';
 import NoticeHost from './components/common/NoticeHost';
 import { notify, confirmDialog } from './services/notice';
+import { APP_VERSION } from './version';
+import { reassignProductsFromDeletedZone, firstLivingZoneName } from './utils/zoneHelpers';
 const InventoryView = lazy(() => import('./components/inventory/InventoryView'));
 const ManualProductModal = lazy(() => import('./components/inventory/ManualProductModal'));
 import ShoppingListView from './components/shopping/ShoppingListView';
@@ -904,14 +906,20 @@ export default function App() {
 
   const handleDeleteZone = (zoneId) => {
     const target = zones.find((z) => z.id === zoneId);
-    if (target) {
-      addAuditEntry(
-        'Administrador General',
-        'ELIMINACION_ZONA',
-        `Eliminó la zona física "${target.name}"`
-      );
-    }
+    if (!target) return;
+    const fallbackName = firstLivingZoneName(zones, zoneId);
+    const affectedCount = products.filter((p) => p.zone === target.name).length;
+    addAuditEntry(
+      'Administrador General',
+      'ELIMINACION_ZONA',
+      affectedCount > 0
+        ? `Eliminó la zona física "${target.name}" y reasignó ${affectedCount} producto(s) a "${fallbackName}"`
+        : `Eliminó la zona física "${target.name}"`
+    );
     setZones((prev) => prev.filter((z) => z.id !== zoneId));
+    if (affectedCount > 0) {
+      setProducts((prev) => reassignProductsFromDeletedZone(prev, target.name, fallbackName));
+    }
   };
 
   // Recipe actions
@@ -954,7 +962,7 @@ export default function App() {
   const handleExportBackupJson = () => {
     const backup = {
       app: 'ALACENA_ENTERPRISE_CAVAPRO',
-      version: 'v2.4.0-Titanium-Nova',
+      version: APP_VERSION,
       exportDate: new Date().toISOString(),
       household: activeHouse,
       products,
@@ -977,9 +985,11 @@ export default function App() {
     notify('💾 Copia de seguridad descargada exitosamente en formato JSON.');
   };
 
-  // Reset demo data
+  // Reset demo data: antes de reemplazar nada, descarga un respaldo
+  // automático de los datos reales, porque esta acción los BORRA.
   const handleResetDemoData = async () => {
-    if (await confirmDialog('¿Deseas restaurar los datos de demostración con precios en MXN?')) {
+    if (await confirmDialog('⚠️ Esto BORRA tu despensa, lista del súper, zonas, recetas, casas y bitácora reales y las reemplaza con datos de demostración. Antes de borrar, se descargará una copia de seguridad de tus datos actuales. ¿Deseas continuar?')) {
+      handleExportBackupJson();
       setProducts(INITIAL_PRODUCTS);
       setShoppingList(INITIAL_SHOPPING_LIST);
       setZones(INITIAL_ZONES);

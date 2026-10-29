@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  Package, ShoppingCart, Camera, UtensilsCrossed, Wine, MoreHorizontal 
+  Package, ShoppingCart, Camera, UtensilsCrossed, MoreHorizontal 
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
@@ -56,8 +56,8 @@ export default function BottomNavBar({
     },
     {
       id: 'cava',
-      label: 'Cava / Más',
-      icon: Wine,
+      label: 'Más',
+      icon: MoreHorizontal,
       action: () => {
         audio.click();
         if (onOpenCommandCenter) {

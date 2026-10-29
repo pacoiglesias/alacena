@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.9.1-Casa';
+export const SYSTEM_VERSION = 'v3.9.2-Casa';
 export const RELEASE_DATE = '28 Octubre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
@@ -160,6 +160,48 @@ export default function ChangelogModal({ isOpen, onClose }) {
         {activeTab === 'changelog' && (
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             
+            {/* Release v3.9.2-Casa */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
+                    v3.9.2-Casa
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">28 Octubre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2 font-display">
+                Auditoría de practicidad: nada que borre datos sin respaldo, acciones diarias a un toque y botones de 44 px
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>"Datos de Ejemplo" ya no borra sin respaldo:</strong> antes de reemplazar despensa, lista, zonas, recetas, casas y bitácora, descarga automáticamente una copia de seguridad JSON de tus datos reales, y la confirmación advierte que los BORRA.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>📸 Foto de lista en el home del Súper:</strong> botón primario junto a "Modo Súper" y "Escanear / Ticket", ya no escondido en el menú "…". En la barra móvil, "Cava / Más" ahora es "Más".</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>El escáner recuerda su modo:</strong> el último modo elegido (Consultar, Entrada, Consumo o Súper) queda guardado y se restaura al abrir; solo la primera vez abre en Consultar. La foto de código ya abre la cámara directa.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Borrar una zona ya no deja huérfanos:</strong> sus productos se mueven a la primera ubicación restante y la confirmación lo dice así.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Foto-lista con OCR automático:</strong> al confirmar la foto, el OCR arranca solo (con botón Cancelar) y el botón queda solo como reintento.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Botones táctiles de 44 px en inventario y "+ Súper" visible en iPhone;</strong> cambiar a un rol no-admin avisa que el menú es reducido y cómo volver a Admin; el respaldo ya escribe la versión real de la app y las importaciones usan la tienda del ticket o "Supermercado", nunca una inventada.</span>
+                </li>
+              </ul>
+            </div>
+
             {/* Release v3.7.0-Enterprise-Luxe */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
               <div className="flex items-center justify-between mb-3">
@@ -167,7 +209,7 @@ export default function ChangelogModal({ isOpen, onClose }) {
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
                     v3.7.0-Enterprise-Luxe
                   </span>
-                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                  <span className="text-xs font-semibold text-gray-400">ANTERIOR</span>
                 </div>
                 <span className="text-xs text-gray-400">13 Octubre 2026</span>
               </div>

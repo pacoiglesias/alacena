@@ -782,7 +782,7 @@ export default function InventoryView({
 
                         <button
                           onClick={() => handleAdjustQuantity(p, 1)}
-                          className="w-8 h-8 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--border-soft)] border border-[var(--border-soft)] text-white flex items-center justify-center font-bold text-xs"
+                          className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--border-soft)] border border-[var(--border-soft)] text-white flex items-center justify-center font-bold text-xs"
                           title="Añadir 1 botella"
                         >
                           +
@@ -892,7 +892,7 @@ export default function InventoryView({
                         ) : (
                           <>
                             <ShoppingCart className="w-3.5 h-3.5" />
-                            <span className="text-[10px] hidden sm:inline">+ Súper</span>
+                            <span className="text-[10px]">+ Súper</span>
                           </>
                         )}
                       </button>
@@ -900,14 +900,14 @@ export default function InventoryView({
                       {/* Botones Táctiles Grandes + / - */}
                       <button
                         onClick={() => handleAdjustQuantity(p, -1)}
-                        className="w-9 h-9 rounded-xl bg-[var(--bg-elevated)] hover:bg-rose-500/20 border border-[var(--border-strong)] hover:border-rose-500/40 text-[var(--ink-secondary)] hover:text-rose-300 flex items-center justify-center font-black text-sm transition-all active:scale-95 cursor-pointer"
+                        className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)] hover:bg-rose-500/20 border border-[var(--border-strong)] hover:border-rose-500/40 text-[var(--ink-secondary)] hover:text-rose-300 flex items-center justify-center font-black text-sm transition-all active:scale-95 cursor-pointer"
                         title="Consumir 1 unidad (-1)"
                       >
                         -
                       </button>
                       <button
                         onClick={() => handleAdjustQuantity(p, 1)}
-                        className="w-9 h-9 rounded-xl bg-[var(--bg-elevated)] hover:bg-emerald-500/20 border border-[var(--border-strong)] hover:border-emerald-500/40 text-[var(--ink-secondary)] hover:text-emerald-300 flex items-center justify-center font-black text-sm transition-all active:scale-95 cursor-pointer"
+                        className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)] hover:bg-emerald-500/20 border border-[var(--border-strong)] hover:border-emerald-500/40 text-[var(--ink-secondary)] hover:text-emerald-300 flex items-center justify-center font-black text-sm transition-all active:scale-95 cursor-pointer"
                         title="Ingresar / Reabastecer 1 unidad (+1)"
                       >
                         +
@@ -917,14 +917,14 @@ export default function InventoryView({
                           audio.click();
                           setSelectedQrProduct(p);
                         }}
-                        className="w-9 h-9 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--gold)] flex items-center justify-center transition-all ml-0.5 cursor-pointer"
+                        className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--gold)] flex items-center justify-center transition-all ml-0.5 cursor-pointer"
                         title="Ver / Imprimir Etiqueta QR o Grabar en NFC"
                       >
                         <QrCode className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => { audio.click(); onEditProduct(p); }}
-                        className="w-9 h-9 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--ink-secondary)] hover:text-white flex items-center justify-center transition-all ml-0.5 cursor-pointer"
+                        className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--ink-secondary)] hover:text-white flex items-center justify-center transition-all ml-0.5 cursor-pointer"
                         title="Editar insumo"
                       >
                         <Pencil className="w-3.5 h-3.5" />
@@ -936,7 +936,7 @@ export default function InventoryView({
                             onDeleteProduct(p.id);
                           }
                         }}
-                        className="w-8 h-8 rounded-xl bg-[var(--bg-elevated)] hover:bg-rose-500/20 border border-[var(--border-soft)] hover:border-rose-500/40 text-[var(--ink-tertiary)] hover:text-rose-400 flex items-center justify-center transition-all ml-0.5"
+                        className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)] hover:bg-rose-500/20 border border-[var(--border-soft)] hover:border-rose-500/40 text-[var(--ink-tertiary)] hover:text-rose-400 flex items-center justify-center transition-all ml-0.5"
                         title="Eliminar producto del inventario"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
