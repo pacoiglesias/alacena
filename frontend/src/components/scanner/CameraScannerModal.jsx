@@ -10,7 +10,7 @@ import {
 import TicketReview from '../shopping/TicketReview';
 import { audio } from '../../services/audioService';
 import { lookupBarcode } from '../../services/barcodeLookupService';
-import { findProductByScanCode, extractCodeFromScan, cameraErrorMessage, isScannerVideoHealthy } from '../../utils/scanHelper';
+import { findProductByScanCode, extractCodeFromScan, cameraErrorMessage, isScannerVideoFlowing } from '../../utils/scanHelper';
 import { isCavaZone, isAlcoholicOrBeverage, sanitizeCavaProduct } from '../../utils/cavaGuard';
 import { extractShoppingListFromImage, preprocessImageForOcr, extractTextFromFile } from '../../services/ocrService';
 import { parseRawShoppingText } from '../../services/smartListParser';
@@ -39,6 +39,35 @@ export default function CameraScannerModal({
   // Estado del Escáner de Códigos de Barras
   const [scannerActive, setScannerActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
+  // 3.9.3: un rechazo de play() (típico tras el aviso de permiso del
+  // sistema en iOS) NO puede tragarse en silencio: si play() falla, el
+  // video queda en negro con el escáner "activo" y ningún vigilante
+  // volvía a correr. Reintento una vez tras un tick; si sigue
+  // fallando, se dispara la vía de reinicio del vigilante (acotada
+  // a 3 recuperaciones por sesión de modal; agotadas, el vigilante
+  // de flujo muestra el error). Declaración function (elevada) para
+  // poder usarla en los efectos que la preceden en el archivo.
+  function playVideoWithRetry(video) {
+    if (!video || !video.paused) return;
+    const p = video.play();
+    if (!p?.catch) return;
+    p.catch(() => {
+      setTimeout(() => {
+        if (!video.paused) return;
+        const p2 = video.play();
+        if (!p2?.catch) return;
+        p2.catch(() => {
+          if (scannerActiveRef.current && !startingRef.current
+            && blackRecoveriesRef.current < MAX_BLACK_RECOVERIES) {
+            blackRecoveriesRef.current += 1;
+            startBarcodeScanner();
+          }
+          // Con el presupuesto agotado, el vigilante de flujo detecta
+          // el currentTime quieto y muestra el error con Reintentar.
+        });
+      }, 0);
+    });
+  }
   // iOS: el video de la librería a veces queda en negro aunque el stream esté
   // activo. Un observador aplica muted/playsinline/webkit-playsinline/play()
   // a CUALQUIER video que aparezca en el contenedor, en cuanto aparece, y
@@ -55,10 +84,7 @@ export default function CameraScannerModal({
       video.setAttribute('playsinline', 'true');
       video.setAttribute('webkit-playsinline', 'true');
       video.playsInline = true;
-      if (video.paused) {
-        const p = video.play();
-        if (p?.catch) p.catch(() => {});
-      }
+      playVideoWithRetry(video);
     };
     container.querySelectorAll('video').forEach(hardenVideo);
     const observer = new MutationObserver(() => {
@@ -234,36 +260,66 @@ export default function CameraScannerModal({
     return () => clearTimeout(t);
   }, [isOpen, activeTab, scannerActive, cameraStarting, cameraError]);
 
-  // Vigilante anti-video-negro (3.9.1): el escáner puede quedar "activo"
-  // con la pista viva pero sin fotogramas (video en negro, caso iOS
-  // reportado por Paco en 3.9.0). Los vigilantes anteriores solo cubrían
-  // "inactivo sin error" y "video pausado"; con activo=true y negro,
-  // nada se recuperaba jamás. Si en ~5 s ningún video del contenedor
-  // tiene metadatos y ancho real, se reinicia el escáner (elemento de
-  // video nuevo) hasta 3 veces; si sigue negro, se muestra el error con
-  // Reintentar y Foto en vez de un cuadro negro muerto.
+  // Vigilante anti-video-negro PERSISTENTE (3.9.3): la 3.9.1 se
+  // retiraba al primer video "sano" por metadatos, pero en iOS un
+  // video puede tener readyState y ancho real sin entregar ningún
+  // fotograma (negro), y un apagón tardío (aviso del sistema, cambio
+  // de app) ya no se vigilaba. Ahora sano = flujo real: el
+  // currentTime del video avanza entre dos muestras (~700 ms).
+  // Mientras la pestaña BARCODE esté abierta y el escáner activo, el
+  // intervalo NUNCA se limpia por un primer "sano": sigue vigilando
+  // el flujo. Sin flujo ~5 s, reinicia el escáner (elemento de video
+  // nuevo) hasta 3 veces por sesión de modal; agotadas, muestra el
+  // error con Reintentar y Foto en vez de un cuadro negro muerto.
+  // Un flujo sostenido (~3,5 s) rearma el presupuesto: un paro tardío
+  // es un incidente nuevo, no el mismo bucle.
   useEffect(() => {
     if (!isOpen || activeTab !== 'BARCODE' || !scannerActive) return undefined;
-    let elapsed = 0;
+    const flowSamples = new Map();
+    let stallMs = 0;
+    let flowingStreak = 0;
     const id = setInterval(() => {
       if (!isOpenRef.current || activeTabRef.current !== 'BARCODE' || !scannerActiveRef.current) { clearInterval(id); return; }
       const container = document.getElementById(scannerContainerId);
       const videos = container?.querySelectorAll('video') || [];
+      const hadSample = videos.length > 0 && [...videos].some((v) => flowSamples.has(v));
+      const seen = new Set();
+      let flowing = false;
       for (const v of videos) {
-        if (isScannerVideoHealthy(v)) { blackRecoveriesRef.current = 0; clearInterval(id); return; }
+        seen.add(v);
+        const prev = flowSamples.get(v);
+        if (prev !== undefined && isScannerVideoFlowing(prev, v)) flowing = true;
+        flowSamples.set(v, v.currentTime);
       }
-      elapsed += 600;
-      if (elapsed >= 5000) {
-        clearInterval(id);
+      for (const key of [...flowSamples.keys()]) {
+        if (!seen.has(key)) flowSamples.delete(key);
+      }
+      if (flowing) {
+        stallMs = 0;
+        flowingStreak += 1;
+        if (flowingStreak >= 5) {
+          blackRecoveriesRef.current = 0;
+          flowingStreak = 0;
+        }
+        return;
+      }
+      flowingStreak = 0;
+      // Sin video, o solo muestras recién establecidas (sin base con
+      // la que comparar): esperar al siguiente tick, no contar paro.
+      if (videos.length > 0 && !hadSample) return;
+      stallMs += 700;
+      if (stallMs >= 5000) {
+        stallMs = 0;
         if (blackRecoveriesRef.current < MAX_BLACK_RECOVERIES && !startingRef.current) {
           blackRecoveriesRef.current += 1;
+          flowSamples.clear();
           startBarcodeScanner();
         } else if (!cameraErrorRef.current) {
           setCameraError('La cámara arrancó pero no muestra imagen. Toca Reintentar o usa Tomar Foto con Cámara Nativa.');
           setScannerActive(false);
         }
       }
-    }, 600);
+    }, 700);
     return () => clearInterval(id);
   }, [isOpen, activeTab, scannerActive]);
 
@@ -321,10 +377,7 @@ export default function CameraScannerModal({
         v.setAttribute('playsinline', 'true');
         v.setAttribute('webkit-playsinline', 'true');
         v.playsInline = true;
-        if (v.paused) {
-          const p = v.play();
-          if (p?.catch) p.catch(() => {});
-        }
+        playVideoWithRetry(v);
       }
       setScannerActive(true);
       autoAttemptsRef.current = 0;

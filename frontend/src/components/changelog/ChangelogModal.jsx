@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.9.2-Casa';
+export const SYSTEM_VERSION = 'v3.9.3-Casa';
 export const RELEASE_DATE = '28 Octubre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
@@ -160,6 +160,36 @@ export default function ChangelogModal({ isOpen, onClose }) {
         {activeTab === 'changelog' && (
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             
+            {/* Release v3.9.3-Casa */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
+                    v3.9.3-Casa
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">28 Octubre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2 font-display">
+                Escáner con vigilante persistente: el video negro ya no se esconde tras los metadatos
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Sano solo si hay fotogramas de verdad:</strong> el vigilante ya no se fía de que el video tenga metadatos y ancho (en iOS eso puede ser negro total); ahora exige que el reloj del video avance entre muestras. Reloj quieto = video negro, aunque todo lo demás parezca bien.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>El vigilante ya no se retira nunca:</strong> mientras el escáner esté abierto y activo, sigue vigilando el flujo. Un apagón tardío (aviso del sistema, cambio de app) también se recupera: reinicia el escáner hasta 3 veces y, si sigue sin imagen, muestra el error con Reintentar y Foto en vez de un cuadro negro muerto.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>El fallo de play() ya no se traga en silencio:</strong> si arrancar el video falla (típico tras el aviso de permiso), reintenta una vez y si sigue fallando dispara el reinicio del vigilante.</span>
+                </li>
+              </ul>
+            </div>
+
             {/* Release v3.9.2-Casa */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
               <div className="flex items-center justify-between mb-3">
@@ -167,7 +197,7 @@ export default function ChangelogModal({ isOpen, onClose }) {
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
                     v3.9.2-Casa
                   </span>
-                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                  <span className="text-xs font-semibold text-gray-400">ANTERIOR</span>
                 </div>
                 <span className="text-xs text-gray-400">28 Octubre 2026</span>
               </div>

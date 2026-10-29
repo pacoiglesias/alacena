@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { extractCodeFromScan, findProductByScanCode, cameraErrorMessage, isScannerVideoHealthy } from '../src/utils/scanHelper.js';
+import { extractCodeFromScan, findProductByScanCode, cameraErrorMessage, isScannerVideoHealthy, isScannerVideoFlowing } from '../src/utils/scanHelper.js';
 
 test('QR links decode once and preserve barcode zeroes', () => {
   assert.equal(extractCodeFromScan('https://example.test/?scan=ALC%2D42'), 'ALC-42');
@@ -45,4 +45,21 @@ test('black-video watchdog only trusts video with frames', () => {
   assert.equal(isScannerVideoHealthy({ readyState: 1, videoWidth: 640 }), false);
   assert.equal(isScannerVideoHealthy({ readyState: 2, videoWidth: 0 }), false);
   assert.equal(isScannerVideoHealthy({ readyState: 3, videoWidth: 0 }), false);
+});
+
+test('flow watchdog: still clock means black video even with metadata', () => {
+  // iOS puede tener readyState y ancho real sin un solo fotograma: el
+  // reloj quieto es paro, aunque los metadatos digan lo contrario.
+  assert.equal(isScannerVideoFlowing(1.2, { currentTime: 1.2, readyState: 4, videoWidth: 1920 }), false);
+  assert.equal(isScannerVideoFlowing(0, { currentTime: 0, readyState: 4, videoWidth: 1920 }), false);
+  assert.equal(isScannerVideoFlowing(1.2, { currentTime: 0.9 }), false);
+  // Reloj que avanza = fotogramas reales = sano.
+  assert.equal(isScannerVideoFlowing(1.2, { currentTime: 1.35 }), true);
+  assert.equal(isScannerVideoFlowing(0, { currentTime: 0.04 }), true);
+  // Sin muestra anterior no se puede afirmar flujo; sin video, nunca.
+  assert.equal(isScannerVideoFlowing(undefined, { currentTime: 1.35 }), false);
+  assert.equal(isScannerVideoFlowing(null, { currentTime: 1.35 }), false);
+  assert.equal(isScannerVideoFlowing(1.2, null), false);
+  assert.equal(isScannerVideoFlowing(1.2, undefined), false);
+  assert.equal(isScannerVideoFlowing(1.2, {}), false);
 });

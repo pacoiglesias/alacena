@@ -121,3 +121,14 @@ export function isScannerVideoHealthy(video) {
   if (!video) return false;
   return video.readyState >= 2 && video.videoWidth > 0;
 }
+
+// 3.9.3: los metadatos NO bastan en iOS. Un video puede tener
+// readyState >= 2 y ancho real sin entregar ningún fotograma: se queda
+// en negro y el vigilante de 3.9.1 lo declaraba sano y se retiraba.
+// Sano = flujo real: el currentTime del MISMO elemento avanzó desde
+// la muestra anterior. Sin muestra anterior no se puede afirmar flujo
+// (la primera muestra solo establece la base).
+export function isScannerVideoFlowing(prevCurrentTime, video) {
+  if (!video || typeof video.currentTime !== 'number' || typeof prevCurrentTime !== 'number') return false;
+  return video.currentTime > prevCurrentTime;
+}
