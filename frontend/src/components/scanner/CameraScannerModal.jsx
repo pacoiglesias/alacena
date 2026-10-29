@@ -10,7 +10,7 @@ import {
 import TicketReview from '../shopping/TicketReview';
 import { audio } from '../../services/audioService';
 import { lookupBarcode } from '../../services/barcodeLookupService';
-import { findProductByScanCode, extractCodeFromScan, cameraErrorMessage } from '../../utils/scanHelper';
+import { findProductByScanCode, extractCodeFromScan, cameraErrorMessage, isScannerVideoHealthy } from '../../utils/scanHelper';
 import { isCavaZone, isAlcoholicOrBeverage, sanitizeCavaProduct } from '../../utils/cavaGuard';
 import { extractShoppingListFromImage, preprocessImageForOcr, extractTextFromFile } from '../../services/ocrService';
 import { parseRawShoppingText } from '../../services/smartListParser';
@@ -119,6 +119,11 @@ export default function CameraScannerModal({
   // con "Reintentar").
   const autoAttemptsRef = useRef(0);
   const MAX_AUTO_ATTEMPTS = 3;
+  // Vigilante anti-video-negro (3.9.1): recuperaciones ya intentadas
+  // porque el escáner quedó "activo" sin fotogramas. Se resetea al abrir
+  // el modal y al reintentar a mano.
+  const blackRecoveriesRef = useRef(0);
+  const MAX_BLACK_RECOVERIES = 3;
   useEffect(() => {
     isOpenRef.current = isOpen;
     activeTabRef.current = activeTab;
@@ -159,6 +164,7 @@ export default function CameraScannerModal({
       // Iniciar de inmediato (sin retardo): en iOS el retardo rompe la cadena del gesto
       // y causa que la cámara se apague. El contenedor ya existe porque el modal está montado.
       autoAttemptsRef.current = 0;
+      blackRecoveriesRef.current = 0;
       startBarcodeScanner();
       return () => {
         requestRef.current++;
@@ -210,6 +216,39 @@ export default function CameraScannerModal({
     }, 800);
     return () => clearTimeout(t);
   }, [isOpen, activeTab, scannerActive, cameraStarting, cameraError]);
+
+  // Vigilante anti-video-negro (3.9.1): el escáner puede quedar "activo"
+  // con la pista viva pero sin fotogramas (video en negro, caso iOS
+  // reportado por Paco en 3.9.0). Los vigilantes anteriores solo cubrían
+  // "inactivo sin error" y "video pausado"; con activo=true y negro,
+  // nada se recuperaba jamás. Si en ~5 s ningún video del contenedor
+  // tiene metadatos y ancho real, se reinicia el escáner (elemento de
+  // video nuevo) hasta 3 veces; si sigue negro, se muestra el error con
+  // Reintentar y Foto en vez de un cuadro negro muerto.
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'BARCODE' || !scannerActive) return undefined;
+    let elapsed = 0;
+    const id = setInterval(() => {
+      if (!isOpenRef.current || activeTabRef.current !== 'BARCODE' || !scannerActiveRef.current) { clearInterval(id); return; }
+      const container = document.getElementById(scannerContainerId);
+      const videos = container?.querySelectorAll('video') || [];
+      for (const v of videos) {
+        if (isScannerVideoHealthy(v)) { blackRecoveriesRef.current = 0; clearInterval(id); return; }
+      }
+      elapsed += 600;
+      if (elapsed >= 5000) {
+        clearInterval(id);
+        if (blackRecoveriesRef.current < MAX_BLACK_RECOVERIES && !startingRef.current) {
+          blackRecoveriesRef.current += 1;
+          startBarcodeScanner();
+        } else if (!cameraErrorRef.current) {
+          setCameraError('La cámara arrancó pero no muestra imagen. Toca Reintentar o usa Tomar Foto con Cámara Nativa.');
+          setScannerActive(false);
+        }
+      }
+    }, 600);
+    return () => clearInterval(id);
+  }, [isOpen, activeTab, scannerActive]);
 
   const stopAllCameras = async () => {
     cameraSessionRef.current++;
@@ -1042,7 +1081,7 @@ TOTAL MXN                    $2,303.00`;
                 {/* Contenedor Fallback Html5Qrcode */}
                 <div
                   id={scannerContainerId}
-                  className="w-full min-w-0"
+                  className="w-full min-w-0 min-h-[300px] sm:min-h-[360px]"
                 />
 
                 {/* Retícula de Enfoque con Láser Central */}
@@ -1097,7 +1136,7 @@ TOTAL MXN                    $2,303.00`;
                     <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
                       <button
                         type="button"
-                        disabled={cameraStarting} onClick={() => { autoAttemptsRef.current = 0; startBarcodeScanner(); }}
+                        disabled={cameraStarting} onClick={() => { autoAttemptsRef.current = 0; blackRecoveriesRef.current = 0; startBarcodeScanner(); }}
                         className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all"
                       >
                         🔄 Reintentar Cámara

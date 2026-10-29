@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { extractCodeFromScan, findProductByScanCode, cameraErrorMessage } from '../src/utils/scanHelper.js';
+import { extractCodeFromScan, findProductByScanCode, cameraErrorMessage, isScannerVideoHealthy } from '../src/utils/scanHelper.js';
 
 test('QR links decode once and preserve barcode zeroes', () => {
   assert.equal(extractCodeFromScan('https://example.test/?scan=ALC%2D42'), 'ALC-42');
@@ -33,4 +33,16 @@ test('camera errors explain a practical recovery action', () => {
   assert.match(cameraErrorMessage({ name: 'NotAllowedError' }), /permiso/i);
   assert.match(cameraErrorMessage({ name: 'NotFoundError' }), /foto/i);
   assert.match(cameraErrorMessage({ name: 'NotReadableError' }), /Otra aplicación/i);
+});
+
+test('black-video watchdog only trusts video with frames', () => {
+  assert.equal(isScannerVideoHealthy({ readyState: 2, videoWidth: 640 }), true);
+  assert.equal(isScannerVideoHealthy({ readyState: 3, videoWidth: 1280 }), true);
+  assert.equal(isScannerVideoHealthy({ readyState: 4, videoWidth: 1920 }), true);
+  assert.equal(isScannerVideoHealthy(null), false);
+  assert.equal(isScannerVideoHealthy(undefined), false);
+  assert.equal(isScannerVideoHealthy({ readyState: 0, videoWidth: 0 }), false);
+  assert.equal(isScannerVideoHealthy({ readyState: 1, videoWidth: 640 }), false);
+  assert.equal(isScannerVideoHealthy({ readyState: 2, videoWidth: 0 }), false);
+  assert.equal(isScannerVideoHealthy({ readyState: 3, videoWidth: 0 }), false);
 });

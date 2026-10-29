@@ -113,3 +113,11 @@ export function findProductByScanCode(products = [], rawInput) {
 
   return { product: null, cleanCode };
 }
+
+// El escáner puede reportar "activo" con el video en negro: pista viva
+// pero sin fotogramas (caso iOS visto en 3.9.0). Sano solo si el video
+// tiene metadatos (readyState >= HAVE_CURRENT_DATA) y ancho real.
+export function isScannerVideoHealthy(video) {
+  if (!video) return false;
+  return video.readyState >= 2 && video.videoWidth > 0;
+}
