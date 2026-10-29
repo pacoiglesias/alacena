@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "private": true,
-  "version": "3.9.4",
+  "version": "3.9.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,8 +17,9 @@
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
     "dexie": "^4.4.6",
+    "@zxing/browser": "^0.2.1",
+    "@zxing/library": "^0.23.0",
     "firebase": "^13.0.0",
-    "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.55.0",

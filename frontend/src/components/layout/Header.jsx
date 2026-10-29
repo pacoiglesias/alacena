@@ -3,7 +3,7 @@ import {
   Sparkles, Volume2, VolumeX, MapPin, 
   ChevronDown, Utensils, History, Layers, RefreshCw, 
   ShoppingCart, Camera, Wine, User, Shield, Check, Sliders,
-  BookOpen, Palette, Store, Sun, QrCode, Settings
+  BookOpen, Palette, Store, Sun, QrCode, Settings, Terminal
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { notify } from '../../services/notice';
@@ -13,6 +13,7 @@ import SystemManualModal from '../manual/SystemManualModal';
 import CatalogsConfigModal from '../catalogs/CatalogsConfigModal';
 import ThemeCustomizerModal from '../theme/ThemeCustomizerModal';
 import KitchenDaySummaryModal from './KitchenDaySummaryModal';
+import ScannerDiagnosticsModal from '../scanner/ScannerDiagnosticsModal';
 
 export const SYSTEM_ROLES = [
   { id: 'admin', name: 'Paco I.', label: 'Patrón / Admin', icon: Shield, color: 'text-amber-400 bg-amber-500/20' },
@@ -58,6 +59,7 @@ export default function Header({
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isCatalogsModalOpen, setIsCatalogsModalOpen] = useState(false);
   const [isKitchenDayModalOpen, setIsKitchenDayModalOpen] = useState(false);
+  const [isDiagnosticsModalOpen, setIsDiagnosticsModalOpen] = useState(false);
 
   // Alertas críticas del día
   const criticalAlertCount = React.useMemo(() => {
@@ -401,6 +403,16 @@ export default function Header({
                   </button>
                   )}
 
+                  {/* Diagnóstico del escáner (3.9.5): registro técnico de la cámara */}
+                  <button
+                    type="button"
+                    onClick={() => setIsDiagnosticsModalOpen(true)}
+                    className="w-full flex items-center gap-2 p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
+                  >
+                    <Terminal className="w-4 h-4 text-teal-400" />
+                    <span>Diagnóstico del escáner</span>
+                  </button>
+
                   {/* Silenciar / Activar Sonido */}
                   <div className="pt-1 border-t border-[var(--border-soft)]">
                     <button
@@ -504,6 +516,12 @@ export default function Header({
           activeHouse={activeHouse}
           onAddMissingToShoppingList={onAddMissingToShoppingList}
           onCookRecipe={onCookRecipe}
+        />
+
+        {/* Modal: Diagnóstico del escáner (registro técnico de cámara) */}
+        <ScannerDiagnosticsModal
+          isOpen={isDiagnosticsModalOpen}
+          onClose={() => setIsDiagnosticsModalOpen(false)}
         />
 
       </div>

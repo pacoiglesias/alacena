@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { decodeImageFile } from '../../utils/barcodeDecode';
 import { 
   X, Camera, FileText, Upload, Sparkles, Check, 
   Trash2, Plus, AlertCircle, ShoppingCart, Loader2,
@@ -241,12 +241,8 @@ TOTAL $ 2345.68`;
     try {
       // 1. Intento preventivo seguro de QR (si la imagen fuera un código QR)
       try {
-        const bufferEl = document.getElementById('qr-detection-buffer');
-        if (bufferEl) {
-          const qrDetector = new Html5Qrcode('qr-detection-buffer');
-          const decodedQr = await qrDetector.scanFile(image, false);
-          try { qrDetector.clear(); } catch (_) {}
-          if (decodedQr && decodedQr.trim()) {
+        const decodedQr = await decodeImageFile(image);
+        if (decodedQr && decodedQr.trim()) {
             let textToParse = decodedQr.trim();
             if (textToParse.startsWith('{') || textToParse.startsWith('[')) {
               try {
@@ -271,7 +267,6 @@ TOTAL $ 2345.68`;
               setIsOcrProcessing(false);
               return;
             }
-          }
         }
       } catch (qrErr) {
         // No era un código QR, continuar al motor OCR óptico
@@ -1136,8 +1131,6 @@ TOTAL $ 2345.68`;
         </div>
 
         {/* Buffer off-screen para decodificación de códigos QR en fotos */}
-        <div id="qr-detection-buffer" className="hidden" />
-
       </div>
     </div>
   );

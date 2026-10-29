@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { decodeVideoFrame, decodeImageFile, hasNativeDetector } from '../../utils/barcodeDecode';
+import { diagLog, diagSessionStart } from '../../utils/scannerDiag';
 import { 
   X, Camera, ScanLine, CheckCircle2, Plus, Minus,
   ShoppingCart, Warehouse, AlertCircle, Sparkles, 
@@ -44,60 +45,6 @@ export default function CameraScannerModal({
   // imagen…" sobre el marco; si el negro dura más que el presupuesto,
   // aparece el error con Reintentar y Foto.
   const [videoFlowing, setVideoFlowing] = useState(false);
-  // 3.9.3: un rechazo de play() (típico tras el aviso de permiso del
-  // sistema en iOS) NO puede tragarse en silencio: si play() falla, el
-  // video queda en negro con el escáner "activo" y ningún vigilante
-  // volvía a correr. Reintento una vez tras un tick; si sigue
-  // fallando, se dispara la vía de reinicio del vigilante (acotada
-  // a 3 recuperaciones por sesión de modal; agotadas, el vigilante
-  // de flujo muestra el error). Declaración function (elevada) para
-  // poder usarla en los efectos que la preceden en el archivo.
-  function playVideoWithRetry(video) {
-    if (!video || !video.paused) return;
-    const p = video.play();
-    if (!p?.catch) return;
-    p.catch(() => {
-      setTimeout(() => {
-        if (!video.paused) return;
-        const p2 = video.play();
-        if (!p2?.catch) return;
-        p2.catch(() => {
-          if (scannerActiveRef.current && !startingRef.current
-            && blackRecoveriesRef.current < MAX_BLACK_RECOVERIES) {
-            blackRecoveriesRef.current += 1;
-            startBarcodeScanner();
-          }
-          // Con el presupuesto agotado, el vigilante de flujo detecta
-          // el currentTime quieto y muestra el error con Reintentar.
-        });
-      }, 0);
-    });
-  }
-  // iOS: el video de la librería a veces queda en negro aunque el stream esté
-  // activo. Un observador aplica muted/playsinline/webkit-playsinline/play()
-  // a CUALQUIER video que aparezca en el contenedor, en cuanto aparece, y
-  // solo si está pausado (cubre también si la librería reemplaza el <video>,
-  // caso que los temporizadores no alcanzaban).
-  useEffect(() => {
-    if (!scannerActive) return undefined;
-    const container = document.getElementById('alacena-qr-barcode-viewport');
-    if (!container) return undefined;
-    const hardenVideo = (video) => {
-      if (!video) return;
-      video.muted = true;
-      video.setAttribute('muted', 'true');
-      video.setAttribute('playsinline', 'true');
-      video.setAttribute('webkit-playsinline', 'true');
-      video.playsInline = true;
-      playVideoWithRetry(video);
-    };
-    container.querySelectorAll('video').forEach(hardenVideo);
-    const observer = new MutationObserver(() => {
-      container.querySelectorAll('video').forEach(hardenVideo);
-    });
-    observer.observe(container, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, [scannerActive]);
   const [cameras, setCameras] = useState([]);
   const [selectedCameraId, setSelectedCameraId] = useState('');
   const [torchOn, setTorchOn] = useState(false);
@@ -152,7 +99,17 @@ export default function CameraScannerModal({
   const processingRef = useRef(false);
   const armedRef = useRef(true);
   const requestRef = useRef(0);
-  const html5QrCodeRef = useRef(null);
+  // 3.9.5: la app es dueña de su video. Nada de librerías que creen su
+  // propio <video>: el elemento es videoRef, visible en el visor, y el
+  // stream se abre con getUserMedia directo. El bucle de decodificación
+  // (BarcodeDetector nativo o ZXing) corre sobre ese mismo video.
+  const decodeLoopRef = useRef(null);
+  const decodeCanvasRef = useRef(null);
+  const decodeBusyRef = useRef(false);
+  const decodeEngineRef = useRef(null);
+  const firstFrameAtRef = useRef(null);
+  const cameraStartAtRef = useRef(null);
+  const sessionDiagLoggedRef = useRef(false);
 
   // Espejos de estado para el vigilante y el retorno de segundo plano.
   const isOpenRef = useRef(isOpen);
@@ -192,7 +149,6 @@ export default function CameraScannerModal({
   const fileBarcodeRef = useRef(null);
   const fileReceiptCameraRef = useRef(null);
   const fileReceiptUploadRef = useRef(null);
-  const scannerContainerId = 'alacena-qr-barcode-viewport';
 
   // Inicializar zona destino por defecto
   useEffect(() => {
@@ -207,6 +163,7 @@ export default function CameraScannerModal({
     requestRef.current++;
     if (!isOpen) {
       stopAllCameras();
+      sessionDiagLoggedRef.current = false;
       setScannedResult(null);
       setCameraError(null);
       setManualCode('');
@@ -274,44 +231,38 @@ export default function CameraScannerModal({
     return () => clearTimeout(t);
   }, [isOpen, activeTab, scannerActive, cameraStarting, cameraError]);
 
-  // Vigilante anti-video-negro PERSISTENTE (3.9.4): sano = flujo real
-  // del video CON STREAM (se ignora el <video> oculto sin srcObject
-  // que deja la librería, cuyas muestras siempre quietas contaminaban
-  // el diagnóstico). Mientras la pestaña BARCODE esté abierta y el
-  // escáner activo, el intervalo sigue vigilando siempre. Sin flujo
-  // ~5 s, reinicia el escáner con una pausa de 300 ms para que iOS
-  // libere la pista antes de reabrirla, hasta 3 veces por sesión de
-  // modal. Y presupuesto total de negro: si el escáner activo lleva
-  // más de 12 s sin un solo fotograma, error inmediato con Reintentar
-  // y Foto aunque quede presupuesto de reinicio — en la 3.9.3 el
-  // usuario veía ~20 s de cuadro negro en silencio antes del error.
-  // Un flujo sostenido (~3,5 s) rearma el presupuesto: un paro tardío
-  // es un incidente nuevo, no el mismo bucle.
+  // Vigilante anti-video-negro PERSISTENTE (3.9.4, adaptado 3.9.5 al
+  // video propio): sano = flujo real del video CON STREAM. Mientras
+  // la pestaña BARCODE esté abierta y el escáner activo, el intervalo
+  // sigue vigilando siempre. Sin flujo ~5 s, reinicia el escáner con
+  // una pausa de 300 ms para que iOS libere la pista antes de
+  // reabrirla, hasta 3 veces por sesión de modal. Y presupuesto total
+  // de negro: si el escáner activo lleva más de 12 s sin un solo
+  // fotograma, error inmediato con Reintentar y Foto aunque quede
+  // presupuesto de reinicio. Un flujo sostenido (~3,5 s) rearma el
+  // presupuesto: un paro tardío es un incidente nuevo, no el mismo
+  // bucle. Cada transición queda en el log de diagnóstico.
   useEffect(() => {
     if (!isOpen || activeTab !== 'BARCODE' || !scannerActive) return undefined;
-    const flowSamples = new Map();
+    let prevCurrentTime = null;
     let stallMs = 0;
     let flowingStreak = 0;
     const id = setInterval(() => {
       if (!isOpenRef.current || activeTabRef.current !== 'BARCODE' || !scannerActiveRef.current) { clearInterval(id); return; }
-      const container = document.getElementById(scannerContainerId);
-      const videos = [...(container?.querySelectorAll('video') || [])].filter(isScannerStreamingVideo);
-      const hadSample = videos.length > 0 && videos.some((v) => flowSamples.has(v));
-      const seen = new Set();
-      let flowing = false;
-      for (const v of videos) {
-        seen.add(v);
-        const prev = flowSamples.get(v);
-        if (prev !== undefined && isScannerVideoFlowing(prev, v)) flowing = true;
-        flowSamples.set(v, v.currentTime);
-      }
-      for (const key of [...flowSamples.keys()]) {
-        if (!seen.has(key)) flowSamples.delete(key);
-      }
+      const v = videoRef.current;
+      const hasStream = isScannerStreamingVideo(v);
+      const flowing = hasStream && prevCurrentTime !== null && isScannerVideoFlowing(prevCurrentTime, v);
+      if (v && hasStream) prevCurrentTime = v.currentTime;
       if (flowing) {
         stallMs = 0;
         blackSinceRef.current = null;
-        if (!videoFlowingRef.current) { videoFlowingRef.current = true; setVideoFlowing(true); }
+        if (!videoFlowingRef.current) {
+          videoFlowingRef.current = true; setVideoFlowing(true);
+          if (!firstFrameAtRef.current && cameraStartAtRef.current) {
+            firstFrameAtRef.current = Date.now();
+            diagLog('first_frame', { ms: firstFrameAtRef.current - cameraStartAtRef.current, width: v.videoWidth, height: v.videoHeight });
+          }
+        }
         flowingStreak += 1;
         if (flowingStreak >= 5) {
           blackRecoveriesRef.current = 0;
@@ -325,26 +276,28 @@ export default function CameraScannerModal({
       // los reinicios. blackSince se fija al arrancar con éxito.
       if (blackSinceRef.current !== null && isBlackBudgetExceeded(blackSinceRef.current, Date.now())) {
         if (!cameraErrorRef.current) {
+          diagLog('black_budget', { ms: Date.now() - blackSinceRef.current, hasStream });
           setCameraError('La cámara arrancó pero no muestra imagen. Toca Reintentar o usa Tomar Foto con Cámara Nativa.');
           setScannerActive(false);
         }
         clearInterval(id);
         return;
       }
-      // Sin video con stream, o solo muestras recién establecidas (sin
-      // base con la que comparar): esperar al siguiente tick.
-      if (videos.length > 0 && !hadSample) return;
+      // Sin muestra anterior con la que comparar: esperar al siguiente tick.
+      if (hasStream && prevCurrentTime === null) return;
       stallMs += 700;
       if (stallMs >= 5000) {
         stallMs = 0;
         if (blackRecoveriesRef.current < MAX_BLACK_RECOVERIES && !startingRef.current) {
           blackRecoveriesRef.current += 1;
-          flowSamples.clear();
+          prevCurrentTime = null;
+          diagLog('restart', { reason: 'stall', attempt: blackRecoveriesRef.current, hasStream });
           // Pausa para que iOS libere la pista antes de reabrirla: un
           // reinicio inmediato sobre la pista anterior a veces deja el
           // video nuevo en negro aunque la cámara esté bien.
           setTimeout(() => { if (isOpenRef.current && scannerActiveRef.current) startBarcodeScanner(); }, 300);
         } else if (!cameraErrorRef.current) {
+          diagLog('black_budget', { ms: Date.now() - (blackSinceRef.current || Date.now()), hasStream, recoveries: blackRecoveriesRef.current });
           setCameraError('La cámara arrancó pero no muestra imagen. Toca Reintentar o usa Tomar Foto con Cámara Nativa.');
           setScannerActive(false);
         }
@@ -375,67 +328,92 @@ export default function CameraScannerModal({
     cameraSessionRef.current++;
     blackSinceRef.current = null;
     videoFlowingRef.current = false;
-    const scanner = html5QrCodeRef.current;
-    html5QrCodeRef.current = null;
-    if (scanner) {
-      try { if (scanner.isScanning) await scanner.stop(); } catch { /* Already stopped. */ }
-      try { scanner.clear(); } catch { /* A pending start cleans up after resolving. */ }
+    firstFrameAtRef.current = null;
+    if (decodeLoopRef.current) { clearInterval(decodeLoopRef.current); decodeLoopRef.current = null; }
+    decodeBusyRef.current = false;
+    const stream = mediaStreamRef.current;
+    mediaStreamRef.current = null;
+    if (stream) {
+      try { stream.getTracks().forEach((t) => t.stop()); } catch { /* Tracks already stopped. */ }
     }
+    const v = videoRef.current;
+    if (v) { try { v.pause(); } catch { /* Not playing. */ } v.removeAttribute('src'); v.srcObject = null; }
     setScannerActive(false); setTorchOn(false); setTorchSupported(false);
   };
 
+  // 3.9.5: apertura de cámara NATIVA. La app abre la cámara ella misma
+  // con getUserMedia y su propio <video> visible: ninguna librería crea
+  // ni sustituye el elemento de video (eso era lo que se quedaba en
+  // negro en el iPhone real). La decodificación corre en bucle sobre
+  // ese mismo video (BarcodeDetector nativo o ZXing; ver barcodeDecode).
+  // Cada paso queda en el log de diagnóstico (ver scannerDiag).
   const startBarcodeScanner = async (forcedDeviceId = null) => {
     if (startingRef.current) return;
     startingRef.current = true; setCameraStarting(true); setCameraError(null);
+    if (!sessionDiagLoggedRef.current) { diagSessionStart(); sessionDiagLoggedRef.current = true; }
+    cameraStartAtRef.current = Date.now();
+    firstFrameAtRef.current = null;
+    decodeEngineRef.current = hasNativeDetector() ? 'native' : 'zxing';
     await stopAllCameras();
     const session = cameraSessionRef.current;
-    let scanner;
+    let stream = null;
     try {
       if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) throw new Error('CameraUnavailable');
-      scanner = new Html5Qrcode(scannerContainerId, {
-        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E, Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.ITF],
-        verbose: false,
-      });
-      html5QrCodeRef.current = scanner;
-      // Adaptar aspect ratio dinámicamente: evitar forzar formato horizontal rígido en móvil vertical
-      const isMobilePortrait = typeof window !== 'undefined' && window.innerWidth < 640 && window.innerHeight > window.innerWidth;
-      const config = {
-        fps: 15,
-        disableFlip: false,
-        aspectRatio: isMobilePortrait ? undefined : 1.333333,
-      };
+      // Estado del permiso (si el navegador lo expone): solo informativo.
       try {
-        await scanner.start(forcedDeviceId ? { deviceId: { exact: forcedDeviceId } } : { facingMode: 'environment' },
-          config, (code) => scanCallbackRef.current?.(code), () => {});
+        const perm = await navigator.permissions?.query({ name: 'camera' });
+        if (perm) diagLog('permission', { state: perm.state });
+      } catch { /* Permissions API no disponible: se sigue igual. */ }
+      diagLog('camera_start', { forcedDevice: Boolean(forcedDeviceId), engine: decodeEngineRef.current });
+      const wanted = forcedDeviceId
+        ? { deviceId: { exact: forcedDeviceId } }
+        : { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } };
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: wanted, audio: false });
       } catch (error) {
         if (forcedDeviceId || /NotAllowed|Permission|denied/i.test(error?.name || String(error))) throw error;
-        // Laptops and front-camera-only devices can reject facingMode=environment.
-        await scanner.start({ facingMode: 'user' }, config, (code) => scanCallbackRef.current?.(code), () => {});
+        // Equipos sin cámara trasera (o que rechazan environment) usan la frontal.
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
       }
-      if (session !== cameraSessionRef.current || !document.getElementById(scannerContainerId)) {
-        if (scanner.isScanning) await scanner.stop(); scanner.clear(); return;
+      if (session !== cameraSessionRef.current) {
+        try { stream.getTracks().forEach((t) => t.stop()); } catch { /* Stale session. */ }
+        return;
+      }
+      const video = videoRef.current;
+      if (!video) {
+        try { stream.getTracks().forEach((t) => t.stop()); } catch { /* No video element. */ }
+        return;
+      }
+      mediaStreamRef.current = stream;
+      const track = stream.getVideoTracks()[0];
+      diagLog('gum_ok', {
+        tracks: stream.getTracks().map((t) => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState, muted: t.muted })),
+        settings: track ? { width: track.getSettings().width, height: track.getSettings().height, deviceId: Boolean(track.getSettings().deviceId) } : null,
+      });
+      video.muted = true;
+      video.setAttribute('muted', 'true');
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('webkit-playsinline', 'true');
+      video.playsInline = true;
+      video.srcObject = stream;
+      try {
+        await video.play();
+        diagLog('play_ok', { paused: video.paused, readyState: video.readyState });
+      } catch (playErr) {
+        diagLog('play_error', { name: playErr?.name, message: String(playErr?.message || playErr).slice(0, 200) });
+        // Un reintento tras un tick: en iOS el primer play() a veces se
+        // rechaza por el aviso del sistema y el segundo sí entra.
+        await new Promise((r) => setTimeout(r, 0));
+        try { await video.play(); diagLog('play_retry_ok', { paused: video.paused }); }
+        catch (retryErr) { diagLog('play_retry_error', { name: retryErr?.name, message: String(retryErr?.message || retryErr).slice(0, 200) }); }
       }
       // 3.9.4: si el arranque ya caducó (aviso de permiso tardío), no
       // activar un escáner a destiempo ni borrar el error que ya se
       // mostró: se detiene y se deja el error con Reintentar.
       if (startTimedOutRef.current) {
-        if (scanner.isScanning) await scanner.stop(); scanner.clear();
+        await stopAllCameras();
         setScannerActive(false);
         return;
-      }
-      // Asegurar reproducción inmediata en Safari iOS y navegadores móviles
-      const container = document.getElementById(scannerContainerId);
-      const v = container?.querySelector('video');
-      if (v) {
-        v.muted = true;
-        v.setAttribute('muted', 'true');
-        v.setAttribute('playsinline', 'true');
-        v.setAttribute('webkit-playsinline', 'true');
-        v.playsInline = true;
-        playVideoWithRetry(v);
       }
       setScannerActive(true);
       // 3.9.4: empieza el presupuesto de negro: si en 12 s no hay un
@@ -444,17 +422,49 @@ export default function CameraScannerModal({
       videoFlowingRef.current = false;
       setVideoFlowing(false);
       autoAttemptsRef.current = 0;
-      const settings = scanner.getRunningTrackSettings();
-      setSelectedCameraId(settings.deviceId || forcedDeviceId || '');
-      const capabilities = scanner.getRunningTrackCapabilities();
-      setTorchSupported(capabilities.torch === true);
-      if (capabilities.focusMode?.includes('continuous')) {
-        try { await scanner.applyVideoConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch { /* Optional capability. */ }
+      if (track) {
+        const settings = track.getSettings();
+        setSelectedCameraId(settings.deviceId || forcedDeviceId || '');
+        let capabilities = {};
+        try { capabilities = track.getCapabilities?.() || {}; } catch { /* Capabilities no disponibles. */ }
+        setTorchSupported(capabilities.torch === true);
+        if (capabilities.focusMode?.includes('continuous')) {
+          try { await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch { /* Optional capability. */ }
+        }
       }
-      try { setCameras(await Html5Qrcode.getCameras()); } catch { /* Scanning still works without enumeration. */ }
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        setCameras(devices.filter((d) => d.kind === 'videoinput').map((d) => ({ id: d.deviceId, deviceId: d.deviceId, label: d.label })));
+      } catch { /* Scanning still works without enumeration. */ }
+      // Bucle de decodificación sobre el video propio (300 ms por
+      // fotograma; se salta el tick si el anterior sigue decodificando).
+      if (!decodeCanvasRef.current) decodeCanvasRef.current = document.createElement('canvas');
+      const canvas = decodeCanvasRef.current;
+      diagLog('decode_start', { engine: decodeEngineRef.current });
+      decodeLoopRef.current = setInterval(async () => {
+        if (!isOpenRef.current || activeTabRef.current !== 'BARCODE' || !scannerActiveRef.current || decodeBusyRef.current) return;
+        const v = videoRef.current;
+        if (!v) return;
+        decodeBusyRef.current = true;
+        try {
+          const found = await decodeVideoFrame(v, canvas);
+          if (found && armedRef.current) {
+            diagLog('decode_ok', { engine: found.engine });
+            scanCallbackRef.current?.(found.text);
+          }
+        } catch (err) {
+          diagLog('decode_error', { name: err?.name, message: String(err?.message || err).slice(0, 200), engineFallback: Boolean(err?.engineFallback) });
+          if (err?.engineFallback) decodeEngineRef.current = 'zxing';
+        } finally {
+          decodeBusyRef.current = false;
+        }
+      }, 300);
     } catch (error) {
-      if (session === cameraSessionRef.current) { setCameraError(cameraErrorMessage(error)); setScannerActive(false); }
-      try { scanner?.clear(); } catch { /* No active scanner. */ }
+      if (session === cameraSessionRef.current) {
+        diagLog('camera_start_error', { name: error?.name, message: String(error?.message || error).slice(0, 200) });
+        setCameraError(cameraErrorMessage(error)); setScannerActive(false);
+      }
+      if (stream) { try { stream.getTracks().forEach((t) => t.stop()); } catch { /* Cleanup. */ } }
     } finally { startingRef.current = false; setCameraStarting(false); }
   };
 
@@ -475,9 +485,13 @@ export default function CameraScannerModal({
 
   const handleToggleTorch = async () => {
     try {
-      await html5QrCodeRef.current?.applyVideoConstraints({ advanced: [{ torch: !torchOn }] });
+      const track = mediaStreamRef.current?.getVideoTracks?.()[0];
+      if (!track) throw new Error('Sin pista de video');
+      await track.applyConstraints({ advanced: [{ torch: !torchOn }] });
       setTorchOn(!torchOn);
-    } catch {
+      diagLog('torch', { on: !torchOn });
+    } catch (err) {
+      diagLog('torch_error', { name: err?.name, message: String(err?.message || err).slice(0, 200) });
       notify('No pudimos activar la linterna en este dispositivo.');
     }
   };
@@ -491,6 +505,7 @@ export default function CameraScannerModal({
     const nextCam = cameras[nextIndex];
     const id = nextCam.deviceId || nextCam.id;
     setSelectedCameraId(id);
+    diagLog('camera_switch', { to: nextCam.label ? 'con etiqueta' : 'sin etiqueta' });
     await startBarcodeScanner(id);
   };
 
@@ -676,14 +691,10 @@ export default function CameraScannerModal({
     if (!file) return;
 
     await stopAllCameras();
-    let fileScanner;
     try {
       audio.click();
       setScannedResult(null); setIsSearching(true);
-      const scanner = new Html5Qrcode('barcode-file-scan-buffer', { verbose: false });
-      fileScanner = scanner;
-      const decoded = await scanner.scanFile(file, false);
-      try { scanner.clear(); } catch (_) {}
+      const decoded = await decodeImageFile(file);
 
       if (decoded && decoded.trim()) {
         audio.success();
@@ -694,7 +705,6 @@ export default function CameraScannerModal({
     } catch (err) {
       setCameraError('No encontramos un QR o código de barras legible en esta foto. Prueba una foto de frente y con más luz, o escribe el código.');
     } finally {
-      try { fileScanner?.clear(); } catch { /* Clear the detached file canvas. */ }
       setIsSearching(false);
       if (fileBarcodeRef.current) fileBarcodeRef.current.value = '';
     }
@@ -1203,18 +1213,16 @@ TOTAL MXN                    $2,303.00`;
               {/* Visor de Cámara HD */}
               <div className="relative w-full rounded-2xl overflow-hidden bg-black border border-[var(--border-soft)] min-h-[300px] sm:min-h-[360px] flex items-center justify-center">
                 
-                {/* Elemento de Video WebRTC Nativo */}
+                {/* 3.9.5: el video es de la app, no de ninguna
+                    librería: getUserMedia directo + playsinline. Si
+                    este video se queda en negro, el vigilante y el log
+                    de diagnóstico lo dejan constancia. */}
                 <video
                   ref={videoRef}
                   playsInline
                   muted
-                  className="hidden"
-                />
-
-                {/* Contenedor Fallback Html5Qrcode */}
-                <div
-                  id={scannerContainerId}
-                  className="w-full min-w-0 min-h-[300px] sm:min-h-[360px]"
+                  autoPlay
+                  className="absolute inset-0 w-full h-full object-cover"
                 />
 
                 {/* Retícula de Enfoque con Láser Central */}
@@ -1549,9 +1557,6 @@ TOTAL MXN                    $2,303.00`;
           )}
 
         </div>
-
-        {/* Buffer oculto para scanFile */}
-        <div id="barcode-file-scan-buffer" style={{ position: 'fixed', left: -10000, width: 600 }} />
       </div>
     </div>
   );

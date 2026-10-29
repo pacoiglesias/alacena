@@ -5,8 +5,8 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.9.4-Casa';
-export const RELEASE_DATE = '28 Octubre 2026';
+export const SYSTEM_VERSION = 'v3.9.5-Casa';
+export const RELEASE_DATE = '29 Octubre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState('changelog'); // 'changelog' | 'plan30'
@@ -159,7 +159,41 @@ export default function ChangelogModal({ isOpen, onClose }) {
         {/* Tab 1: Changelog */}
         {activeTab === 'changelog' && (
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            
+
+            {/* Release v3.9.5-Casa */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
+                    v3.9.5-Casa
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">29 Octubre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2 font-display">
+                El escáner ya abre su propia cámara, y deja registro de lo que pasa
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Adiós a la cámara prestada:</strong> la app abre la cámara ella misma y muestra su propio video, en vez de depender de la librería que se quedaba en negro en el iPhone. Si el video no abre, ahora se sabe por qué.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Lectura en dos motores:</strong> si el teléfono trae detector nativo de códigos se usa; si no, o si falla, entra ZXing. Los mismos códigos de siempre: QR, EAN, UPC, Code 128, Code 39 e ITF.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Diagnóstico del escáner en el menú de herramientas:</strong> cada intento de cámara queda registrado (permiso, apertura, primer fotograma, reinicios, errores) con botones Copiar y Limpiar. Solo datos técnicos: sin fotos, sin códigos y sin contenido de tu lista. Si algo falla, copia el registro y pásalo a quien lo revisa.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Lo demás intacto:</strong> QR/Barras, Ticket, Escribir, las cuatro acciones al detectar, Modo Súper y Tomar Foto con Cámara Nativa siguen igual.</span>
+                </li>
+              </ul>
+            </div>
+
             {/* Release v3.9.4-Casa */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
               <div className="flex items-center justify-between mb-3">
@@ -167,7 +201,6 @@ export default function ChangelogModal({ isOpen, onClose }) {
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
                     v3.9.4-Casa
                   </span>
-                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
                 </div>
                 <span className="text-xs text-gray-400">29 Octubre 2026</span>
               </div>

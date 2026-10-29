@@ -111,36 +111,9 @@
 }
 
 /* ============================================================ */
-/* LECTOR DE CÁMARA HTML5-QRCODE (OPTIMIZACIÓN DE VIDEO Y FOCO) */
+/* VIDEO DEL ESCÁNER (3.9.5: video propio, sin librerías)         */
 /* ============================================================ */
-#alacena-qr-barcode-viewport,
-#qr-reader-container {
-  border: none !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  background: #000000 !important;
-  overflow: hidden !important;
-  border-radius: 1rem !important;
-  position: relative !important;
-}
-
-#alacena-qr-barcode-viewport video,
-#qr-reader-container video {
-  width: 100% !important;
-  height: 100% !important;
-  max-height: 52vh !important;
-  object-fit: cover !important;
-  border-radius: 1rem !important;
-  display: block !important;
-  margin: 0 auto !important;
-}
-
-#alacena-qr-barcode-viewport img,
-#alacena-qr-barcode-viewport select,
-#alacena-qr-barcode-viewport > div > button,
-#alacena-qr-barcode-viewport > div:last-child:not(#alacena-qr-barcode-viewport),
-#qr-reader-container img[alt="Info icon"],
-#qr-reader-container > div:last-child {
-  display: none !important;
-}
+/* El <video> del escáner ya lleva sus clases Tailwind (absolute, */
+/* object-cover); aquí solo se garantiza que nunca lo tape un     */
+/* fondo ni un elemento de la app.                               */
 
