@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.9.3-Casa';
+export const SYSTEM_VERSION = 'v3.9.4-Casa';
 export const RELEASE_DATE = '28 Octubre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
@@ -160,6 +160,60 @@ export default function ChangelogModal({ isOpen, onClose }) {
         {activeTab === 'changelog' && (
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             
+            {/* Release v3.9.4-Casa */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
+                    v3.9.4-Casa
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">29 Octubre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2 font-display">
+                La cámara nunca más en negro en silencio, y botones sin encimarse
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Aviso visible mientras conecta:</strong> con la cámara activa pero sin imagen todavía, el marco muestra "Conectando imagen…". Ya no hay cuadro negro sin explicación.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Error rápido, no a los 20 segundos:</strong> si en 12 segundos no llega un solo fotograma real, aparece el error con Reintentar y Tomar Foto, aunque queden reinicios. Y si la cámara tarda más de 15 segundos en abrir (aviso de permiso sin contestar), también avisa qué revisar.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>El vigilante solo sigue el video de verdad:</strong> ignora el video oculto sin stream que dejaba la librería, y al reiniciar deja 300 ms para que el iPhone libere la cámara antes de reabrirla.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>"Modo Súper" ya no tapa a "Guardar artículos":</strong> cuando la barra de guardar está visible, el botón naranja sube por encima de ella.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Una sola versión en toda la app:</strong> el menú Más y el menú de herramientas ya no presumen versiones sueltas (v5.0, v3.7.0): ambos muestran la versión real de Alacena.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Botones del escáner completos:</strong> las acciones ("+1 Entrada Despensa", "−1 Salida Consumo") ya no salen cortadas; el texto se ajusta en dos líneas si hace falta.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>El menú de herramientas ya se cierra al navegar:</strong> tocar fuera del menú (incluida la barra inferior) lo cierra; antes quedaba abierto tapando la vista nueva.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Modo Súper con salida a la vista:</strong> además del botón pequeño de arriba, ahora hay un botón grande "Salir del modo súper" abajo, y el contador solo muestra ✓ cuando de verdad llevas todo.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Nada queda bajo la barra inferior:</strong> la lista deja aire al final para que el filtro "Todas las tiendas" y el último contenido nunca queden tapados por la navegación.</span>
+                </li>
+              </ul>
+            </div>
+
             {/* Release v3.9.3-Casa */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
               <div className="flex items-center justify-between mb-3">
@@ -167,7 +221,6 @@ export default function ChangelogModal({ isOpen, onClose }) {
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
                     v3.9.3-Casa
                   </span>
-                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
                 </div>
                 <span className="text-xs text-gray-400">28 Octubre 2026</span>
               </div>

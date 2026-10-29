@@ -10,7 +10,7 @@ import {
 import TicketReview from '../shopping/TicketReview';
 import { audio } from '../../services/audioService';
 import { lookupBarcode } from '../../services/barcodeLookupService';
-import { findProductByScanCode, extractCodeFromScan, cameraErrorMessage, isScannerVideoFlowing } from '../../utils/scanHelper';
+import { findProductByScanCode, extractCodeFromScan, cameraErrorMessage, isScannerVideoFlowing, isScannerStreamingVideo, isBlackBudgetExceeded, SCANNER_BLACK_BUDGET_MS } from '../../utils/scanHelper';
 import { isCavaZone, isAlcoholicOrBeverage, sanitizeCavaProduct } from '../../utils/cavaGuard';
 import { extractShoppingListFromImage, preprocessImageForOcr, extractTextFromFile } from '../../services/ocrService';
 import { parseRawShoppingText } from '../../services/smartListParser';
@@ -39,6 +39,11 @@ export default function CameraScannerModal({
   // Estado del Escáner de Códigos de Barras
   const [scannerActive, setScannerActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
+  // 3.9.4: la cámara nunca se queda en negro en silencio. Mientras el
+  // escáner está activo pero sin flujo real, se muestra "Conectando
+  // imagen…" sobre el marco; si el negro dura más que el presupuesto,
+  // aparece el error con Reintentar y Foto.
+  const [videoFlowing, setVideoFlowing] = useState(false);
   // 3.9.3: un rechazo de play() (típico tras el aviso de permiso del
   // sistema en iOS) NO puede tragarse en silencio: si play() falla, el
   // video queda en negro con el escáner "activo" y ningún vigilante
@@ -167,6 +172,15 @@ export default function CameraScannerModal({
   // el modal y al reintentar a mano.
   const blackRecoveriesRef = useRef(0);
   const MAX_BLACK_RECOVERIES = 3;
+  // 3.9.4: desde cuándo el escáner activo lleva sin un solo fotograma.
+  // Se fija al arrancar con éxito y se limpia al primer flujo real; si
+  // supera el presupuesto, error aunque quede presupuesto de reinicio.
+  const blackSinceRef = useRef(null);
+  const videoFlowingRef = useRef(false);
+  // 3.9.4: si el arranque tardó más de 15 s (aviso de permiso sin
+  // contestar, cámara colgada), el arranque que resuelva después ya no
+  // debe borrar el error ni activar un escáner a destiempo.
+  const startTimedOutRef = useRef(false);
   useEffect(() => {
     isOpenRef.current = isOpen;
     activeTabRef.current = activeTab;
@@ -260,17 +274,17 @@ export default function CameraScannerModal({
     return () => clearTimeout(t);
   }, [isOpen, activeTab, scannerActive, cameraStarting, cameraError]);
 
-  // Vigilante anti-video-negro PERSISTENTE (3.9.3): la 3.9.1 se
-  // retiraba al primer video "sano" por metadatos, pero en iOS un
-  // video puede tener readyState y ancho real sin entregar ningún
-  // fotograma (negro), y un apagón tardío (aviso del sistema, cambio
-  // de app) ya no se vigilaba. Ahora sano = flujo real: el
-  // currentTime del video avanza entre dos muestras (~700 ms).
-  // Mientras la pestaña BARCODE esté abierta y el escáner activo, el
-  // intervalo NUNCA se limpia por un primer "sano": sigue vigilando
-  // el flujo. Sin flujo ~5 s, reinicia el escáner (elemento de video
-  // nuevo) hasta 3 veces por sesión de modal; agotadas, muestra el
-  // error con Reintentar y Foto en vez de un cuadro negro muerto.
+  // Vigilante anti-video-negro PERSISTENTE (3.9.4): sano = flujo real
+  // del video CON STREAM (se ignora el <video> oculto sin srcObject
+  // que deja la librería, cuyas muestras siempre quietas contaminaban
+  // el diagnóstico). Mientras la pestaña BARCODE esté abierta y el
+  // escáner activo, el intervalo sigue vigilando siempre. Sin flujo
+  // ~5 s, reinicia el escáner con una pausa de 300 ms para que iOS
+  // libere la pista antes de reabrirla, hasta 3 veces por sesión de
+  // modal. Y presupuesto total de negro: si el escáner activo lleva
+  // más de 12 s sin un solo fotograma, error inmediato con Reintentar
+  // y Foto aunque quede presupuesto de reinicio — en la 3.9.3 el
+  // usuario veía ~20 s de cuadro negro en silencio antes del error.
   // Un flujo sostenido (~3,5 s) rearma el presupuesto: un paro tardío
   // es un incidente nuevo, no el mismo bucle.
   useEffect(() => {
@@ -281,8 +295,8 @@ export default function CameraScannerModal({
     const id = setInterval(() => {
       if (!isOpenRef.current || activeTabRef.current !== 'BARCODE' || !scannerActiveRef.current) { clearInterval(id); return; }
       const container = document.getElementById(scannerContainerId);
-      const videos = container?.querySelectorAll('video') || [];
-      const hadSample = videos.length > 0 && [...videos].some((v) => flowSamples.has(v));
+      const videos = [...(container?.querySelectorAll('video') || [])].filter(isScannerStreamingVideo);
+      const hadSample = videos.length > 0 && videos.some((v) => flowSamples.has(v));
       const seen = new Set();
       let flowing = false;
       for (const v of videos) {
@@ -296,6 +310,8 @@ export default function CameraScannerModal({
       }
       if (flowing) {
         stallMs = 0;
+        blackSinceRef.current = null;
+        if (!videoFlowingRef.current) { videoFlowingRef.current = true; setVideoFlowing(true); }
         flowingStreak += 1;
         if (flowingStreak >= 5) {
           blackRecoveriesRef.current = 0;
@@ -303,9 +319,20 @@ export default function CameraScannerModal({
         }
         return;
       }
+      if (videoFlowingRef.current) { videoFlowingRef.current = false; setVideoFlowing(false); }
       flowingStreak = 0;
-      // Sin video, o solo muestras recién establecidas (sin base con
-      // la que comparar): esperar al siguiente tick, no contar paro.
+      // Presupuesto total de negro: error ya, sin esperar a agotar
+      // los reinicios. blackSince se fija al arrancar con éxito.
+      if (blackSinceRef.current !== null && isBlackBudgetExceeded(blackSinceRef.current, Date.now())) {
+        if (!cameraErrorRef.current) {
+          setCameraError('La cámara arrancó pero no muestra imagen. Toca Reintentar o usa Tomar Foto con Cámara Nativa.');
+          setScannerActive(false);
+        }
+        clearInterval(id);
+        return;
+      }
+      // Sin video con stream, o solo muestras recién establecidas (sin
+      // base con la que comparar): esperar al siguiente tick.
       if (videos.length > 0 && !hadSample) return;
       stallMs += 700;
       if (stallMs >= 5000) {
@@ -313,7 +340,10 @@ export default function CameraScannerModal({
         if (blackRecoveriesRef.current < MAX_BLACK_RECOVERIES && !startingRef.current) {
           blackRecoveriesRef.current += 1;
           flowSamples.clear();
-          startBarcodeScanner();
+          // Pausa para que iOS libere la pista antes de reabrirla: un
+          // reinicio inmediato sobre la pista anterior a veces deja el
+          // video nuevo en negro aunque la cámara esté bien.
+          setTimeout(() => { if (isOpenRef.current && scannerActiveRef.current) startBarcodeScanner(); }, 300);
         } else if (!cameraErrorRef.current) {
           setCameraError('La cámara arrancó pero no muestra imagen. Toca Reintentar o usa Tomar Foto con Cámara Nativa.');
           setScannerActive(false);
@@ -323,8 +353,28 @@ export default function CameraScannerModal({
     return () => clearInterval(id);
   }, [isOpen, activeTab, scannerActive]);
 
+  // 3.9.4: arranque colgado. Si la cámara lleva más de 15 s
+  // "abriendo" (aviso de permiso sin contestar, cámara ocupada por el
+  // sistema), no se deja la pantalla en negro sin explicación: error
+  // con el consejo de revisar el permiso y Reintentar.
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'BARCODE' || !cameraStarting) return undefined;
+    startTimedOutRef.current = false;
+    const t = setTimeout(() => {
+      if (isOpenRef.current && activeTabRef.current === 'BARCODE'
+        && cameraStartingRef.current && !scannerActiveRef.current && !cameraErrorRef.current) {
+        startTimedOutRef.current = true;
+        setCameraError('La cámara tardó demasiado en abrir. Si no viste el aviso de permiso, revisa el permiso de cámara del navegador y toca Reintentar.');
+        setScannerActive(false);
+      }
+    }, 15000);
+    return () => clearTimeout(t);
+  }, [isOpen, activeTab, cameraStarting]);
+
   const stopAllCameras = async () => {
     cameraSessionRef.current++;
+    blackSinceRef.current = null;
+    videoFlowingRef.current = false;
     const scanner = html5QrCodeRef.current;
     html5QrCodeRef.current = null;
     if (scanner) {
@@ -368,6 +418,14 @@ export default function CameraScannerModal({
       if (session !== cameraSessionRef.current || !document.getElementById(scannerContainerId)) {
         if (scanner.isScanning) await scanner.stop(); scanner.clear(); return;
       }
+      // 3.9.4: si el arranque ya caducó (aviso de permiso tardío), no
+      // activar un escáner a destiempo ni borrar el error que ya se
+      // mostró: se detiene y se deja el error con Reintentar.
+      if (startTimedOutRef.current) {
+        if (scanner.isScanning) await scanner.stop(); scanner.clear();
+        setScannerActive(false);
+        return;
+      }
       // Asegurar reproducción inmediata en Safari iOS y navegadores móviles
       const container = document.getElementById(scannerContainerId);
       const v = container?.querySelector('video');
@@ -380,6 +438,11 @@ export default function CameraScannerModal({
         playVideoWithRetry(v);
       }
       setScannerActive(true);
+      // 3.9.4: empieza el presupuesto de negro: si en 12 s no hay un
+      // solo fotograma real, error aunque queden reinicios.
+      blackSinceRef.current = Date.now();
+      videoFlowingRef.current = false;
+      setVideoFlowing(false);
       autoAttemptsRef.current = 0;
       const settings = scanner.getRunningTrackSettings();
       setSelectedCameraId(settings.deviceId || forcedDeviceId || '');
@@ -1117,7 +1180,7 @@ TOTAL MXN                    $2,303.00`;
                         }`}
                       >
                         <IconComp className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-emerald-400' : mode.color}`} />
-                        <span className="truncate">{mode.label}</span>
+                        <span className="leading-tight">{mode.label}</span>
                       </button>
                     );
                   })}
@@ -1167,6 +1230,19 @@ TOTAL MXN                    $2,303.00`;
                         Centra el QR o todas las barras
                       </span>
                     </div>
+                  </div>
+                )}
+
+                {/* 3.9.4: cámara activa pero sin imagen todavía: nunca
+                    en negro en silencio. Chip visible hasta que el
+                    primer fotograma real fluya; si tarda, el vigilante
+                    muestra el error con Reintentar y Foto. */}
+                {scannerActive && !videoFlowing && (
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+                    <span className="text-[11px] font-bold text-amber-200 bg-black/70 px-3 py-1.5 rounded-full border border-amber-500/40 flex items-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Conectando imagen…
+                    </span>
                   </div>
                 )}
 

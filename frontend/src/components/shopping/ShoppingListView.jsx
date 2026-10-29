@@ -1243,13 +1243,17 @@ export default function ShoppingListView({
 
 
       {/* Botón Flotante Permanente: Modo Súper (Fase 8.5) */}
+      {/* 3.9.4: antes compartía la banda bottom-24 con la barra
+          "Guardar artículos" y se encimaban (foto de Paco 29-oct).
+          Cuando la barra está visible, el botón sube por encima de
+          ella en móvil y escritorio. */}
       {enrichedList.length > 0 && !isWalkingMode && (
         <button
           onClick={() => {
             audio.superCheck();
             setIsWalkingMode(true);
           }}
-          className="fixed bottom-24 md:bottom-6 right-6 z-30 flex items-center gap-2.5 px-5 py-3.5 rounded-full bg-gradient-to-r from-[var(--terracotta)] to-[var(--ember)] text-white font-bold text-sm shadow-xl shadow-[var(--terracotta)]/40 hover:scale-105 active:scale-95 transition-all border border-white/20"
+          className={`fixed right-6 z-30 flex items-center gap-2.5 px-5 py-3.5 rounded-full bg-gradient-to-r from-[var(--terracotta)] to-[var(--ember)] text-white font-bold text-sm shadow-xl shadow-[var(--terracotta)]/40 hover:scale-105 active:scale-95 transition-all border border-white/20 ${metrics.inCartCount > 0 ? 'bottom-44 md:bottom-28' : 'bottom-24 md:bottom-6'}`}
           title="Abrir modo táctil caminando por el súper"
         >
           <span className="text-lg">👟</span>
@@ -1273,7 +1277,7 @@ export default function ShoppingListView({
             <div className="flex items-center justify-between gap-2">
               <div>
                 <span className="font-display text-xl sm:text-2xl font-bold text-white block">
-                  {metrics.inCartCount} de {metrics.totalItems} ✓
+                  {metrics.inCartCount} de {metrics.totalItems}{metrics.totalItems > 0 && metrics.inCartCount === metrics.totalItems ? ' ✓' : ''}
                 </span>
                 <span className="font-mono-num text-xs sm:text-sm text-[var(--gold)] font-semibold">
                   ${metrics.totalEstimatedMxn.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN estimado
@@ -1398,6 +1402,21 @@ export default function ShoppingListView({
                 </section>
               );
             })}
+          </div>
+
+          {/* Salida grande del Modo Súper: antes solo estaba el botón pequeño
+              "Salir" arriba a la derecha y la barra de navegación quedaba oculta */}
+          <div className="fixed bottom-0 inset-x-0 z-30 p-4 bg-gradient-to-t from-black/80 via-black/60 to-transparent pointer-events-none">
+            <button
+              type="button"
+              onClick={() => {
+                audio.click();
+                setIsWalkingMode(false);
+              }}
+              className="pointer-events-auto w-full max-w-3xl mx-auto block px-5 py-3.5 rounded-2xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 shadow-xl shadow-black/40"
+            >
+              ✕ Salir del modo súper
+            </button>
           </div>
         </div>
       )}

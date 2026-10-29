@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { extractCodeFromScan, findProductByScanCode, cameraErrorMessage, isScannerVideoHealthy, isScannerVideoFlowing } from '../src/utils/scanHelper.js';
+import { extractCodeFromScan, findProductByScanCode, cameraErrorMessage, isScannerVideoHealthy, isScannerVideoFlowing, isScannerStreamingVideo, isBlackBudgetExceeded, SCANNER_BLACK_BUDGET_MS } from '../src/utils/scanHelper.js';
 
 test('QR links decode once and preserve barcode zeroes', () => {
   assert.equal(extractCodeFromScan('https://example.test/?scan=ALC%2D42'), 'ALC-42');
@@ -62,4 +62,23 @@ test('flow watchdog: still clock means black video even with metadata', () => {
   assert.equal(isScannerVideoFlowing(1.2, null), false);
   assert.equal(isScannerVideoFlowing(1.2, undefined), false);
   assert.equal(isScannerVideoFlowing(1.2, {}), false);
+});
+
+test('watchdog only follows videos with a real stream attached', () => {
+  // El <video> oculto sin srcObject nunca fluye y no debe mezclarse
+  // con el video real en las muestras del vigilante.
+  assert.equal(isScannerStreamingVideo({ srcObject: null, videoWidth: 640 }), false);
+  assert.equal(isScannerStreamingVideo({ videoWidth: 640 }), false);
+  assert.equal(isScannerStreamingVideo({ srcObject: {}, videoWidth: 0, clientWidth: 0 }), false);
+  assert.equal(isScannerStreamingVideo({ srcObject: {}, videoWidth: 640 }), true);
+  assert.equal(isScannerStreamingVideo({ srcObject: {}, videoWidth: 0, clientWidth: 320 }), true);
+  assert.equal(isScannerStreamingVideo(null), false);
+});
+
+test('black budget: 12 s of no frames ends silent black even with restarts left', () => {
+  assert.equal(SCANNER_BLACK_BUDGET_MS, 12000);
+  assert.equal(isBlackBudgetExceeded(1000, 1000 + 11999), false);
+  assert.equal(isBlackBudgetExceeded(1000, 1000 + 12000), true);
+  assert.equal(isBlackBudgetExceeded(1000, 1000 + 30000), true);
+  assert.equal(isBlackBudgetExceeded(null, 50000), false);
 });

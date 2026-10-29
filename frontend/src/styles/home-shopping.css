@@ -1,6 +1,6 @@
 .cloud-status { max-width: 1280px; width: 100%; margin: 12px auto 0; padding: 0 32px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--ink-secondary); font-size: 12px; }
 .cloud-status button { display: flex; align-items: center; gap: 7px; flex-shrink: 0; padding: 10px 12px; border: 1px solid var(--border-soft); border-radius: 10px; }
-.shopping-home { --home-sage: #d5e5b1; }
+.shopping-home { --home-sage: #d5e5b1; padding-bottom: 170px; /* aire para que el último contenido nunca quede bajo la barra de navegación inferior ni los botones flotantes */ }
 .shopping-hero { display: grid; grid-template-columns: 1fr 290px; border-radius: 26px; background: #f5f3eb; color: #25352d; overflow: hidden; border: 1px solid #dce0cf; }
 .shopping-hero-copy { padding: 38px 40px; }
 .shopping-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .18em; display: flex; align-items: center; gap: 8px; color: #4e6656; }

@@ -132,3 +132,24 @@ export function isScannerVideoFlowing(prevCurrentTime, video) {
   if (!video || typeof video.currentTime !== 'number' || typeof prevCurrentTime !== 'number') return false;
   return video.currentTime > prevCurrentTime;
 }
+
+// 3.9.4: el vigilante solo sigue videos con stream real. La librería
+// deja un <video> oculto sin srcObject que nunca fluye: si se mezcla
+// con el video real, las muestras se contaminan y el diagnóstico miente.
+// Un video cuenta solo si tiene stream attached y tamaño visible.
+export function isScannerStreamingVideo(video) {
+  if (!video || !video.srcObject) return false;
+  const w = video.videoWidth || video.clientWidth || 0;
+  return w > 0;
+}
+
+// 3.9.4: presupuesto total de negro por sesión de escáner. Antes el
+// vigilante reiniciaba hasta 3 veces con 5 s de paro cada una y el
+// usuario veía ~20 s de cuadro negro en silencio antes del error.
+// Con 12 s de negro acumulado sin un solo fotograma, se muestra el
+// error con Reintentar y Foto aunque quede presupuesto de reinicio.
+export const SCANNER_BLACK_BUDGET_MS = 12000;
+export function isBlackBudgetExceeded(blackSinceMs, nowMs, budgetMs = SCANNER_BLACK_BUDGET_MS) {
+  if (typeof blackSinceMs !== 'number' || typeof nowMs !== 'number') return false;
+  return nowMs - blackSinceMs >= budgetMs;
+}

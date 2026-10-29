@@ -297,13 +297,21 @@ export default function Header({
               </button>
 
               {isSettingsMenuOpen && (
-                <div 
+                <>
+                {/* Fondo que cierra el menú al tocar fuera (incluida la navegación inferior) */}
+                <button
+                  type="button"
+                  aria-label="Cerrar menú de herramientas"
+                  onClick={() => setIsSettingsMenuOpen(false)}
+                  className="fixed inset-0 z-40 cursor-default"
+                />
+                <div
                   className="absolute right-0 mt-2 w-64 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] shadow-2xl p-2 z-50 animate-fade-in space-y-1 text-xs"
                   onClick={() => setIsSettingsMenuOpen(false)}
                 >
                   <div className="px-2.5 py-1 text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider border-b border-[var(--border-soft)] mb-1 flex items-center justify-between">
                     <span>Herramientas del Hogar</span>
-                    <span className="text-[9px] text-[var(--ink-tertiary)] font-mono">v3.7.0</span>
+                    <span className="text-[9px] text-[var(--ink-tertiary)] font-mono">v{APP_VERSION}</span>
                   </div>
 
                   {/* Resumen Diario de Cocina */}
@@ -410,6 +418,7 @@ export default function Header({
                     </button>
                   </div>
                 </div>
+                </>
               )}
             </div>
 

@@ -37,7 +37,8 @@ export default function CavaProCommandCenterModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col rounded-3xl bg-[var(--bg-sunken)] border border-white/10 shadow-2xl">
         
-        {/* Header: CAVAPRO v5.0 */}
+        {/* Header: CAVAPRO (sin número de versión: la única versión
+            de la app es la de Alacena; los números sueltos confundían) */}
         <div className="flex items-center justify-between p-6 border-b border-white/10 bg-[var(--bg-elevated)]">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-500 text-white shadow-lg shadow-rose-950/40">
@@ -46,7 +47,7 @@ export default function CavaProCommandCenterModal({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold tracking-tight text-white font-mono">
-                  CAVAPRO • MENÚ MAESTRO v5.0
+                  CAVAPRO • MENÚ MAESTRO
                 </h2>
                 <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-300 bg-amber-500/20 border border-amber-500/30 rounded-full">
                   Centro de Mando
@@ -280,7 +281,7 @@ export default function CavaProCommandCenterModal({
         <div className="p-4 border-t border-white/10 bg-[var(--bg-elevated)] flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span>ALACENA Enterprise (CavaPro v5.0 Engine) • Spark 0 USD</span>
+            <span>ALACENA Enterprise (CavaPro Engine)</span>
           </div>
           <button
             onClick={() => {
