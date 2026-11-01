@@ -8,13 +8,15 @@ import {
   where, 
   orderBy, 
   serverTimestamp,
-  getDocs
+  getDocs, limit, startAfter, runTransaction
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { readLocalState } from './localState';
 import { getIdTokenResult } from 'firebase/auth';
+import { cloudWritesPaused } from './cloudGateway';
 
-async function canSync() {
+async function canSync(allowPaused = false) {
+  if (cloudWritesPaused() && !allowPaused) return false;
   if (!auth.currentUser) return false;
   const cached = readLocalState('alacena_cloud_access', {});
   if (!navigator.onLine && cached.uid === auth.currentUser.uid && cached.allowed) return true;
@@ -173,22 +175,12 @@ export function subscribeToAuditLogs(onUpdate, onError) {
 }
 
 // 9. Inicializar datos semilla en la nube si está vacía
-export async function seedCloudIfEmpty(initialProducts, initialHouseholds) {
-  if (!await canSync()) return;
-  if (!db) return;
-  try {
-    const checkSnap = await getDocs(collection(db, 'products'));
-    if (checkSnap.empty && initialProducts?.length) {
-      console.log('🌱 Inicializando despensa inicial en Firestore...');
-      for (const p of initialProducts) {
-        await saveProductToCloud(p);
-      }
-    }
-  } catch (e) {
-    console.warn('[Firestore] Fallo al sembrar datos iniciales:', e);
-  }
+export async function seedCloudIfEmpty(snapshot) {
+  if (!await canSync(true) || !navigator.onLine) throw new Error('Conecta la cuenta autorizada y vuelve a tener internet antes de subir tus datos.');
+  const [products, list, history] = await Promise.all(['products','shopping_list','purchase_history'].map((name) => getDocs(query(collection(db,name),limit(1)))));
+  if (!products.empty || !list.empty || !history.empty) throw new Error('La nube ya contiene datos. No se subió nada: conserva tu copia y revisa la restauración para combinar.');
+  return restoreCloudSnapshot(snapshot, {}, true);
 }
-
 // The inventory, outstanding list and receipt are committed atomically in Firebase.
 export async function savePurchaseTransaction(productWrites, shoppingChanges, receipt) {
   if (!await canSync()) return;
@@ -211,11 +203,49 @@ export async function savePurchaseTransaction(productWrites, shoppingChanges, re
   catch (error) { reportSyncError(error); }
 }
 
+const HISTORY_PAGE_SIZE = 30;
 export function subscribeToPurchaseHistory(onUpdate, onError) {
-  return onSnapshot(collection(db, 'purchase_history'), (snapshot) => {
+  return onSnapshot(query(collection(db,'purchase_history'),orderBy('date','desc'),limit(HISTORY_PAGE_SIZE)), (snapshot) => {
     if (snapshot.empty && snapshot.metadata.fromCache) return;
-    const receipts = snapshot.docs.map((d) => ({ ...d.data(), id: d.id }));
-    receipts.sort((a, b) => String(b.date).localeCompare(String(a.date)));
-    onUpdate(receipts.slice(0, 30));
-  }, onError);
+    onUpdate(snapshot.docs.map((d) => ({...d.data(),id:d.id})), {cursor:snapshot.docs.at(-1),hasMore:snapshot.size===HISTORY_PAGE_SIZE,fromCache:snapshot.metadata.fromCache});
+  },onError);
+}
+export async function fetchPurchaseHistoryPage(cursor) {
+  if (!await canSync() || !navigator.onLine) throw new Error('Conéctate a internet para cargar compras anteriores.');
+  const q = query(collection(db,'purchase_history'),orderBy('date','desc'),...(cursor ? [startAfter(cursor)] : []),limit(HISTORY_PAGE_SIZE));
+  const page = await getDocs(q);
+  return {rows:page.docs.map((d) => ({...d.data(),id:d.id})),cursor:page.docs.at(-1),hasMore:page.size===HISTORY_PAGE_SIZE};
+}
+
+const RESTORE_COLLECTIONS = {products:'products',shoppingList:'shopping_list',zones:'zones',recipes:'recipes',households:'households',auditLogs:'audit_logs',purchaseHistory:'purchase_history'};
+const stable = (value) => JSON.stringify(sortObject(JSON.parse(JSON.stringify(value))));
+function sortObject(value) {
+  if (Array.isArray(value)) return value.map(sortObject);
+  if (value && typeof value==='object') return Object.fromEntries(Object.keys(value).sort().map((k) => [k,sortObject(value[k])]));
+  return value;
+}
+export async function restoreCloudSnapshot(next, current, importing = false) {
+  if (!await canSync(importing) || !navigator.onLine) throw new Error('La cuenta debe tener acceso y conexión para restaurar en la nube.');
+  const operations = [];
+  for (const [field,name] of Object.entries(RESTORE_COLLECTIONS)) {
+    const immutable = ['auditLogs','purchaseHistory'].includes(field);
+    const before = new Map((current[field] || []).map((r) => [r.id,r]));
+    const after = new Map((next[field] || []).map((r) => [r.id,r]));
+    for (const [id,row] of after) if (!before.has(id) || (!immutable && stable(before.get(id))!==stable(row))) operations.push({ref:doc(db,name,String(id)),row,before:before.get(id),immutable,field});
+    if (!immutable && !importing) for (const [id,row] of before) if (!after.has(id)) operations.push({ref:doc(db,name,String(id)),row:null,before:row,field});
+  }
+  if (operations.length>400) throw new Error('Esta restauración cambia más de 400 documentos. No se cambió nada. Restaura un respaldo más pequeño o trabaja primero en una copia local.');
+  await runTransaction(db,async (tx) => {
+    const existing = await Promise.all(operations.map((op) => tx.get(op.ref)));
+    for (let i=0;i<operations.length;i++) {
+      const op=operations[i], server=existing[i];
+      if (op.immutable && server.exists()) continue;
+      if (server.exists()) {
+        const data={...server.data(),id:server.id};
+        if (importing || !op.before || stable(data)!==stable(op.before)) throw new Error('Los datos cambiaron en otro dispositivo. No se reemplazó nada. Genera una nueva vista previa.');
+      } else if (op.before && ['products','shoppingList'].includes(op.field)) throw new Error('Un artículo cambió en la nube. Actualiza la vista previa antes de restaurar.');
+      if (op.row===null) tx.delete(op.ref);
+      else tx.set(op.ref,{...op.row,...(op.field==='auditLogs' ? {cloudTimestamp:serverTimestamp()} : {})});
+    }
+  });
 }

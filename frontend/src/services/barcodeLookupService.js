@@ -1,12 +1,12 @@
 import { extractCodeFromScan } from '../utils/scanHelper';
-import { findLearnedProduct } from './learningService';
+import { findLearnedProduct } from './learningGateway';
 
 // A code identifies a product, never its current shop price.
 // Consult the household's own memory first; an unknown code stays unknown.
 export async function lookupBarcode(rawBarcode) {
   const code = extractCodeFromScan(rawBarcode);
   if (!code) return null;
-  const learned = findLearnedProduct(code);
+  const learned = await findLearnedProduct(code);
   if (learned) return { ...learned, barcode: code, price: learned.unitPriceMxn || 0, source: 'MEMORIZED_HISTORY' };
   const fallback = { barcode: code, name: '', category: 'Abarrotes', unit: 'piezas', price: 0,
     zone: 'Alacena Principal', source: 'NEW_CODE', needsName: true };

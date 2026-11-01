@@ -1,37 +1,55 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Cloud, CloudOff, LogIn, LogOut, LoaderCircle } from 'lucide-react';
-import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { auth } from '../../services/firebase';
+import { connectGoogle, disconnectGoogle, getCloudUser, connectReviewUser } from '../../services/cloudGateway';
+import { authErrorMessage, withAuthTimeout } from '../../utils/authFeedback';
+import { readLocalState, writeLocalState } from '../../services/localState';
 
-export default function CloudStatus({ state, isOnline }) {
+export default function CloudStatus({ state, isOnline, hasLocalData = false, onDownloadBackup }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [noticeHidden, setNoticeHidden] = useState(() => readLocalState('alacena_local_notice_hidden', false));
+  const attempt = useRef(0);
+  const user = getCloudUser();
   const messages = {
-    local: 'Guardado en este dispositivo · inicia sesión para conectar tu casa',
-    connecting: 'Conectando con tu casa…',
-    unauthorized: 'Tu cuenta aún no tiene acceso a esta casa. Tus cambios siguen en este dispositivo.',
-    synced: 'Lista conectada · cambios de la lista confirmados en la nube',
-    pending: 'Guardando cambios de la lista en la nube…',
-    cached: 'Mostrando la copia guardada · esperando confirmación de la nube',
-    error: 'No se pudo sincronizar · revisa la conexión y el acceso de tu cuenta',
+    local: 'Guardado sólo en este dispositivo', connecting: 'Conectando con tu casa…',
+    unauthorized: 'Esta cuenta aún no tiene acceso a la casa. Tus cambios siguen en este dispositivo.',
+    synced: 'Lista conectada · cambios confirmados en la nube', pending: 'Guardando cambios en la nube…',
+    cached: 'Mostrando copia guardada · esperando confirmación de la nube',
+    migration: 'La nube está vacía · conservamos los datos de este dispositivo',
+    error: 'No se pudo sincronizar · revisa la conexión y tu cuenta',
   };
-  const connect = async () => {
+  useEffect(() => {
+    if (user) { attempt.current++; setBusy(false); setError(''); }
+  }, [user?.uid]);
+  useEffect(() => {
+    const failed = (event) => setError(authErrorMessage(event.detail));
+    window.addEventListener('alacena-auth-error', failed);
+    return () => { attempt.current++; window.removeEventListener('alacena-auth-error', failed); };
+  }, []);
+  const connect = async (redirect = false) => {
+    const id = ++attempt.current;
     setBusy(true); setError('');
-    try {
-      if (auth.currentUser) await signOut(auth);
-      else await signInWithPopup(auth, new GoogleAuthProvider());
-    } catch { setError('No se pudo completar el acceso. Puedes seguir usando este dispositivo.'); }
-    finally { setBusy(false); }
+    try { await withAuthTimeout(() => user ? disconnectGoogle() : connectGoogle(redirect)); }
+    catch (err) { if (id === attempt.current) setError(authErrorMessage(err.code)); }
+    finally { if (id === attempt.current) setBusy(false); }
   };
   return <aside className="cloud-status" aria-label="Estado de guardado">
-    <div role="status" className="flex items-center gap-2 min-w-0">
-      {isOnline && state === 'synced' ? <Cloud size={17} /> : <CloudOff size={17} />}
-      <span>{error || (!isOnline ? 'Sin conexión · los cambios se guardan en este dispositivo' : messages[state])}</span>
-      {auth.currentUser?.email && <span className="text-xs opacity-70">{auth.currentUser.email}</span>}
+    <div className="min-w-0 space-y-1">
+      <div role="status" className="flex items-center gap-2 flex-wrap">
+        {isOnline && state === 'synced' ? <Cloud size={17} /> : <CloudOff size={17} />}
+        <span>{busy ? 'Abriendo Google… completa el acceso en la ventana de Google.' : error || (!isOnline ? 'Sin conexión · cambios guardados en este dispositivo' : messages[state])}</span>
+        {user?.email && <span className="text-xs opacity-80">{user.email}</span>}
+      </div>
+      {hasLocalData && !user && !noticeHidden && <p className="text-xs">Si borras los datos del navegador puedes perder esta copia. Conecta tu casa o descarga un respaldo. <button onClick={() => { setNoticeHidden(true); writeLocalState('alacena_local_notice_hidden', true); }}>Entendido</button></p>}
     </div>
-    <button type="button" onClick={connect} disabled={busy || !isOnline}>
-      {busy ? <LoaderCircle size={15} className="animate-spin" /> : auth.currentUser ? <LogOut size={15} /> : <LogIn size={15} />}
-      {auth.currentUser ? 'Cerrar sesión' : 'Conectar mi casa'}
-    </button>
+    <div className="flex flex-wrap items-center gap-2 shrink-0">
+      {hasLocalData && !user && <button type="button" onClick={onDownloadBackup}>Descargar respaldo (JSON)</button>}
+      <button type="button" onClick={() => connect()} disabled={busy || !isOnline}>
+        {busy ? <LoaderCircle size={15} className="animate-spin" /> : user ? <LogOut size={15} /> : <LogIn size={15} />}
+        {busy ? 'Conectando…' : user ? 'Cerrar sesión' : error ? 'Reintentar conexión' : 'Conectar mi casa'}
+      </button>
+      {!user && error && <button type="button" onClick={() => connect(true)} disabled={busy || !isOnline}>Acceder en esta pestaña</button>}
+      {import.meta.env.VITE_REVIEW_MODE === 'true' && !user && <button onClick={async () => {attempt.current++;setBusy(true);try{await connectReviewUser();}catch(err){setError(authErrorMessage(err.code));}finally{setBusy(false);}}}>Entrar con cuenta ficticia</button>}
+    </div>
   </aside>;
 }

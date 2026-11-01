@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
-import { getStorage } from 'firebase/storage';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, connectFirestoreEmulator, memoryLocalCache } from 'firebase/firestore';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
 const firebaseConfig = {
   projectId: "alacena-enterprise-prod",
@@ -12,16 +12,22 @@ const firebaseConfig = {
   messagingSenderId: "563016091019",
 };
 
-const app = initializeApp(firebaseConfig);
+export const REVIEW_MODE = import.meta.env.VITE_REVIEW_MODE === 'true';
+const app = initializeApp(REVIEW_MODE ? { ...firebaseConfig, projectId:'demo-alacena-review', apiKey:'review-only', authDomain:'localhost', storageBucket:'demo-alacena-review.appspot.com' } : firebaseConfig);
 
 // Inicializar Firestore con caché persistente y soporte multi-pestaña moderno (sin deprecation warnings)
 export const db = initializeFirestore(app, {
   ignoreUndefinedProperties: true,
-  localCache: persistentLocalCache({
+  localCache: typeof indexedDB === 'undefined' ? memoryLocalCache() : persistentLocalCache({
     tabManager: persistentMultipleTabManager()
   })
 });
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+if (REVIEW_MODE) {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9199', { disableWarnings:true });
+  connectFirestoreEmulator(db, '127.0.0.1', 8189);
+  connectStorageEmulator(storage, '127.0.0.1', 9198);
+}
 
 export default app;
