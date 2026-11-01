@@ -8,6 +8,7 @@ import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
 import { areItemsEquivalent, deduplicateRecipeIngredients } from '../../utils/deduplication';
 import { notify } from '../../services/notice';
+import { planRecipe } from '../../utils/cookRecipe';
 
 const SAMPLE_RECIPE_PHOTOS = [
   'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop&q=80', // Ribeye
@@ -22,6 +23,7 @@ export default function RecipesView({
   onCookRecipe,
   onCreateRecipe,
   onAddMissingToShoppingList,
+  householdId = 'house-1',
 }) {
   const [cookingRecipe, setCookingRecipe] = useState(null);
   const [selectedStaff, setSelectedStaff] = useState('');
@@ -96,71 +98,7 @@ export default function RecipesView({
   }, [products, recipes]);
 
   // Evaluar receta con porciones escaladas
-  const evaluateRecipeWithPortions = (recipe, customPortions = null) => {
-    const basePortions = recipe.portions || 1;
-    const currentPortions = customPortions || scaledPortions[recipe.id] || basePortions;
-    const scaleFactor = currentPortions / basePortions;
-
-    let canCook = true;
-    let missingIngredients = [];
-    let availableCount = 0;
-    let totalCostMxn = 0;
-
-    const evaluatedIngredients = (recipe.ingredients || []).map((ing) => {
-      const requiredAmount = parseFloat((ing.amount * scaleFactor).toFixed(2));
-      
-      // Buscar en el inventario de casa usando equivalencia inteligente
-      const foundProduct = products.find(
-        (p) => areItemsEquivalent(p.name, ing.productName)
-      );
-
-      const availableQty = foundProduct ? (foundProduct.quantity || 0) : 0;
-      const isEnough = availableQty >= requiredAmount;
-
-      if (isEnough) {
-        availableCount++;
-      } else {
-        canCook = false;
-        const deficit = parseFloat((requiredAmount - availableQty).toFixed(2));
-        missingIngredients.push({
-          name: ing.productName,
-          required: requiredAmount,
-          available: availableQty,
-          deficit: Math.max(0.1, deficit),
-          unit: ing.unit,
-          store: foundProduct?.store || 'Supermercado',
-          unitPriceMxn: foundProduct?.unitPriceMxn || 0,
-        });
-      }
-
-      if (foundProduct) {
-        totalCostMxn += requiredAmount * (foundProduct.unitPriceMxn || 0);
-      }
-
-      return {
-        ...ing,
-        requiredAmount,
-        availableQty,
-        isEnough,
-        foundProduct,
-      };
-    });
-
-    const totalIngs = recipe.ingredients?.length || 1;
-    const matchPct = Math.round((availableCount / totalIngs) * 100);
-    const costPerPortionMxn = currentPortions > 0 ? totalCostMxn / currentPortions : totalCostMxn;
-
-    return {
-      canCook,
-      matchPct,
-      currentPortions,
-      missingIngredients,
-      evaluatedIngredients,
-      totalCostMxn,
-      costPerPortionMxn,
-    };
-  };
-
+  const evaluateRecipeWithPortions = (recipe, customPortions = null) => planRecipe(products, recipe, householdId, customPortions || scaledPortions[recipe.id] || recipe.portions || 1);
   const handleAdjustPortions = (recipeId, delta) => {
     audio.click();
     setScaledPortions((prev) => {
@@ -197,7 +135,8 @@ export default function RecipesView({
       });
     } catch (_) {}
 
-    onCookRecipe(cookingRecipe, selectedStaff);
+    const saved = onCookRecipe(cookingRecipe, selectedStaff, scaledPortions[cookingRecipe.id] || cookingRecipe.portions);
+    if (saved === false) return;
     setCookingRecipe(null);
   };
 
