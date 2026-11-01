@@ -1,0 +1,8 @@
+{
+  "revision":"305a0df",
+  "method":"Tiempo de navegación a campo de captura presente y un requestAnimationFrame adicional; navegador integrado, servidor Vite preview en loopback, sin limitación de red artificial. La instrumentación sólo se añadió al HTML de la copia compilada.",
+  "desktopFirstVisitMs":1408,
+  "mobileViewport":{"width":390,"height":844},
+  "mobileWarmVisitsMs":[631,345,303],
+  "mobileWarmMedianMs":345
+}

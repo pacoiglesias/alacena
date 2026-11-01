@@ -195,7 +195,7 @@ SECCIÓN 5 — PROTOCOLO DE DESPLIEGUE Y CONFIRMACIÓN
 
 Antes de dar por concluida cualquier sesión de trabajo:
   1. `cd frontend && npm run build` (debe salir 0 errores).
-  2. `node test_smart_parser.mjs` (todos los tests de extracción pasan).
+  2. `node frontend/test/legacy-parser.test.js` (todos los tests de extracción pasan).
   3. `firebase deploy --only hosting:alacena-app --project alacena-enterprise-prod`.
   4. `git add .` + commit convencional + `git push origin main`.
   5. Versión reflejada en Header (`v3.4.0 · Pro Master`) y ChangelogModal.

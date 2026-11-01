@@ -13,13 +13,14 @@ async function walk(path) {
 }
 const revision = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim();
 const builtAt = new Date().toISOString();
-await writeFile('dist/version.json', JSON.stringify({ version: APP_VERSION, revision, builtAt }));
-const files = (await walk('dist')).filter((p) => !p.endsWith('/sw.js'));
+const out = process.env.ALACENA_DIST_DIR || 'dist';
+await writeFile(`${out}/version.json`, JSON.stringify({ version: APP_VERSION, revision, builtAt }));
+const files = (await walk(out)).filter((p) => !p.endsWith('/sw.js'));
 const digest = createHash('sha256');
 for (const file of files.sort()) digest.update(await readFile(file));
 const cacheName = `alacena-${APP_VERSION}-${digest.digest('hex').slice(0, 12)}`;
-const urls = ['/', ...files.map((p) => p.slice(4))];
-await writeFile('dist/sw.js', `const CACHE = ${JSON.stringify(cacheName)};
+const urls = ['/', ...files.map((p) => p.slice(out.length))];
+await writeFile(`${out}/sw.js`, `const CACHE = ${JSON.stringify(cacheName)};
 const ASSETS = ${JSON.stringify(urls)};
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));

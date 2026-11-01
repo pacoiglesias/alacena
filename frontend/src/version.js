@@ -1,2 +1,2 @@
-export const APP_VERSION = '3.9.5';
-export const RELEASE_DATE = '29 de octubre de 2026';
+export const APP_VERSION = '3.10.0';
+export const RELEASE_DATE = '1 de noviembre de 2026';

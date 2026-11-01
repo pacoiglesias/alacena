@@ -1,0 +1,13 @@
+{
+  "app":"ALACENA_ENTERPRISE_CAVAPRO","schemaVersion":1,"version":"3.9.5",
+  "products":[
+    {"id":"review-salmon-mx","name":"Salmón de prueba","quantity":2,"unit":"kg","category":"Carnes & Proteínas","zone":"Refrigerador","householdId":"house-1","unitPriceMxn":100,"minStock":0},
+    {"id":"review-salmon-es","name":"Salmón de prueba","quantity":2,"unit":"kg","category":"Carnes & Proteínas","zone":"Refrigerador","householdId":"house-spain","unitPriceMxn":100,"minStock":0},
+    {"id":"review-milk","name":"Leche de prueba","barcode":"REV-LECHE-001","quantity":3,"unit":"piezas","category":"Lácteos & Huevos","zone":"Refrigerador","householdId":"house-1","unitPriceMxn":25,"minStock":0},
+    {"id":"review-wine","name":"Vino de prueba","barcode":"REV-VINO-001","quantity":2,"unit":"botellas","category":"Vinos & Licores","zone":"Cava","isWine":true,"householdId":"house-1","unitPriceMxn":80,"minStock":0}
+  ],
+  "shoppingList":[],"zones":[{"id":"review-fridge","name":"Refrigerador"},{"id":"review-cellar","name":"Cava","type":"WINE_CELLAR"}],
+  "recipes":[{"id":"review-recipe","name":"Salmón de prueba a la plancha","description":"Receta sintética para verificar porciones y casas.","portions":2,"tiempoMin":5,"difficulty":"Fácil","ingredients":[{"productName":"salmon de prueba","amount":0.25,"unit":"kg"}],"steps":["Cocinar el ingrediente de prueba."]}],
+  "households":[{"id":"house-1","name":"Casa de prueba México","currency":"MXN","country":"MX"},{"id":"house-spain","name":"Casa de prueba España","currency":"EUR","country":"ES"}],
+  "activeHouse":{"id":"house-1","name":"Casa de prueba México","currency":"MXN","country":"MX"},"auditLogs":[],"purchaseHistory":[]
+}

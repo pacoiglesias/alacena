@@ -1,0 +1,11 @@
+{
+  "label": "after",
+  "files": [
+    "/assets/index-Duu8gEz5.js",
+    "/assets/rolldown-runtime-C0FnF6B9.js",
+    "/assets/jsx-runtime-D3F0h15I.js",
+    "/assets/deduplication-Ci1JwqKV.js"
+  ],
+  "initialJsBytes": 388094,
+  "initialJsGzipBytes": 119732
+}

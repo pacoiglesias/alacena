@@ -1,5 +1,5 @@
 // Prueba automatizada de auditoría para el parser de listas de compras
-import { parseRawShoppingText } from './frontend/src/services/smartListParser.js';
+import { parseRawShoppingText } from '../src/services/smartListParser.js';
 
 const mockExistingProducts = [
   { name: 'Jitomate Saladet', category: 'Frutas & Verduras', unit: 'kg', price: 34.50, zone: 'Alacena Principal', store: 'City Market' },

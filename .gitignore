@@ -80,3 +80,10 @@ frontend/lint-results.json
 
 # Backups locales (no commitear zips)
 backups/
+
+frontend/review/baseline-dist/
+frontend/review-dist/
+
+/node_modules/
+/output/
+/tmp/

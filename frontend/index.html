@@ -19,5 +19,6 @@
   <body class="bg-[#12100E] text-[#F2EDE4] antialiased selection:bg-[#6B1F2E]/30 selection:text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>let n=0;function ready(){if(document.querySelector('input[aria-label="Qué hace falta en casa"]')){requestAnimationFrame(()=>document.documentElement.dataset.usableMs=Math.round(performance.now()))}else if(n++<900)requestAnimationFrame(ready)}requestAnimationFrame(ready)</script>
   </body>
 </html>

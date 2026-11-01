@@ -1,0 +1,11 @@
+{
+  "label": "baseline",
+  "files": [
+    "/assets/index-DHc6RXLq.js",
+    "/assets/rolldown-runtime-C0FnF6B9.js",
+    "/assets/audioService-CQwZlA9R.js",
+    "/assets/deduplication-Ci1JwqKV.js"
+  ],
+  "initialJsBytes": 1202188,
+  "initialJsGzipBytes": 353419
+}
