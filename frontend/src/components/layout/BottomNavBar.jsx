@@ -66,7 +66,7 @@ export default function BottomNavBar({
           onFilterWines();
         }
       },
-      isActive: false,
+      isActive: activeTab === 'cava',
     },
   ];
 

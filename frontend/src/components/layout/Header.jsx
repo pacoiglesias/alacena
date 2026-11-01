@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
+import { createPortal } from 'react-dom';
+import { useDismissablePopover } from '../../hooks/useDismissablePopover';
 import { 
   Sparkles, Volume2, VolumeX, MapPin, 
   ChevronDown, Utensils, History, Layers, RefreshCw, 
@@ -8,12 +10,13 @@ import {
 import { audio } from '../../services/audioService';
 import { notify } from '../../services/notice';
 import { APP_VERSION } from '../../version';
-import CustomTabNamesModal, { DEFAULT_MENU_TABS, ICON_MAP } from './CustomTabNamesModal';
-import SystemManualModal from '../manual/SystemManualModal';
-import CatalogsConfigModal from '../catalogs/CatalogsConfigModal';
-import ThemeCustomizerModal from '../theme/ThemeCustomizerModal';
-import KitchenDaySummaryModal from './KitchenDaySummaryModal';
-import ScannerDiagnosticsModal from '../scanner/ScannerDiagnosticsModal';
+import { DEFAULT_MENU_TABS, ICON_MAP } from './menuConfig';
+const CustomTabNamesModal = lazy(() => import('./CustomTabNamesModal'));
+const SystemManualModal = lazy(() => import('../manual/SystemManualModal'));
+const CatalogsConfigModal = lazy(() => import('../catalogs/CatalogsConfigModal'));
+const ThemeCustomizerModal = lazy(() => import('../theme/ThemeCustomizerModal'));
+const KitchenDaySummaryModal = lazy(() => import('./KitchenDaySummaryModal'));
+const ScannerDiagnosticsModal = lazy(() => import('../scanner/ScannerDiagnosticsModal'));
 
 export const SYSTEM_ROLES = [
   { id: 'admin', name: 'Paco I.', label: 'Patrón / Admin', icon: Shield, color: 'text-amber-400 bg-amber-500/20' },
@@ -23,7 +26,7 @@ export const SYSTEM_ROLES = [
 ];
 
 export default function Header({ 
-  activeTab, 
+  activeTab, activeNavId, onNavigate, onOpenRestore, onExportBackup,
   setActiveTab, 
   activeHouse, 
   onOpenHouseModal, 
@@ -52,6 +55,8 @@ export default function Header({
   });
   const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const roleMenuRef = useDismissablePopover(isRoleMenuOpen, () => setIsRoleMenuOpen(false));
+  const settingsMenuRef = useDismissablePopover(isSettingsMenuOpen, () => setIsSettingsMenuOpen(false));
   // Modo simple: los roles no-admin ven un menú reducido (sin ajustes de sistema)
   const isAdmin = activeRole.id === 'admin';
   const [isTabConfigModalOpen, setIsTabConfigModalOpen] = useState(false);
@@ -123,6 +128,7 @@ export default function Header({
   // Manejar click en una pestaña (sistema o personalizada)
   const handleTabClick = (tab) => {
     audio.click();
+    if (onNavigate) { onNavigate(tab); return; }
     if (tab.id === 'cava') {
       setActiveTab('inventory');
       if (onFilterWines) onFilterWines();
@@ -220,18 +226,18 @@ export default function Header({
             </div>
 
             {/* Selector de Rol Doméstico */}
-            <div className="relative">
+            <div className="relative" ref={roleMenuRef}>
               <button
                 onClick={() => {
                   audio.click();
-                  setIsRoleMenuOpen(!isRoleMenuOpen);
+                  setIsSettingsMenuOpen(false); setIsRoleMenuOpen(!isRoleMenuOpen);
                 }}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                   isRoleMenuOpen 
                     ? 'bg-[var(--bg-elevated)] border-emerald-500/50 text-white' 
                     : 'bg-[var(--bg-elevated)] border-[var(--border-soft)] text-[var(--ink-secondary)] hover:text-white'
                 }`}
-                title="Cambiar Rol de Operación en el Hogar" data-home-role
+                aria-expanded={isRoleMenuOpen} title="Cambiar Rol de Operación en el Hogar" data-home-role
               >
                 {React.createElement(activeRole.icon, { className: 'w-3.5 h-3.5 text-emerald-400' })}
                 <span className="hidden sm:inline font-medium">{activeRole.label}</span>
@@ -279,18 +285,18 @@ export default function Header({
             </button>
 
             {/* Menú Desplegable: Ajustes, Herramientas & Hogar */}
-            <div className="relative">
+            <div className="relative" ref={settingsMenuRef}>
               <button
                 onClick={() => {
                   audio.click();
-                  setIsSettingsMenuOpen(!isSettingsMenuOpen);
+                  setIsRoleMenuOpen(false); setIsSettingsMenuOpen(!isSettingsMenuOpen);
                 }}
                 className={`relative flex items-center gap-1.5 p-2 rounded-xl border transition-all cursor-pointer ${
                   isSettingsMenuOpen
                     ? 'bg-[var(--bg-elevated)] border-emerald-500/50 text-white'
                     : 'bg-[var(--bg-elevated)] border-[var(--border-soft)] text-[var(--ink-secondary)] hover:text-white hover:bg-white/5'
                 }`}
-                title="Menú de Ajustes, Hogar y Herramientas"
+                aria-expanded={isSettingsMenuOpen} title="Menú de Ajustes, Hogar y Herramientas"
               >
                 <Settings className="w-4 h-4 text-emerald-400" />
                 {criticalAlertCount > 0 && (
@@ -308,9 +314,11 @@ export default function Header({
                   className="fixed inset-0 z-40 cursor-default"
                 />
                 <div
-                  className="absolute right-0 mt-2 w-64 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] shadow-2xl p-2 z-50 animate-fade-in space-y-1 text-xs"
+                  className="absolute right-0 mt-2 w-64 max-h-[70vh] overflow-y-auto rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] shadow-2xl p-2 z-50 animate-fade-in space-y-1 text-xs"
                   onClick={() => setIsSettingsMenuOpen(false)}
                 >
+                  <button type="button" onClick={onExportBackup} className="review-menu-action">Descargar respaldo (JSON)</button>
+                  <button type="button" onClick={onOpenRestore} className="review-menu-action">Restaurar respaldo</button>
                   <div className="px-2.5 py-1 text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider border-b border-[var(--border-soft)] mb-1 flex items-center justify-between">
                     <span>Herramientas del Hogar</span>
                     <span className="text-[9px] text-[var(--ink-tertiary)] font-mono">v{APP_VERSION}</span>
@@ -442,13 +450,13 @@ export default function Header({
           
           {enabledTabs.map((tab) => {
             const IconComponent = ICON_MAP[tab.icon] || Layers;
-            const isTabActive = activeTab === tab.key || (tab.id === 'cava' && activeTab === 'cava');
+            const isTabActive = tab.id === (activeNavId || activeTab);
             const isShoppingTab = tab.id === 'shopping' || tab.key === 'shopping';
 
             return (
               <button
                 key={tab.id}
-                onClick={() => handleTabClick(tab)}
+                aria-current={isTabActive ? 'page' : undefined} onClick={() => handleTabClick(tab)}
                 className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
                   isTabActive
                     ? 'text-white shadow-lg'
@@ -479,35 +487,36 @@ export default function Header({
 
         </nav>
 
+        {createPortal(<Suspense fallback={<div role="status" className="fixed inset-0 z-[90] bg-black/70 grid place-items-center">Abriendo herramienta…</div>}>
         {/* Modal para Renombrar, Ocultar y Agregar Pestañas */}
-        <CustomTabNamesModal
+        {isTabConfigModalOpen && <CustomTabNamesModal
           isOpen={isTabConfigModalOpen}
           onClose={() => setIsTabConfigModalOpen(false)}
           menuTabs={menuTabs}
           onSaveMenuTabs={handleSaveMenuTabs}
           zones={zones}
-        />
+        />}
 
         {/* Modal del Manual e Instructivo Completo */}
-        <SystemManualModal
+        {isManualModalOpen && <SystemManualModal
           isOpen={isManualModalOpen}
           onClose={() => setIsManualModalOpen(false)}
-        />
+        />}
 
         {/* Modal para Personalizar Color & Tema del Sistema */}
-        <ThemeCustomizerModal
+        {isThemeModalOpen && <ThemeCustomizerModal
           isOpen={isThemeModalOpen}
           onClose={() => setIsThemeModalOpen(false)}
-        />
+        />}
 
         {/* Modal de Catálogos y Opciones Desplegables */}
-        <CatalogsConfigModal
+        {isCatalogsModalOpen && <CatalogsConfigModal
           isOpen={isCatalogsModalOpen}
           onClose={() => setIsCatalogsModalOpen(false)}
-        />
+        />}
 
         {/* Modal: Resumen Diario de Cocina & Alertas de Hogar */}
-        <KitchenDaySummaryModal
+        {isKitchenDayModalOpen && <KitchenDaySummaryModal
           isOpen={isKitchenDayModalOpen}
           onClose={() => setIsKitchenDayModalOpen(false)}
           products={products}
@@ -516,14 +525,15 @@ export default function Header({
           activeHouse={activeHouse}
           onAddMissingToShoppingList={onAddMissingToShoppingList}
           onCookRecipe={onCookRecipe}
-        />
+        />}
 
         {/* Modal: Diagnóstico del escáner (registro técnico de cámara) */}
-        <ScannerDiagnosticsModal
+        {isDiagnosticsModalOpen && <ScannerDiagnosticsModal
           isOpen={isDiagnosticsModalOpen}
           onClose={() => setIsDiagnosticsModalOpen(false)}
-        />
+        />}
 
+        </Suspense>, document.body)}
       </div>
     </header>
   );

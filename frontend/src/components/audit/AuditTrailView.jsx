@@ -19,17 +19,7 @@ function getRelativeTime(timestamp) {
   return `hace ${diffDays} d`;
 }
 
-// Pseudo SHA-256 fallback para visualización de hash forense (primeros 8 caracteres)
-function getEntryHash(log) {
-  if (log.hashActual) return log.hashActual.slice(0, 8);
-  const text = `${log.id}-${log.timestamp}-${log.action}-${log.staff}`;
-  let hash = 0;
-  for (let i = 0; i < text.length; i++) {
-    hash = (hash << 5) - hash + text.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash).toString(16).padStart(8, '0').slice(0, 8);
-}
+function getEntryHash(log) { return log.hashActual ? log.hashActual.slice(0,8) : 'Sin firma'; }
 
 // Configuración de icono y color por tipo de acción (Fase 8.8)
 function getActionConfig(action = '') {
@@ -116,7 +106,7 @@ export default function AuditTrailView({ logs = [] }) {
                 Bitácora Forense Patrimonial
               </h2>
               <p className="text-xs text-[var(--ink-tertiary)] mt-0.5">
-                Cadena inmutable de movimientos, consumos y descorches con integridad SHA-256.
+                Historial de movimientos, consumos y descorches de esta casa.
               </p>
             </div>
           </div>
@@ -151,15 +141,15 @@ export default function AuditTrailView({ logs = [] }) {
         </div>
 
         {/* Banner de Verificación de Integridad */}
-        <div className="p-3.5 rounded-2xl bg-[var(--success)]/15 border border-[var(--success)]/35 flex items-center justify-between gap-3 text-xs">
+        <div className="p-3.5 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)] flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2.5">
-            <ShieldCheck className="w-4 h-4 text-[var(--success)] shrink-0" />
+            <History className="w-4 h-4 text-[var(--ink-secondary)] shrink-0" />
             <span className="text-[var(--ink-primary)] font-medium">
-              <strong>Cadena SHA-256 Verificada:</strong> Todos los registros conservan sincronía cronológica y hashes intactos.
+              {logs.length ? 'Movimientos registrados. La integridad criptográfica no se ha verificado.' : 'Sin movimientos todavía. No hay registros que verificar.'}
             </span>
           </div>
-          <span className="px-2.5 py-0.5 rounded-full bg-[var(--success)]/25 text-[var(--success)] font-mono text-[10px] font-bold uppercase tracking-wider shrink-0">
-            Cadena Íntegra
+          <span className="px-2.5 py-0.5 rounded-full bg-[var(--bg-elevated)] text-[var(--ink-secondary)] font-mono text-[10px] font-bold uppercase tracking-wider">
+            {logs.length ? 'Sin verificación criptográfica' : 'Sin movimientos'}
           </span>
         </div>
       </div>
@@ -175,7 +165,7 @@ export default function AuditTrailView({ logs = [] }) {
               📖 La historia comienza con tu primera acción.
             </h4>
             <p className="text-xs text-[var(--ink-tertiary)] mt-1.5 max-w-sm mx-auto">
-              Cada consumo, ingreso de compra, cocción o descorche registrará automáticamente un bloque firmado aquí.
+              Cada consumo, ingreso de compra, cocción o descorche aparecerá aquí como movimiento. No se presentan firmas que no existan.
             </p>
           </div>
         ) : (
@@ -266,7 +256,7 @@ export default function AuditTrailView({ logs = [] }) {
                             staff: log.staff,
                             action: log.action,
                             description: log.description,
-                            hashActual: log.hashActual || `sha256-${shortHash}...`
+                            hashActual: log.hashActual || null
                           }, null, 2)}</pre>
                         </div>
                       )}

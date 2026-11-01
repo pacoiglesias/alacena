@@ -6,6 +6,7 @@ import {
 import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
 import { getCatalogs } from '../../services/catalogsService';
+import DialogLayer from '../layout/DialogLayer';
 
 export default function ReceiptReconciliationModal({
   isOpen,
@@ -29,6 +30,8 @@ export default function ReceiptReconciliationModal({
     return defaultStaff;
   });
   const [ticketNotes, setTicketNotes] = useState('');
+  const [saving,setSaving] = useState(false), [error,setError] = useState('');
+  const submitting = React.useRef(false);
 
   // Sincronizar precio real inicial cuando abre
   React.useEffect(() => {
@@ -46,8 +49,12 @@ export default function ReceiptReconciliationModal({
   const isOverBudget = varianceMxn > 0.01;
   const isUnderBudget = varianceMxn < -0.01;
 
-  const handleConfirm = () => {
-    if (!validTotal) return;
+  const handleConfirm = async () => {
+    if (!validTotal || submitting.current || !checkedItems.length) return;
+    submitting.current=true;setSaving(true);setError('');
+    try {
+    const result = await onConfirmPurchase({checkedItems,realTotalMxn:parsedRealTotal,buyerName:buyerName || 'Administrador',ticketNotes:ticketNotes.trim(),varianceMxn});
+    if(result===false){setError('No se pudo registrar. Tu selección se conserva; revisa los artículos y vuelve a intentar.');return;}
     audio.cook();
     audio.haptic(50);
     try {
@@ -58,18 +65,13 @@ export default function ReceiptReconciliationModal({
       });
     } catch (_) {}
 
-    onConfirmPurchase({
-      checkedItems,
-      realTotalMxn: parsedRealTotal,
-      buyerName: buyerName || 'Administrador',
-      ticketNotes: ticketNotes.trim(),
-      varianceMxn,
-    });
     onClose();
+    } catch {setError('No se pudo registrar la compra. Tu selección se conserva.');}
+    finally {submitting.current=false;setSaving(false);}
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Guardar mi compra" className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+    <DialogLayer label="Guardar mi compra" onClose={() => {if(!submitting.current)onClose();}}>
       <div className="relative w-full max-w-lg bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header Modal */}
@@ -88,7 +90,7 @@ export default function ReceiptReconciliationModal({
             </div>
           </div>
           <button
-            onClick={() => { audio.click(); onClose(); }}
+            disabled={saving} onClick={() => { audio.click(); onClose(); }}
             className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all"
           >
             <X className="w-5 h-5" />
@@ -214,25 +216,26 @@ export default function ReceiptReconciliationModal({
 
         </div>
 
+        {error && <p role="alert" className="p-4">{error}</p>}
         {/* Footer Actions */}
         <div className="p-6 border-t border-[var(--border-soft)] bg-[var(--bg-base)] flex items-center justify-end gap-3">
           <button
-            onClick={() => { audio.click(); onClose(); }}
+            disabled={saving} onClick={() => { audio.click(); onClose(); }}
             className="px-4 py-2.5 rounded-xl text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/5 transition-all"
           >
             Cancelar
           </button>
           
           <button
-            disabled={!validTotal} onClick={handleConfirm}
+            disabled={!validTotal || saving || !checkedItems.length} onClick={handleConfirm}
             className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-950/50 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-            <span>Confirmar e Ingresar a Despensa</span>
+            <span>{saving ? 'Registrando compra…' : 'Confirmar e Ingresar a Despensa'}</span>
           </button>
         </div>
 
       </div>
-    </div>
+    </DialogLayer>
   );
 }

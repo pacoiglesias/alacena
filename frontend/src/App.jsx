@@ -1,12 +1,13 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { planRecipe } from './utils/cookRecipe';
+import { downloadBackup, snapshotSignature, preserveSafetyBackup, persistSnapshot, mergeHistory } from './utils/backup';
 import { belongsToHouse, sameStockItem, positiveQuantity, purchaseSummary } from './utils/householdShopping';
 import { readLocalState, writeLocalState } from './services/localState';
 import { reconcileReceiptList } from './utils/receiptReview';
 import { inventoryMovement } from './utils/inventoryMovement';
 import OfflineStatus from './components/layout/OfflineStatus';
 import CloudStatus from './components/layout/CloudStatus';
-import { onAuthStateChanged, getIdTokenResult } from 'firebase/auth';
-import { auth } from './services/firebase';
+import { observeCloudUser, getUserAccess, getCloudUser, disconnectGoogle, setCloudWritesPaused, fetchPurchaseHistoryPage, seedCloudIfEmpty, restoreCloudSnapshot } from './services/cloudGateway';
 import Header from './components/layout/Header';
 import BottomNavBar from './components/layout/BottomNavBar';
 import NoticeHost from './components/common/NoticeHost';
@@ -28,8 +29,9 @@ const ChangelogModal = lazy(() => import('./components/changelog/ChangelogModal'
 const PurchaseHistoryModal = lazy(() => import('./components/shopping/PurchaseHistoryModal'));
 const QuickScanActionModal = lazy(() => import('./components/scanner/QuickScanActionModal'));
 const PantryQrBookletModal = lazy(() => import('./components/shopping/PantryQrBookletModal'));
+const RestoreBackupModal = lazy(() => import('./components/layout/RestoreBackupModal'));
 import { audio } from './services/audioService';
-import { syncPantryToIndexedDb } from './services/db';
+const syncPantryToIndexedDb = (...args) => import('./services/db').then((m) => m.syncPantryToIndexedDb(...args));
 import { findProductByScanCode, extractCodeFromScan } from './utils/scanHelper';
 import { lookupBarcode } from './services/barcodeLookupService';
 import { recordPricePoints } from './services/priceIntelligenceService';
@@ -42,8 +44,8 @@ import {
   deleteShoppingItemFromCloud,
   logAuditEventToCloud,
   subscribeToAuditLogs
-} from './services/firestoreSyncService';
-import { learnProduct, trackConsumption } from './services/learningService';
+} from './services/cloudGateway';
+import { learnProduct, trackConsumption } from './services/learningGateway';
 import {
   INITIAL_PRODUCTS,
   INITIAL_ZONES,
@@ -136,6 +138,20 @@ export default function App() {
 
   // UI state
   const [activeTab, setActiveTab] = useState('shopping'); // 'inventory' | 'shopping' | 'recipes' | 'audit'
+  const [inventoryTarget, setInventoryTarget] = useState(null);
+  const [restoreOpen, setRestoreOpen] = useState(false);
+  const [localImportOffer, setLocalImportOffer] = useState(false);
+  const [uploadingLocal, setUploadingLocal] = useState(false);
+  const [migrationError, setMigrationError] = useState('');
+  const cloudRelease = useRef(null);
+  const historyCursor = useRef(null), historyOlderLoaded = useRef(false);
+  const [historyMore, setHistoryMore] = useState(false), [historyLoading, setHistoryLoading] = useState(false), [historyError, setHistoryError] = useState('');
+  function openInventory() { setInventoryTarget(null); setActiveTab('inventory'); }
+  const navigate = (tab) => {
+    if (tab.id === 'cava' || tab.targetZone || !tab.isSystem) {
+      setInventoryTarget({id:tab.id,label:tab.label,kind:tab.id==='cava'?'cava':tab.targetZone?'zone':'custom',zone:tab.targetZone,requestId:crypto.randomUUID()}); setActiveTab('inventory');
+    } else { setInventoryTarget(null); setActiveTab(tab.key); }
+  };
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -274,13 +290,15 @@ export default function App() {
   const [storageError, setStorageError] = useState(false);
   useEffect(() => {
     let currentUser;
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = observeCloudUser(async (user) => {
       currentUser = user;
       setCloudAllowed(false);
+      setCloudWritesPaused(Boolean(user));
+      setLocalImportOffer(false);
       setCloudState('local');
       if (!user) return;
       try {
-        const token = await getIdTokenResult(user);
+        const token = await getUserAccess(user);
         if (currentUser !== user) return;
         const allowed = token.claims.alacenaAccess === true && token.claims.email_verified === true;
         writeLocalState('alacena_cloud_access', { uid: user.uid, allowed });
@@ -299,20 +317,48 @@ export default function App() {
 
   useEffect(() => {
     if (!cloudAllowed) return;
+    const before = getSnapshot();
+    const oldCopy = readLocalState('alacena_before_cloud_connection', {});
+    if (before.products.length || before.shoppingList.length || !oldCopy.products?.length) writeLocalState('alacena_before_cloud_connection', {...before,savedAt:new Date().toISOString()});
+    let productRows, shoppingRows, open = !navigator.onLine && readLocalState('alacena_cloud_initialized_uid','')===getCloudUser()?.uid;
+    let bufferedAudit, bufferedHistory;
+    setCloudWritesPaused(!open);
+    historyCursor.current = null; historyOlderLoaded.current = false;
     const fail = () => setCloudState('error');
-    // Preserve the device copy before switching to the authoritative cloud snapshot.
-    writeLocalState('alacena_before_cloud_connection', { products: readLocalState('alacena_products', []), shoppingList: readLocalState('alacena_shopping_list', []), savedAt: new Date().toISOString() });
-    const unsubProducts = subscribeToProducts(null, (rows, metadata) => { if (!rows.length && metadata?.fromCache) return; setProducts(rows); }, fail);
-    const unsubShopping = subscribeToShoppingList(null, (items, metadata) => {
-      if (!items.length && metadata?.fromCache) return;
-      setShoppingList(items);
-      setCloudState(metadata?.hasPendingWrites ? 'pending' : metadata?.fromCache ? 'cached' : 'synced');
-    }, fail);
-    const unsubAudit = subscribeToAuditLogs(setAuditLogs, fail);
-    const unsubHistory = subscribeToPurchaseHistory(setPurchaseHistory, fail);
-    return () => { unsubProducts(); unsubShopping(); unsubAudit(); unsubHistory(); };
+    const applyHistory = (rows,page) => {
+      setPurchaseHistory((previous) => mergeHistory(previous,rows));
+      if (!historyOlderLoaded.current) { historyCursor.current=page.cursor; setHistoryMore(page.hasMore); }
+    };
+    const release = (uploaded = false) => {
+      open=true; setCloudWritesPaused(false); setLocalImportOffer(false);
+      if (productRows && (!uploaded || productRows.length)) setProducts(productRows);
+      if (shoppingRows && (!uploaded || shoppingRows.length)) setShoppingList(shoppingRows);
+      if (bufferedAudit) setAuditLogs((prev) => mergeHistory(prev,bufferedAudit,'timestamp'));
+      if (bufferedHistory) applyHistory(...bufferedHistory);
+      writeLocalState('alacena_cloud_initialized_uid',getCloudUser()?.uid || '');
+      setCloudState('synced');
+    };
+    cloudRelease.current=release;
+    const decide = () => {
+      if (open || !productRows || !shoppingRows) return;
+      if (!productRows.length && !shoppingRows.length && (before.products.length || before.shoppingList.length)) {
+        setLocalImportOffer(true); setCloudState('migration');
+      } else release();
+    };
+    const unsubProducts=subscribeToProducts(null,(rows,meta) => {
+      if (meta?.fromCache && !rows.length) return;
+      if (open) setProducts(rows);
+      else if (!meta?.fromCache) {productRows=rows;decide();}
+    },fail);
+    const unsubShopping=subscribeToShoppingList(null,(rows,meta) => {
+      if (meta?.fromCache && !rows.length) return;
+      if (open) {setShoppingList(rows);setCloudState(meta?.hasPendingWrites?'pending':meta?.fromCache?'cached':'synced');}
+      else if (!meta?.fromCache) {shoppingRows=rows;decide();}
+    },fail);
+    const unsubAudit=subscribeToAuditLogs((rows) => {bufferedAudit=rows;if(open)setAuditLogs((prev) => mergeHistory(prev,rows,'timestamp'));},fail);
+    const unsubHistory=subscribeToPurchaseHistory((rows,page) => {bufferedHistory=[rows,page];if(open)applyHistory(rows,page);},fail);
+    return () => {cloudRelease.current=null;unsubProducts();unsubShopping();unsubAudit();unsubHistory();setCloudWritesPaused(false);};
   }, [cloudAllowed]);
-
   // Audio mute toggle
   const handleToggleMute = () => {
     const muted = audio.toggleMute();
@@ -669,7 +715,7 @@ export default function App() {
       householdId: activeHouse.id,
       currency: activeHouse.currency || 'MXN',
     };
-    setPurchaseHistory((prev) => [newReceipt, ...prev.slice(0, 29)]);
+    setPurchaseHistory((prev) => [newReceipt, ...prev.filter((r) => r.id !== newReceipt.id)]);
     savePurchaseTransaction(productWrites, shoppingChanges, newReceipt);
 
     // Registrar precios en el motor de inteligencia multitienda
@@ -683,7 +729,9 @@ export default function App() {
       `Importe cobrado en ticket: $${finalRecordedTotal.toFixed(2)} MXN (Estimado: $${totalEstimatedPurchasedMxn.toFixed(2)} MXN)${notes ? ` · Notas: ${notes}` : ''}`
     );
 
-    setActiveTab('inventory');
+    setOperationNotice(`Compra registrada: ${checkedItems.length} artículos ingresados. Revisa el estado de guardado para confirmar la nube.`);
+    setInventoryTarget(null); setActiveTab('inventory');
+    return true;
   };
 
   // Ingreso masivo al inventario desde Tickets (Foto, PDF, o importación OCR)
@@ -717,7 +765,7 @@ export default function App() {
             updatedAt: new Date().toISOString(),
           };
           currentList[existingIdx] = merged;
-          saveProductToCloud(merged);
+          saveProductToCloud(merged, { delta:itemQty });
           learnProduct(merged);
           updatedCount++;
         } else {
@@ -923,32 +971,19 @@ export default function App() {
   };
 
   // Recipe actions
-  const handleCookRecipe = (recipe, staffName) => {
-    setProducts((prev) =>
-      prev.map((product) => {
-        const requiredIng = recipe.ingredients.find(
-          (ing) => ing.productName.toLowerCase() === product.name.toLowerCase()
-        );
-        if (requiredIng) {
-          const newQty = Math.max(0, (product.quantity || 0) - requiredIng.amount);
-          return { ...product, quantity: newQty, updatedAt: new Date().toISOString() };
-        }
-        return product;
-      })
-    );
-
-    const ingSummary = recipe.ingredients
-      .map((i) => `${i.amount} ${i.unit} de ${i.productName}`)
-      .join(', ');
-
-    addAuditEntry(
-      staffName,
-      'CONSUMO_RECETA',
-      `${staffName} consumió: ${ingSummary} para preparar "${recipe.name}"`,
-      `Porciones preparadas: ${recipe.portions}`
-    );
+  const handleCookRecipe = (recipe, staffName, portions = recipe.portions) => {
+    try {
+      const plan = planRecipe(products, recipe, activeHouse.id, portions);
+      if (!plan.canCook) { setOperationNotice('No se descontó nada: faltan ingredientes o las unidades no son compatibles.'); return false; }
+      const byId = new Map(plan.writes.map((w) => [w.product.id, w.product]));
+      setProducts((prev) => prev.map((p) => byId.get(p.id) || p));
+      plan.writes.forEach((w) => { saveProductToCloud({ ...w.product, updatedAt:new Date().toISOString() }, {delta:w.delta}); trackConsumption(w.product, -w.delta); });
+      const details = plan.writes.map((w) => `Quedan ${w.product.quantity} ${w.product.unit} de ${w.product.name}`).join(' · ');
+      addAuditEntry(staffName, 'CONSUMO_RECETA', `${staffName} preparó ${recipe.name}`, `${plan.currentPortions} porciones · ${details}`);
+      setOperationNotice(details);
+      return true;
+    } catch (error) { setOperationNotice(error.message); return false; }
   };
-
   const handleCreateRecipe = (newRecipe) => {
     setRecipes((prev) => [newRecipe, ...prev]);
     addAuditEntry(
@@ -958,37 +993,47 @@ export default function App() {
     );
   };
 
-  // Backup Export
-  const handleExportBackupJson = () => {
-    const backup = {
-      app: 'ALACENA_ENTERPRISE_CAVAPRO',
-      version: APP_VERSION,
-      exportDate: new Date().toISOString(),
-      household: activeHouse,
-      products,
-      shoppingList,
-      zones,
-      recipes,
-      auditLogs,
-      purchaseHistory,
-      households,
-      activeHouse,
-      beforeCloudConnection: readLocalState('alacena_before_cloud_connection', {}),
-    };
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `alacena-cavapro-backup-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    notify('💾 Copia de seguridad descargada exitosamente en formato JSON.');
+  function getSnapshot() { return {products,shoppingList,zones,recipes,auditLogs,purchaseHistory,households,activeHouse}; }
+  const handleExportBackupJson = () => { downloadBackup({...getSnapshot(),beforeCloudConnection:readLocalState('alacena_before_cloud_connection',{})}); notify('Respaldo JSON descargado. Puedes restaurarlo desde Ajustes.'); };
+  const applySnapshot = (next) => {setProducts(next.products);setShoppingList(next.shoppingList);setZones(next.zones);setRecipes(next.recipes);setHouseholds(next.households);setAuditLogs(next.auditLogs);setPurchaseHistory(next.purchaseHistory);setActiveHouse(next.activeHouse);};
+  const handleRestore = async (plan) => {
+    const current=getSnapshot();
+    if(snapshotSignature(current)!==plan.baseSignature) throw new Error('Los datos cambiaron desde la vista previa. Selecciona de nuevo el archivo y revisa los cambios.');
+    if(cloudAllowed && cloudState!=='synced') throw new Error('Espera a que la conexión confirme tus datos antes de restaurar en la nube.');
+    preserveSafetyBackup(current); downloadBackup(current,'alacena-antes-de-restaurar');
+    if(cloudAllowed) await restoreCloudSnapshot(plan.next,current);
+    try { persistSnapshot(plan.next); }
+    catch (error) {
+      if (cloudAllowed) {
+        applySnapshot(plan.next);
+        throw new Error('La nube ya recibió la restauración, pero este dispositivo no pudo guardar su copia. Conserva el respaldo descargado y libera espacio antes de volver a abrir la aplicación.');
+      }
+      throw error;
+    }
+    applySnapshot(plan.next);
+    addAuditEntry('Administrador','RESTAURACION_RESPALDO',`Restauró respaldo mediante ${plan.mode==='combine'?'combinación':'reemplazo'}. Historial y bitácora preservados.`);
+    setOperationNotice('Respaldo restaurado. La copia anterior se descargó y queda guardada como respaldo de seguridad en este dispositivo.');
   };
-
+  const uploadLocal = async () => {
+    if(uploadingLocal) return;
+    setUploadingLocal(true);setMigrationError('');
+    try {const current=getSnapshot();preserveSafetyBackup(current);await seedCloudIfEmpty(current);cloudRelease.current?.(true);setOperationNotice('Se subieron tus datos a la casa conectada.');}
+    catch(error){setMigrationError(error.message);}
+    finally{setUploadingLocal(false);}
+  };
+  const loadOlderPurchases = async () => {
+    if(historyLoading) return;
+    setHistoryLoading(true);setHistoryError('');
+    try {const page=await fetchPurchaseHistoryPage(historyCursor.current);historyOlderLoaded.current=true;historyCursor.current=page.cursor;setHistoryMore(page.hasMore);setPurchaseHistory((prev) => mergeHistory(prev,page.rows));}
+    catch(error){setHistoryError(error.message);}
+    finally{setHistoryLoading(false);}
+  };
   // Reset demo data: antes de reemplazar nada, descarga un respaldo
   // automático de los datos reales, porque esta acción los BORRA.
   const handleResetDemoData = async () => {
+    if (getCloudUser() || cloudAllowed) { notify('La demo no está disponible con una casa conectada. No se cambió ningún dato.'); return; }
     if (await confirmDialog('⚠️ Esto BORRA tu despensa, lista del súper, zonas, recetas, casas y bitácora reales y las reemplaza con datos de demostración. Antes de borrar, se descargará una copia de seguridad de tus datos actuales. ¿Deseas continuar?')) {
+      preserveSafetyBackup(getSnapshot());
       handleExportBackupJson();
       setProducts(INITIAL_PRODUCTS);
       setShoppingList(INITIAL_SHOPPING_LIST);
@@ -1004,10 +1049,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[var(--bg-base,#090B0E)] text-[var(--ink-primary,#F8FAFC)] flex flex-col font-body selection:bg-emerald-500/30 selection:text-white transition-colors duration-200">
 
+      {restoreOpen && <Suspense fallback={<p role="status">Abriendo restauración…</p>}><RestoreBackupModal current={getSnapshot()} recovery={readLocalState('alacena_before_cloud_connection',{})} connected={cloudAllowed} online={isOnline} onApply={handleRestore} onClose={() => setRestoreOpen(false)} /></Suspense>}
       {/* Top Header */}
       <Header
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        activeTab={activeTab} activeNavId={activeTab === 'inventory' ? inventoryTarget?.id || 'inventory' : activeTab} onNavigate={navigate}
+        setActiveTab={(tab) => {setInventoryTarget(null);setActiveTab(tab);}}
+        onOpenRestore={() => setRestoreOpen(true)} onExportBackup={handleExportBackupJson}
         activeHouse={activeHouse}
         onOpenHouseModal={() => setIsHouseModalOpen(true)}
         onOpenChangelog={() => setIsChangelogOpen(true)}
@@ -1025,8 +1072,10 @@ export default function App() {
         recipes={recipes}
       />
 
-      <CloudStatus state={cloudState} isOnline={isOnline} />
+      <CloudStatus state={cloudState} isOnline={isOnline} hasLocalData={Boolean(products.length || shoppingList.length || purchaseHistory.length || auditLogs.length)} onDownloadBackup={handleExportBackupJson} />
+      {localImportOffer && <section className="review-callout"><h2>Tu casa en la nube está vacía</h2><p>Conservamos tus datos en esta pantalla. No se subirán hasta que lo elijas.</p><div className="flex flex-wrap gap-2"><button disabled={!isOnline || uploadingLocal} onClick={uploadLocal}>{uploadingLocal ? 'Subiendo…' : 'Subir mis datos a la nube'}</button><button disabled={uploadingLocal} onClick={() => disconnectGoogle()}>Conservar copia local y cerrar sesión</button><button onClick={handleExportBackupJson}>Descargar respaldo (JSON)</button></div>{migrationError && <p role="alert">{migrationError}</p>}</section>}
       <OfflineStatus />
+      {import.meta.env.VITE_REVIEW_MODE === 'true' && <div className="review-callout" role="status">Vista previa · datos de prueba independientes de tu casa real</div>}
       {operationNotice && <div role="status" className="mx-auto w-full max-w-7xl px-4 pt-3 text-sm text-emerald-400 flex justify-between gap-3"><span>{operationNotice}</span><button onClick={() => setOperationNotice('')} aria-label="Cerrar aviso">×</button></div>}
       {storageError && <div role="alert" className="mx-4 p-4 rounded-xl bg-rose-950 text-white">No se pudo guardar en este dispositivo. Descarga un respaldo desde Más antes de cerrar la página.</div>}
       <Suspense fallback={<div role="status" className="p-12 text-center">Preparando tu alacena…</div>}>
@@ -1035,7 +1084,7 @@ export default function App() {
 
         {/* Tab 1: Inventario & Zonas */}
         {activeTab === 'inventory' && (
-          <InventoryView
+          <InventoryView key={inventoryTarget?.requestId || 'all'} navigationTarget={inventoryTarget} onClearNavigation={() => {setInventoryTarget(null);setActiveTab('inventory');}}
             products={products.filter((p) => belongsToHouse(p, activeHouse.id))}
             zones={zones}
             onOpenManualModal={() => {
@@ -1092,6 +1141,7 @@ export default function App() {
         {/* Tab 3: Recetas de Cocina */}
         {activeTab === 'recipes' && (
           <RecipesView
+            householdId={activeHouse.id}
             recipes={recipes}
             products={products.filter((p) => belongsToHouse(p, activeHouse.id))}
             staffList={staffList}
@@ -1230,6 +1280,7 @@ export default function App() {
         isOpen={isPurchaseHistoryOpen}
         onClose={() => setIsPurchaseHistoryOpen(false)}
         purchases={purchaseHistory.filter((r) => belongsToHouse(r, activeHouse.id))}
+        onLoadMore={loadOlderPurchases} hasMore={cloudAllowed && historyMore} loading={historyLoading} error={historyError}
         onUndoPurchasedItem={handleUndoPurchasedItem}
       />
       )}
@@ -1262,8 +1313,9 @@ export default function App() {
       {/* Barra de Navegación Ergonómica para Dispositivos Móviles */}
       </Suspense>
       <BottomNavBar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        activeTab={activeTab === 'inventory' && inventoryTarget?.kind === 'cava' ? 'cava' : activeTab}
+        setActiveTab={(tab) => {setInventoryTarget(null);setActiveTab(tab);}}
+
         shoppingCount={shoppingList.filter((i) => !i.checked && belongsToHouse(i, activeHouse.id)).length}
         onOpenScanner={handleOpenScanner}
         onOpenCommandCenter={() => setIsCommandCenterOpen(true)}

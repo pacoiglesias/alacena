@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { notify } from '../../services/notice';
+import { planRecipe } from '../../utils/cookRecipe';
 
 export default function ProactiveHomeAdvisor({
   products = [],
@@ -13,6 +14,7 @@ export default function ProactiveHomeAdvisor({
   onOpenShoppingTab,
   onOpenRecipesTab,
   onOpenWineTasting,
+  hasHistory = false,
 }) {
   const [addedItems, setAddedItems] = useState({});
   const [activeCardTab, setActiveCardTab] = useState('all'); // 'all' | 'alerts' | 'meals' | 'cellar'
@@ -24,11 +26,11 @@ export default function ProactiveHomeAdvisor({
         const qty = p.quantity || 0;
         const min = p.minStock || 2;
         const max = p.maxStock || p.idealStock || 5;
-        const weeklyBurn = p.burnRateWeekly || (qty <= min ? 1.5 : 1.0);
+        const weeklyBurn = hasHistory && Number(p.burnRateWeekly) > 0 ? Number(p.burnRateWeekly) : null;
         
         // Días estimados hasta quedarse sin producto
-        const daysLeft = weeklyBurn > 0 ? Math.max(1, Math.round((qty / weeklyBurn) * 7)) : 99;
-        const isUrgent = qty <= min || daysLeft <= 4;
+        const daysLeft = weeklyBurn > 0 ? Math.max(1, Math.round((qty / weeklyBurn) * 7)) : null;
+        const isUrgent = qty <= min || (daysLeft !== null && daysLeft <= 4);
         const suggestedBuy = Math.max(1, Math.round(max - qty));
 
         return {
@@ -45,33 +47,13 @@ export default function ProactiveHomeAdvisor({
       .filter((item) => item.isUrgent)
       .sort((a, b) => a.daysLeft - b.daysLeft)
       .slice(0, 4);
-  }, [products]);
+  }, [products, hasHistory]);
 
   // 2. Recomendación de Recetas de Hoy (100% realizables con lo que hay en casa)
-  const cookingSuggestions = useMemo(() => {
-    return recipes.map((recipe) => {
-      let availableCount = 0;
-      const totalCount = recipe.ingredients?.length || 1;
-
-      recipe.ingredients?.forEach((ing) => {
-        const found = products.find(
-          (p) => p.name.toLowerCase().includes(ing.productName.toLowerCase()) || 
-                 ing.productName.toLowerCase().includes(p.name.toLowerCase())
-        );
-        if (found && (found.quantity || 0) >= (ing.amount || 0.1)) {
-          availableCount++;
-        }
-      });
-
-      const matchPct = Math.round((availableCount / totalCount) * 100);
-      return {
-        recipe,
-        matchPct,
-        isReadyNow: matchPct === 100,
-      };
-    }).sort((a, b) => b.matchPct - a.matchPct);
-  }, [recipes, products]);
-
+  const cookingSuggestions = useMemo(() => recipes.filter((r) => r.ingredients?.length).map((recipe) => {
+    const evaluation = planRecipe(products, recipe, products[0]?.householdId || 'house-1');
+    return {recipe,matchPct:evaluation.matchPct,isReadyNow:evaluation.canCook};
+  }).filter((r) => r.matchPct > 0).sort((a,b) => b.matchPct-a.matchPct), [recipes,products]);
   // 3. Recomendación de Cava y Maridaje del Sommelier
   const sommelierPick = useMemo(() => {
     const wines = products.filter((p) => p.isWine || p.category === 'Vinos & Licores');
@@ -82,7 +64,7 @@ export default function ProactiveHomeAdvisor({
     
     // Buscar si hay proteína en casa que combine
     const matchingMeat = products.find(
-      (p) => (p.category.includes('Carnes') || p.category.includes('Pescados')) && (p.quantity || 0) > 0
+      (p) => (p.category?.includes('Carnes') || p.category?.includes('Pescados')) && (p.quantity || 0) > 0
     );
 
     return {
@@ -135,6 +117,8 @@ export default function ProactiveHomeAdvisor({
     }
   };
 
+  if (!hasHistory || !products.length) return <section className="review-empty"><h3>Tu asistente empieza con tus registros</h3><p>{products.length ? 'Todavía no hay historial suficiente para estimar consumo. Registra entradas y salidas; mientras tanto revisa las existencias reales.' : 'Añade productos a tu despensa para revisar existencias y preparar recetas. Aún no hay predicciones de consumo.'}</p><button onClick={onOpenShoppingTab}>Ir a mi lista del súper</button></section>;
+
   return (
     <div className="rounded-3xl p-5 sm:p-6 bg-gradient-to-br from-[var(--bg-elevated)] via-[var(--bg-sunken)] to-[var(--bg-sunken)] border border-[var(--gold)]/30 shadow-2xl relative overflow-hidden space-y-5 animate-fade-in">
       
@@ -154,11 +138,11 @@ export default function ProactiveHomeAdvisor({
                 Asistente Proactivo del Hogar
               </h3>
               <span className="px-2.5 py-0.5 rounded-full bg-[var(--gold)]/20 text-[var(--gold)] border border-[var(--gold)]/40 text-[10px] font-mono-num font-extrabold uppercase">
-                IA Activa
+                Según tus registros
               </span>
             </div>
             <p className="text-xs text-[var(--ink-secondary)] mt-0.5">
-              Aprende el ritmo de consumo de tu casa y te sugiere qué cocinar, qué descorchar y qué pedir antes de que se agote.
+              Revisa mínimos registrados y recetas compatibles con las cantidades de tu despensa.
             </p>
           </div>
         </div>
@@ -207,7 +191,7 @@ export default function ProactiveHomeAdvisor({
                         {item.product.name}
                       </h4>
                       <div className="text-[10px] text-amber-300 flex items-center gap-1 mt-0.5">
-                        <span>⏳ Se acaba en ~{item.daysLeft} días</span>
+                        <span>{item.daysLeft !== null ? `Consumo estimado: ~${item.daysLeft} días` : 'Por debajo del mínimo registrado'}</span>
                         <span>•</span>
                         <span className="text-[var(--ink-tertiary)]">Quedan {item.qty} {item.product.unit}</span>
                       </div>
@@ -241,8 +225,8 @@ export default function ProactiveHomeAdvisor({
           </div>
 
           <div className="text-[10px] text-[var(--ink-tertiary)] pt-2 border-t border-[var(--border-soft)] flex items-center justify-between">
-            <span>Calculado según el consumo semanal familiar</span>
-            <span className="text-amber-400 font-bold">100% Automático</span>
+            <span>Sin ritmo de consumo registrado no estimamos días</span>
+            <span className="text-amber-400 font-bold">Revisa antes de pedir</span>
           </div>
         </div>
 
@@ -255,7 +239,7 @@ export default function ProactiveHomeAdvisor({
                 ¿Qué Cocinamos Hoy?
               </span>
               <span className="text-[10px] text-emerald-400 font-bold">
-                100% En Despensa
+                Comprobado con tus existencias
               </span>
             </div>
 

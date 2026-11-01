@@ -11,6 +11,7 @@ export default function PurchaseHistoryModal({
   onClose, 
   purchases = [], 
   onUndoPurchasedItem 
+  ,onLoadMore, hasMore = false, loading = false, error = ''
 }) {
   if (!isOpen) return null;
 
@@ -120,6 +121,8 @@ export default function PurchaseHistoryModal({
           )}
         </div>
 
+        {error && <p role="alert" className="p-4">{error}</p>}
+        {hasMore && <button disabled={loading} onClick={onLoadMore} className="review-menu-action">{loading ? 'Cargando compras anteriores…' : 'Ver compras anteriores'}</button>}
         {/* Footer */}
         <div className="flex items-center justify-end p-4 border-t border-[var(--border-soft)] bg-[var(--bg-elevated)]">
           <button

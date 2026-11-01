@@ -54,9 +54,12 @@ export default function InventoryView({
   recipes = [],
   activeHouse,
   onOpenScanner,
+  navigationTarget = null,
+  onClearNavigation,
+  auditLogs = [],
 }) {
   const [search, setSearch] = useState('');
-  const [selectedZone, setSelectedZone] = useState(null);
+  const [selectedZone, setSelectedZone] = useState(navigationTarget?.zone || null);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, OPTIMAL, LOW, OUT, EXPIRING
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
@@ -99,7 +102,7 @@ export default function InventoryView({
 
   // Categories list
   const categories = useMemo(() => {
-    const set = new Set(products.map((p) => p.category));
+    const set = new Set(products.map((p) => p.category).filter(Boolean));
     return ['ALL', ...Array.from(set)];
   }, [products]);
 
@@ -132,6 +135,7 @@ export default function InventoryView({
         return false;
       }
       if (selectedZone && p.zone !== selectedZone) return false;
+      if (navigationTarget?.kind === 'cava' && !(p.isWine || isCavaZone(p.zone, zones) || p.category === 'Vinos & Licores')) return false;
       if (selectedCategory !== 'ALL' && p.category !== selectedCategory) return false;
       if (statusFilter === 'LOW' && p.quantity > p.minStock) return false;
       if (statusFilter === 'OUT' && p.quantity > 0) return false;
@@ -152,7 +156,7 @@ export default function InventoryView({
 
       return true;
     });
-  }, [products, selectedZone, selectedCategory, statusFilter, search, activeHouse]);
+  }, [products, selectedZone, selectedCategory, statusFilter, search, activeHouse, navigationTarget, zones]);
 
   const handleAdjustQuantity = (product, delta) => {
     const newQty = Math.max(0, (product.quantity || 0) + delta);
@@ -215,6 +219,7 @@ export default function InventoryView({
 
   return (
     <div className="space-y-6">
+      {navigationTarget && <section className="review-callout"><h1>{navigationTarget.label}</h1><p>{navigationTarget.kind === 'cava' ? 'Sólo vinos y botellas de tu cava.' : navigationTarget.zone ? `Zona: ${navigationTarget.zone}` : 'Vista personalizada de la despensa.'}</p><button onClick={onClearNavigation}>Ver toda la despensa</button></section>}
       
       {/* ═════════════════════════════════════════════════════════════════
           RESUMEN COLAPSABLE — métricas, gráficas y asistente.
@@ -346,6 +351,7 @@ export default function InventoryView({
           ASISTENTE PROACTIVO DEL HOGAR (Recomendaciones, Cava & Desabasto)
          ═════════════════════════════════════════════════════════════════ */}
       <ProactiveHomeAdvisor
+        hasHistory={auditLogs.length > 0}
         products={products}
         recipes={recipes}
         onAddToShoppingList={onAddToShoppingList}
@@ -808,10 +814,10 @@ export default function InventoryView({
                         size={48}
                         fallback={
                           <span className="text-xl">
-                            {p.category.includes('Carnes') ? '🥩' :
-                             p.category.includes('Lácteos') ? '🧀' :
-                             p.category.includes('Frutas') ? '🥬' :
-                             p.category.includes('Café') ? '☕' : '🥫'}
+                            {p.category?.includes('Carnes') ? '🥩' :
+                             p.category?.includes('Lácteos') ? '🧀' :
+                             p.category?.includes('Frutas') ? '🥬' :
+                             p.category?.includes('Café') ? '☕' : '🥫'}
                           </span>
                         }
                       />

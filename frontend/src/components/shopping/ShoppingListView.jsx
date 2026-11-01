@@ -8,6 +8,7 @@ import {
   MoreHorizontal, Receipt, Award, Search, ArrowUpRight, Undo2, FileText
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
+import DialogLayer from '../layout/DialogLayer';
 import ProductPhoto from '../common/ProductPhoto';
 const ItemQrModal = lazy(() => import('./ItemQrModal'));
 const ShoppingListQrTicketModal = lazy(() => import('./ShoppingListQrTicketModal'));
@@ -869,7 +870,7 @@ export default function ShoppingListView({
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-          {SUPERMARKET_DEPARTMENTS.map((dept) => {
+          {SUPERMARKET_DEPARTMENTS.filter((dept) => dept.id === 'ALL' || (groupedByDepartment[dept.id] || []).length > 0).map((dept) => {
             const isSelected = selectedDept === dept.id;
             const itemsInDept = dept.id === 'ALL' 
               ? enrichedList.length 
@@ -1208,14 +1209,15 @@ export default function ShoppingListView({
       </Suspense>}
 
       {/* Modal: Reconciliación de Ticket y Costo Real de Compra */}
-      {isReconciliationOpen && <Suspense fallback={<div role="status" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center text-white">Abriendo herramienta…</div>}><ReceiptReconciliationModal
+      {isReconciliationOpen && <Suspense fallback={<DialogLayer label="Abriendo confirmación de compra" onClose={() => setIsReconciliationOpen(false)}><p role="status">Abriendo confirmación de compra…</p></DialogLayer>}><ReceiptReconciliationModal
         currency={currency}
         isOpen={isReconciliationOpen}
         onClose={() => setIsReconciliationOpen(false)}
         checkedItems={enrichedList.filter((i) => i.checked)}
         onConfirmPurchase={(purchasePayload) => {
-          onCompletePurchaseToPantry(purchasePayload);
-          setIsWalkingMode(false);
+          const result = onCompletePurchaseToPantry(purchasePayload);
+          if (result !== false) setIsWalkingMode(false);
+          return result;
         }}
       />
       </Suspense>}
