@@ -12,3 +12,15 @@ test('repeated ingredients share available stock; incompatible units and deficit
   assert.equal(planRecipe(products,{...recipe,ingredients:[{productName:'cafe',amount:1,unit:'piezas'}]},'house-1').canCook,false);
   assert.throws(() => planRecipe(products,recipe,'house-1',-1));
 });
+
+test('missing ingredients list names, required and available amounts for the confirmation', () => {
+  const p = planRecipe(products, { portions: 2, ingredients: [{ productName: 'cafe', amount: 125, unit: 'g' }, { productName: 'azucar', amount: 100, unit: 'g' }] }, 'house-1', 4);
+  assert.equal(p.canCook, false);
+  assert.equal(p.missingIngredients.length, 1);
+  assert.equal(p.missingIngredients[0].name, 'azucar');
+  assert.equal(p.missingIngredients[0].required, 200);
+  assert.equal(p.missingIngredients[0].available, 0);
+  assert.equal(p.missingIngredients[0].unit, 'g');
+  assert.equal(p.evaluatedIngredients[0].isEnough, true);
+  assert.equal(p.evaluatedIngredients[0].requiredAmount, 250);
+});

@@ -1,9 +1,14 @@
 rules_version = '2';
 // =============================================================================
 // 🛡️ ALACENA Enterprise & CavaPro — Firestore Security Rules
-// Versión: v3.3.0-Titanium-Aurora-Perfection
+// Versión: v3.10.2 (antes v3.3.0-Titanium-Aurora-Perfection)
 // Proyecto: alacena-enterprise-prod
 // Estatus: PRODUCCIÓN (Audit Trail Append-Only + Multi-Tenant RBAC + Web & Mobile)
+// Nota E5 (3.10.2): la app suscribe products y shopping_list filtradas por
+// householdId activo (where householdId == casa); las reglas exigen el claim
+// global alacenaAccess + email verificado. El aislamiento por casa lo aplica
+// la consulta por casa; /global_ean_cache sigue siendo solo caché pública
+// código→nombre, sin datos del hogar.
 // =============================================================================
 
 service cloud.firestore {

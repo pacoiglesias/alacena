@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { planRecipe } from './utils/cookRecipe';
 import { downloadBackup, snapshotSignature, preserveSafetyBackup, persistSnapshot, mergeHistory } from './utils/backup';
-import { belongsToHouse, sameStockItem, positiveQuantity, purchaseSummary } from './utils/householdShopping';
+import { belongsToHouse, sameStockItem, positiveQuantity, purchaseSummary, mergeHouseholdRows } from './utils/householdShopping';
 import { readLocalState, writeLocalState } from './services/localState';
 import { reconcileReceiptList } from './utils/receiptReview';
 import { inventoryMovement } from './utils/inventoryMovement';
@@ -325,8 +325,10 @@ export default function App() {
   };
 
   const handleFirstConnectDownload = () => {
-    if (pendingCloud?.products) setProducts(pendingCloud.products);
-    if (pendingCloud?.shoppingList) setShoppingList(pendingCloud.shoppingList);
+    // E5: la nube trae solo la casa activa: fusionar, no reemplazar, para
+    // no borrar de la pantalla la despensa de la otra casa.
+    if (pendingCloud?.products) setProducts((prev) => mergeHouseholdRows(prev, pendingCloud.products, activeHouse.id));
+    if (pendingCloud?.shoppingList) setShoppingList((prev) => mergeHouseholdRows(prev, pendingCloud.shoppingList, activeHouse.id));
     writeLocalState(FIRST_CONNECT_DECISION_KEY, { decision: 'download', decidedAt: new Date().toISOString() });
     setPendingCloud(null);
     // Lo local ya es lo de la nube: liberar la conexión (despausa, marca
@@ -395,8 +397,9 @@ export default function App() {
     };
     const release = (uploaded = false) => {
       open=true; setCloudWritesPaused(false); setLocalImportOffer(false);
-      if (productRows && (!uploaded || productRows.length)) setProducts(migrateProductsExpiry(productRows));
-      if (shoppingRows && (!uploaded || shoppingRows.length)) setShoppingList(shoppingRows);
+      // E5: el snapshot es solo de la casa activa: fusionar, no reemplazar.
+      if (productRows && (!uploaded || productRows.length)) setProducts((prev) => mergeHouseholdRows(prev, migrateProductsExpiry(productRows), activeHouse.id));
+      if (shoppingRows && (!uploaded || shoppingRows.length)) setShoppingList((prev) => mergeHouseholdRows(prev, shoppingRows, activeHouse.id));
       if (bufferedAudit) setAuditLogs((prev) => mergeHistory(prev,bufferedAudit,'timestamp'));
       if (bufferedHistory) applyHistory(...bufferedHistory);
       writeLocalState('alacena_cloud_initialized_uid',getCloudUser()?.uid || '');
@@ -409,11 +412,13 @@ export default function App() {
         setLocalImportOffer(true); setCloudState('migration');
       } else release();
     };
-    const unsubProducts=subscribeToProducts(null,(rows,meta) => {
+    const unsubProducts=subscribeToProducts(activeHouse.id,(rows,meta) => {
       // Guardia E1: un snapshot vacío del servidor nunca vacía lo local.
-      if (shouldIgnoreSnapshot({ rowCount: rows.length, fromCache: !!meta?.fromCache, localCount: readLocalState('alacena_products', []).length })) return;
+      // E5: el conteo local es solo de esta casa (la suscripción es por casa).
+      const localHouseCount = readLocalState('alacena_products', []).filter((p) => belongsToHouse(p, activeHouse.id)).length;
+      if (shouldIgnoreSnapshot({ rowCount: rows.length, fromCache: !!meta?.fromCache, localCount: localHouseCount })) return;
       const migrated = migrateProductsExpiry(rows);
-      if (open) { setProducts(migrated); return; }
+      if (open) { setProducts((prev) => mergeHouseholdRows(prev, migrated, activeHouse.id)); return; }
       // Primera conexión (E1): con datos locales y sin decisión guardada, el
       // snapshot se retiene y se pregunta subir/descargar; la oferta de
       // migración (3.10.0) solo se usa cuando ya hay decisión.
@@ -423,9 +428,10 @@ export default function App() {
       }
       if (!meta?.fromCache) { productRows=migrated; decide(); }
     },fail);
-    const unsubShopping=subscribeToShoppingList(null,(rows,meta) => {
-      if (shouldIgnoreSnapshot({ rowCount: rows.length, fromCache: !!meta?.fromCache, localCount: readLocalState('alacena_shopping_list', []).length })) return;
-      if (open) { setShoppingList(rows); setCloudState(meta?.hasPendingWrites?'pending':meta?.fromCache?'cached':'synced'); return; }
+    const unsubShopping=subscribeToShoppingList(activeHouse.id,(rows,meta) => {
+      const localHouseCount = readLocalState('alacena_shopping_list', []).filter((i) => belongsToHouse(i, activeHouse.id)).length;
+      if (shouldIgnoreSnapshot({ rowCount: rows.length, fromCache: !!meta?.fromCache, localCount: localHouseCount })) return;
+      if (open) { setShoppingList((prev) => mergeHouseholdRows(prev, rows, activeHouse.id)); setCloudState(meta?.hasPendingWrites?'pending':meta?.fromCache?'cached':'synced'); return; }
       if (needsFirstConnectChoice({ localCount: localTotal(), decided: hasDecision() })) {
         setPendingCloud((prev) => ({ ...(prev || { products: null, productsArrived: false }), shoppingList: rows, shoppingArrived: true }));
         return;
@@ -435,7 +441,7 @@ export default function App() {
     const unsubAudit=subscribeToAuditLogs((rows) => {bufferedAudit=rows;if(open)setAuditLogs((prev) => mergeHistory(prev,rows,'timestamp'));},fail);
     const unsubHistory=subscribeToPurchaseHistory((rows,page) => {bufferedHistory=[rows,page];if(open)applyHistory(rows,page);},fail);
     return () => {cloudRelease.current=null;unsubProducts();unsubShopping();unsubAudit();unsubHistory();setCloudWritesPaused(false);};
-  }, [cloudAllowed]);
+  }, [cloudAllowed, activeHouse.id]);
   // Audio mute toggle
   const handleToggleMute = () => {
     const muted = audio.toggleMute();
@@ -1051,7 +1057,7 @@ export default function App() {
   const handleCookRecipe = (recipe, staffName, portions = recipe.portions) => {
     try {
       const plan = planRecipe(products, recipe, activeHouse.id, portions);
-      if (!plan.canCook) { setOperationNotice('No se descontó nada: faltan ingredientes o las unidades no son compatibles.'); return false; }
+      if (!plan.canCook) { setOperationNotice(`No se descontó nada: faltan ${plan.missingIngredients.map((m) => `${m.name} (${m.deficit} ${m.unit})`).join(', ')}.`); return false; }
       const byId = new Map(plan.writes.map((w) => [w.product.id, w.product]));
       setProducts((prev) => prev.map((p) => byId.get(p.id) || p));
       plan.writes.forEach((w) => { saveProductToCloud({ ...w.product, updatedAt:new Date().toISOString() }, {delta:w.delta}); trackConsumption(w.product, -w.delta); });
@@ -1135,7 +1141,6 @@ export default function App() {
         activeHouse={activeHouse}
         onOpenHouseModal={() => setIsHouseModalOpen(true)}
         onOpenChangelog={() => setIsChangelogOpen(true)}
-        onResetDemoData={handleResetDemoData}
         onOpenScanner={handleOpenScanner}
         onOpenCommandCenter={() => setIsCommandCenterOpen(true)}
         onOpenQrBooklet={() => setIsQrBookletOpen(true)}
@@ -1302,6 +1307,7 @@ export default function App() {
         onOpenChangelog={() => setIsChangelogOpen(true)}
         onToggleMute={handleToggleMute}
         isMuted={isMuted}
+        isCloudConnected={cloudAllowed}
         lowStockCount={products.filter((p) => (p.quantity || 0) <= (p.minStock || 0)).length}
       />
       )}

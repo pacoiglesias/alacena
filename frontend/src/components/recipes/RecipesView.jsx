@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Utensils, ChefHat, CheckCircle2, AlertCircle, Sparkles, 
-  Plus, Users, DollarSign, X, Check, ShoppingCart, Clock, 
-  Flame, Play, Pause, RotateCcw, Volume2, Trash2, ArrowRight
+  Plus, X, Check, ShoppingCart, Clock, 
+  Flame, Play, Pause, RotateCcw, Trash2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
@@ -195,6 +195,10 @@ export default function RecipesView({
     setNewRecipeDesc('');
     setNewIngredients([{ productName: '', amount: 1, unit: 'kg' }]);
   };
+
+  // E3: la confirmación de cocinar muestra la evaluación ya escalada
+  // (qué se descuenta y qué falta) antes de deducir nada.
+  const cookPlan = cookingRecipe ? evaluateRecipeWithPortions(cookingRecipe) : null;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -820,6 +824,28 @@ export default function RecipesView({
               </div>
             </div>
 
+            {/* E3: qué se descuenta y qué falta, antes de confirmar. */}
+            {cookPlan && (
+              <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-soft)] space-y-1.5 text-xs">
+                <div className="font-bold text-white">Se descontará de la despensa:</div>
+                {cookPlan.evaluatedIngredients.map((ing, idx) => (
+                  <div key={idx} className="flex justify-between gap-2">
+                    <span className={ing.isEnough ? 'text-[var(--ink-secondary)]' : 'text-rose-300 font-bold'}>
+                      {ing.productName} — {ing.requiredAmount} {ing.unit}
+                    </span>
+                    <span className={ing.isEnough ? 'text-emerald-300 font-mono' : 'text-rose-300 font-mono font-bold'}>
+                      {ing.isEnough ? `tienes ${ing.availableQty}` : `tienes ${ing.availableQty} · faltan ${Math.round((ing.requiredAmount - ing.availableQty) * 1000) / 1000}`}
+                    </span>
+                  </div>
+                ))}
+                {!cookPlan.canCook && (
+                  <div className="pt-1.5 text-rose-300 font-bold" role="alert">
+                    ⚠️ Faltan ingredientes: no se descontará nada. Manda los faltantes al súper o ajusta las porciones.
+                  </div>
+                )}
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-bold text-[var(--ink-secondary)] uppercase mb-1">
                 ¿Quién preparó el platillo?
@@ -846,7 +872,8 @@ export default function RecipesView({
               </button>
               <button
                 onClick={handleConfirmCook}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-emerald-500 hover:brightness-110 shadow-md flex items-center gap-1.5"
+                disabled={!!cookPlan && !cookPlan.canCook}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-emerald-500 hover:brightness-110 shadow-md flex items-center gap-1.5 disabled:opacity-40 disabled:hover:brightness-100"
               >
                 <Check className="w-4 h-4" />
                 <span>Confirmar y Descontar</span>

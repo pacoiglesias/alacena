@@ -20,7 +20,7 @@ const ReceiptReconciliationModal = lazy(() => import('./ReceiptReconciliationMod
 const WeeklyStaplesModal = lazy(() => import('./WeeklyStaplesModal'));
 const PriceComparisonModal = lazy(() => import('./PriceComparisonModal'));
 import { getCatalogs } from '../../services/catalogsService';
-import { belongsToHouse, positiveQuantity } from '../../utils/householdShopping';
+import { belongsToHouse, positiveQuantity, stepForUnit, roundQty3, inferShoppingUnit, pushRemovedItem } from '../../utils/householdShopping';
 import { readLocalState, writeLocalState } from '../../services/localState';
 import { normalizeItemName, areItemsEquivalent, deduplicateShoppingItems } from '../../utils/deduplication';
 import { notify, confirmDialog } from '../../services/notice';
@@ -54,13 +54,21 @@ export function getDepartmentForItem(item) {
 const ShoppingItemCard = React.memo(function ShoppingItemCard({
   item, onToggle, onUpdateQuantity, onRemove, onShowQr, money,
 }) {
-  const step = ['kg', 'l', 'litros'].includes(item.unit) ? 0.25 : 1;
+  // Q1: paso por unidad (0,1 kg/l) y 3 decimales para pesados.
+  const step = stepForUnit(item.unit);
   const changeQty = (delta) => {
     audio.click();
-    const next = parseFloat(
-      (Math.max(0.01, (parseFloat(item.quantity) || 1) + delta)).toFixed(2)
-    );
+    const next = roundQty3(Math.max(0.01, (parseFloat(item.quantity) || 1) + delta));
     onUpdateQuantity(item.id, next);
+  };
+  // Q2: tocar la cantidad abre un input numérico en la tarjeta: se corrige
+  // sin borrarla y sin perder tienda, precio ni zona.
+  const [editingQty, setEditingQty] = useState(null);
+  const commitQty = () => {
+    if (editingQty === null) return;
+    const next = roundQty3(Math.max(0.01, parseFloat(editingQty) || 0));
+    setEditingQty(null);
+    if (next !== Number(item.quantity)) onUpdateQuantity(item.id, next);
   };
   return (
     <div
@@ -106,7 +114,30 @@ const ShoppingItemCard = React.memo(function ShoppingItemCard({
                 aria-label={`Quitar ${step} ${item.unit || ''}`}
               >−</button>
               <span className="font-mono text-emerald-300 font-bold text-xs px-1">
-                {item.quantity} {item.unit}
+                {editingQty === null ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditingQty(String(item.quantity ?? 1))}
+                    className="font-mono text-emerald-300 font-bold text-xs cursor-pointer underline decoration-dotted underline-offset-2"
+                    title="Tocar para escribir la cantidad exacta"
+                    aria-label={`Editar cantidad de ${item.name}, ahora ${item.quantity} ${item.unit || ''}`}
+                  >
+                    {item.quantity} {item.unit}
+                  </button>
+                ) : (
+                  <input
+                    type="number"
+                    step="any"
+                    min="0.01"
+                    autoFocus
+                    value={editingQty}
+                    onChange={(e) => setEditingQty(e.target.value)}
+                    onBlur={commitQty}
+                    onKeyDown={(e) => { if (e.key === 'Enter') commitQty(); if (e.key === 'Escape') setEditingQty(null); }}
+                    className="w-20 px-1 py-0.5 rounded bg-black/40 border border-emerald-400/60 text-emerald-200 text-xs font-mono focus:outline-none"
+                    aria-label={`Cantidad exacta de ${item.name} en ${item.unit || 'piezas'}`}
+                  />
+                )}
               </span>
               <button
                 type="button"
@@ -204,14 +235,15 @@ export default function ShoppingListView({
   const [hideChecked, setHideChecked] = useState(false);
   const [search, setSearch] = useState('');
   const [quickName, setQuickName] = useState('');
-  const [removedItem, setRemovedItem] = useState(null);
+  // Q7: pila de los últimos 3 borrados, cada uno con su Deshacer.
+  const [removedItems, setRemovedItems] = useState([]);
   const [notice, setNotice] = useState('');
   const budgetKey = 'alacena-budget-' + (activeHouse?.id || 'house-1');
   const [budgets, setBudgets] = useState(() => readLocalState('alacena_budgets', {}));
   const budget = Number(budgets[budgetKey]) || 0;
   const currency = activeHouse?.currency || 'MXN';
   const money = useCallback((value) => new Intl.NumberFormat(currency === 'EUR' ? 'es-ES' : 'es-MX', { style: 'currency', currency }).format(value), [currency]);
-  const removeItem = (item) => { setRemovedItem(item); onRemoveItem(item.id); setNotice('Artículo eliminado.'); };
+  const removeItem = (item) => { setRemovedItems((prev) => pushRemovedItem(prev, item)); onRemoveItem(item.id); setNotice('Artículo eliminado.'); };
   // Callbacks estables para las tarjetas memoizadas
   const handleToggleItem = useCallback((id) => onToggleItem(id), [onToggleItem]);
   const handleUpdateItemQuantity = useCallback(
@@ -223,10 +255,10 @@ export default function ShoppingListView({
   const quickAdd = (e) => {
     e.preventDefault();
     if (!quickName.trim()) return;
-    onAddItem({ name: quickName.trim(), quantity: 1, unit: 'piezas', checked: false,
+    onAddItem({ name: quickName.trim(), quantity: 1, unit: inferShoppingUnit(quickName.trim()), checked: false,
       estimatedPriceMxn: 0, store: selectedStore === 'ALL' ? 'Supermercado' : selectedStore,
       targetZone: zones[0]?.name || 'Alacena Principal' });
-    setRemovedItem(null); setNotice('Agregaste ' + quickName.trim() + ' a tu lista.'); setQuickName('');
+    setRemovedItems([]); setNotice('Agregaste ' + quickName.trim() + ' a tu lista.'); setQuickName('');
   };
 
   // Batch import callback con desduplicación previa
@@ -440,7 +472,9 @@ export default function ShoppingListView({
           {enrichedList.some((i) => !i.estimatedPriceMxn) && <small>Hay productos sin precio. El estimado está incompleto.</small>}
         </div>
       </section>
-      {notice && <div className="shopping-notice" role="status"><span>{notice}</span>{removedItem && <button type="button" onClick={() => { onAddItem(removedItem); setRemovedItem(null); setNotice('Artículo restaurado.'); }}><Undo2 size={15} /> Deshacer</button>}</div>}
+      {notice && <div className="shopping-notice" role="status"><span>{notice}</span>{removedItems.map((removed) => (
+        <button key={removed.id} type="button" onClick={() => { onAddItem(removed); setRemovedItems((prev) => prev.filter((i) => i.id !== removed.id)); setNotice('Artículo restaurado.'); }}><Undo2 size={15} /> Deshacer {removed.name}</button>
+      ))}</div>}
       
       {/* 1. Banner Proactivo Inteligente: Alerta Automática de Alacena */}
       {proactiveLowStockItems.length > 0 && (

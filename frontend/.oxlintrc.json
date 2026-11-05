@@ -4,6 +4,9 @@
     "react",
     "oxc"
   ],
+  "ignorePatterns": [
+    "dist-backup-392/**"
+  ],
   "rules": {
     "react/rules-of-hooks": "error",
     "react/only-export-components": [

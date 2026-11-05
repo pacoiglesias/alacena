@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { belongsToHouse, sameStockItem, positiveQuantity, purchaseSummary } from '../src/utils/householdShopping.js';
+import { belongsToHouse, sameStockItem, positiveQuantity, purchaseSummary, stepForUnit, roundQty3, inferShoppingUnit, pushRemovedItem, mergeHouseholdRows } from '../src/utils/householdShopping.js';
 import { deduplicateInventoryProducts, deduplicateShoppingItems } from '../src/utils/deduplication.js';
 import { readLocalState, writeLocalState } from '../src/services/localState.js';
 
@@ -70,4 +70,56 @@ test('full device storage reports the failure', () => {
   globalThis.window = { dispatchEvent: (event) => events.push(event.type) };
   assert.equal(writeLocalState('list', []), false);
   assert.deepEqual(events, ['alacena-storage-error']);
+});
+
+// Q1/Q3: paso por unidad y redondeo a 3 decimales para pesados.
+test('steppers use 0.1 for weighed units and 1 for the rest, rounded to 3 decimals', () => {
+  assert.equal(stepForUnit('kg'), 0.1);
+  assert.equal(stepForUnit('l'), 0.1);
+  assert.equal(stepForUnit('litros'), 0.1);
+  assert.equal(stepForUnit('piezas'), 1);
+  assert.equal(stepForUnit('botellas'), 1);
+  assert.equal(stepForUnit('g'), 1);
+  assert.equal(roundQty3(1.255 + 0.1), 1.355);
+  assert.equal(roundQty3(1.26 - 0.1), 1.16);
+});
+
+// Q2: el alta rápida sugiere la unidad por el nombre en vez de fijar piezas.
+test('quick add infers litres or kilos from the name', () => {
+  assert.equal(inferShoppingUnit('Leche entera'), 'l');
+  assert.equal(inferShoppingUnit('Carne de res'), 'kg');
+  assert.equal(inferShoppingUnit('Limón'), 'kg');
+  assert.equal(inferShoppingUnit('Jabón líquido'), 'piezas');
+  assert.equal(inferShoppingUnit(''), 'piezas');
+});
+
+// Q7: la pila de deshacer recuerda los últimos 3 borrados.
+test('undo stack keeps the last 3 removed items without duplicates', () => {
+  const a = { id: 'a' }, b = { id: 'b' }, c = { id: 'c' }, d = { id: 'd' };
+  let stack = pushRemovedItem([], a);
+  stack = pushRemovedItem(stack, b);
+  stack = pushRemovedItem(stack, c);
+  stack = pushRemovedItem(stack, d);
+  assert.deepEqual(stack.map((i) => i.id), ['d', 'c', 'b']);
+  assert.deepEqual(pushRemovedItem(stack, b).map((i) => i.id), ['b', 'd', 'c']);
+});
+
+// E5: un snapshot filtrado por casa solo reemplaza las filas de esa casa.
+test('household snapshot merge keeps the other house rows and drops removed ones', () => {
+  const prev = [
+    { id: 'mx1', name: 'Café', quantity: 1, householdId: 'house-1' },
+    { id: 'mx2', name: 'Arroz', quantity: 2, householdId: 'house-1' },
+    { id: 'es1', name: 'Café', quantity: 5, householdId: 'house-spain' },
+    { id: 'old', name: 'Sal', quantity: 1 },
+  ];
+  const incoming = [{ id: 'mx1', name: 'Café', quantity: 0.5, householdId: 'house-1' }];
+  const merged = mergeHouseholdRows(prev, incoming, 'house-1');
+  assert.equal(merged.find((r) => r.id === 'mx1').quantity, 0.5);
+  assert.equal(merged.find((r) => r.id === 'mx2'), undefined);
+  assert.equal(merged.find((r) => r.id === 'es1').quantity, 5);
+  assert.equal(merged.find((r) => r.id === 'old'), undefined);
+  const mergedEs = mergeHouseholdRows(prev, [], 'house-spain');
+  assert.equal(mergedEs.find((r) => r.id === 'es1'), undefined);
+  assert.equal(mergedEs.find((r) => r.id === 'mx1').quantity, 1);
+  assert.equal(mergedEs.find((r) => r.id === 'old').quantity, 1);
 });

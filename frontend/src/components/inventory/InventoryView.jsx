@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
-  Search, Plus, Filter, AlertTriangle, CheckCircle, 
-  Trash2, Pencil, ArrowUpDown, DollarSign, Layers, Warehouse,
+  Search, Plus, AlertTriangle, 
+  Trash2, Pencil, DollarSign, Warehouse,
   LayoutGrid, Table as TableIcon, Wine, Sparkles, MapPin, Star, ShoppingCart,
-  Clock, FileSpreadsheet, Utensils, Check, QrCode, Radio, Camera, ChevronDown, BarChart3
+  Clock, FileSpreadsheet, Utensils, Check, QrCode, Camera, ChevronDown, BarChart3
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { isCavaZone } from '../../utils/cavaGuard';
+import { stepForUnit, roundQty3 } from '../../utils/householdShopping';
 import ZonesBar from '../zones/ZonesBar';
 import ProactiveHomeAdvisor from '../assistant/ProactiveHomeAdvisor';
 import ProductPhoto from '../common/ProductPhoto';
@@ -158,8 +159,10 @@ export default function InventoryView({
     });
   }, [products, selectedZone, selectedCategory, statusFilter, search, activeHouse, navigationTarget, zones]);
 
+  // Q3: el paso rápido depende de la unidad (0,1 kg/l; 1 piezas/botellas)
+  // y las cantidades quedan a 3 decimales, como en el resto de la app.
   const handleAdjustQuantity = (product, delta) => {
-    const newQty = Math.max(0, (product.quantity || 0) + delta);
+    const newQty = Math.max(0, roundQty3((product.quantity || 0) + delta));
     if (delta > 0) {
       audio.click();
     } else {
@@ -787,7 +790,7 @@ export default function InventoryView({
                         </button>
 
                         <button
-                          onClick={() => handleAdjustQuantity(p, 1)}
+                          onClick={() => handleAdjustQuantity(p, stepForUnit(p.unit))}
                           className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--border-soft)] border border-[var(--border-soft)] text-white flex items-center justify-center font-bold text-xs"
                           title="Añadir 1 botella"
                         >
@@ -905,14 +908,14 @@ export default function InventoryView({
 
                       {/* Botones Táctiles Grandes + / - */}
                       <button
-                        onClick={() => handleAdjustQuantity(p, -1)}
+                        onClick={() => handleAdjustQuantity(p, -stepForUnit(p.unit))}
                         className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)] hover:bg-rose-500/20 border border-[var(--border-strong)] hover:border-rose-500/40 text-[var(--ink-secondary)] hover:text-rose-300 flex items-center justify-center font-black text-sm transition-all active:scale-95 cursor-pointer"
                         title="Consumir 1 unidad (-1)"
                       >
                         -
                       </button>
                       <button
-                        onClick={() => handleAdjustQuantity(p, 1)}
+                        onClick={() => handleAdjustQuantity(p, stepForUnit(p.unit))}
                         className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)] hover:bg-emerald-500/20 border border-[var(--border-strong)] hover:border-emerald-500/40 text-[var(--ink-secondary)] hover:text-emerald-300 flex items-center justify-center font-black text-sm transition-all active:scale-95 cursor-pointer"
                         title="Ingresar / Reabastecer 1 unidad (+1)"
                       >
@@ -1044,14 +1047,14 @@ export default function InventoryView({
                       <td className="py-2.5 sm:py-3 px-2 sm:px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => handleAdjustQuantity(p, -1)}
+                            onClick={() => handleAdjustQuantity(p, -stepForUnit(p.unit))}
                             className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[var(--bg-elevated)] hover:bg-rose-500/20 border border-[var(--border-strong)] text-gray-300 hover:text-white flex items-center justify-center font-bold text-xs active:scale-95 cursor-pointer"
                             title="Consumir 1 unidad"
                           >
                             -
                           </button>
                           <button
-                            onClick={() => handleAdjustQuantity(p, 1)}
+                            onClick={() => handleAdjustQuantity(p, stepForUnit(p.unit))}
                             className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[var(--bg-elevated)] hover:bg-emerald-500/20 border border-[var(--border-strong)] text-gray-300 hover:text-white flex items-center justify-center font-bold text-xs active:scale-95 cursor-pointer"
                             title="Añadir 1 unidad"
                           >

@@ -2,7 +2,7 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useDismissablePopover } from '../../hooks/useDismissablePopover';
 import { 
-  Sparkles, Volume2, VolumeX, MapPin, 
+  Volume2, VolumeX, 
   ChevronDown, Utensils, History, Layers, RefreshCw, 
   ShoppingCart, Camera, Wine, User, Shield, Check, Sliders,
   BookOpen, Palette, Store, Sun, QrCode, Settings, Terminal
@@ -32,7 +32,6 @@ export default function Header({
   activeHouse, 
   onOpenHouseModal, 
   onOpenChangelog, 
-  onResetDemoData,
   onOpenScanner,
   onOpenCommandCenter,
   onOpenQrBooklet,
@@ -272,6 +271,19 @@ export default function Header({
                 </div>
               )}
             </div>
+
+            {/* Q6: silencio a un toque en la barra principal (antes solo
+                dentro del menú de herramientas, a 2 toques). */}
+            <button
+              onClick={onToggleMute}
+              className="flex items-center gap-1.5 px-2.5 py-2 min-h-[44px] rounded-xl text-xs font-semibold border border-[var(--border-soft)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:text-white transition-all cursor-pointer"
+              title={isMuted ? 'Activar efectos de sonido' : 'Silenciar efectos de sonido'}
+              aria-label={isMuted ? 'Activar sonido' : 'Silenciar sonido'}
+              aria-pressed={isMuted}
+            >
+              {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+              <span className="hidden lg:inline">{isMuted ? 'Silenciado' : 'Sonido'}</span>
+            </button>
 
             {/* Escáner Universal 1-Tap (Códigos & Tickets) */}
             <button

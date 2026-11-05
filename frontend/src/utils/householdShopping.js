@@ -26,3 +26,48 @@ export function purchaseSummary(payload) {
   return { items, estimated, total: actual != null && Number.isFinite(Number(actual)) && Number(actual) >= 0 ? Number(actual) : estimated,
     buyer: details?.buyerName?.trim() || 'Administrador General', notes: details?.ticketNotes?.trim() || '' };
 }
+
+// Paso del ajuste rápido según la unidad (Q1/Q3): los pesados se afinan
+// de 0,1 en 0,1 kg/l; piezas, botellas y el resto, de 1 en 1. Las
+// cantidades de pesados llevan 3 decimales en toda la app.
+export function stepForUnit(unit) {
+  const u = normalizeItemName(unit || 'piezas');
+  return ['kg', 'kilos', 'l', 'lt', 'litros'].includes(u) ? 0.1 : 1;
+}
+
+export function roundQty3(value) {
+  return Math.round(Number(value) * 1000) / 1000;
+}
+
+// Unidad que sugiere el alta rápida del súper por el nombre (Q2): el alta
+// ya no fija siempre 'piezas' cuando se escribe leche, carne o verdura.
+// Solo una sugerencia editable: la tarjeta permite corregir la cantidad
+// y la unidad se puede cambiar al editar el artículo.
+const UNIT_BY_KEYWORD = [
+  ['l', ['leche', 'crema', 'yogur', 'yogurt', 'jugo', 'aceite', 'agua', 'refresco', 'vinagre']],
+  ['kg', ['carne', 'pollo', 'res', 'cerdo', 'pescado', 'salmon', 'camaron', 'queso', 'jamon', 'arroz', 'frijol', 'azucar', 'harina', 'cafe', 'papa', 'jitomate', 'tomate', 'cebolla', 'limon', 'aguacate', 'manzana', 'platano', 'zanahoria', 'mantequilla']],
+];
+export function inferShoppingUnit(name) {
+  const text = normalizeItemName(name || '');
+  for (const [unit, keywords] of UNIT_BY_KEYWORD) {
+    if (keywords.some((kw) => text.includes(kw))) return unit;
+  }
+  return 'piezas';
+}
+
+// Pila de deshacer del súper (Q7): recuerda los últimos 3 borrados en
+// vez de solo el último; borrar el mismo artículo dos veces no lo duplica.
+export function pushRemovedItem(stack, item, max = 3) {
+  return [item, ...(stack || []).filter((i) => i.id !== item.id)].slice(0, max);
+}
+
+// Fusión por casa de un snapshot de la nube (E5): la suscripción ya viene
+// filtrada por householdId, así que el snapshot solo reemplaza las filas
+// de esa casa; las filas locales de las demás casas se conservan tal cual.
+// Los registros sin casa son de la casa original ('house-1').
+export function mergeHouseholdRows(prevRows, incomingRows, householdId) {
+  const kept = (prevRows || []).filter((row) => !belongsToHouse(row, householdId));
+  const incoming = new Map();
+  for (const row of incomingRows || []) incoming.set(row.id, row);
+  return [...kept, ...incoming.values()];
+}

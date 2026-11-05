@@ -1,6 +1,6 @@
 # ALACENA · La lista de compras de tu casa
 
-Versión web **3.10.0**, React + Vite + Firebase. Consulta la [revisión integral y sus límites](docs/REVISION-3.10.0.md).
+Versión web **3.10.2**, React + Vite + Firebase. Consulta la [revisión integral y sus límites](docs/REVISION-3.10.0.md).
 
 Producción: [alacena.cobertores.com](https://alacena.cobertores.com/) · [Firebase Hosting](https://alacena-enterprise-prod.web.app/).
 Proyecto Firebase: `alacena-enterprise-prod`, target: `alacena-app`. `alacena.bolsas.com` no está configurado.

@@ -1,9 +1,8 @@
 import React from 'react';
 import { 
-  X, Sparkles, Plus, Wine, ShoppingCart, RefreshCw, 
-  Share2, QrCode, Camera, ShieldCheck, Database, 
-  Trash2, FileText, Bell, CheckCircle2, ChevronRight, 
-  History, Download, Volume2, Layers, Warehouse 
+  X, Sparkles, Wine, ShoppingCart, RefreshCw, 
+  Camera, ShieldCheck, ChevronRight, 
+  History, Download, Layers, Warehouse 
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
@@ -26,6 +25,7 @@ export default function CavaProCommandCenterModal({
   onOpenChangelog,
   onToggleMute,
   isMuted,
+  isCloudConnected,
   lowStockCount,
 }) {
   if (!isOpen) return null;
@@ -259,15 +259,6 @@ export default function CavaProCommandCenterModal({
               </button>
 
               <button
-                onClick={() => handleAction(onResetDemoData)}
-                className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all"
-              >
-                <RefreshCw className="w-4 h-4 text-amber-400 mb-1" />
-                <span className="text-xs font-bold text-white block">📦 Datos de Ejemplo</span>
-                <span className="text-[10px] text-gray-400">Restaurar catálogo MXN</span>
-              </button>
-
-              <button
                 onClick={() => handleAction(onOpenChangelog)}
                 className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all"
               >
@@ -288,6 +279,28 @@ export default function CavaProCommandCenterModal({
                 {hasPreCloudBackup && preCloudBackupDate
                   ? `Despensa y lista guardadas el ${new Date(preCloudBackupDate).toLocaleDateString('es-MX')}`
                   : 'Sin copia guardada en este dispositivo'}
+              </span>
+            </button>
+          </div>
+
+          {/* Zona de peligro (Q4 + E2): los datos de ejemplo BORRAN los datos
+              reales y solo existen en local, así que van separados, en rojo
+              y deshabilitados mientras haya una casa conectada a la nube. */}
+          <div>
+            <div className="flex items-center gap-2 text-xs font-bold text-rose-400 uppercase tracking-wider mb-2.5">
+              <span>⚠️ Zona de peligro</span>
+            </div>
+            <button
+              onClick={() => handleAction(onResetDemoData)}
+              disabled={!!isCloudConnected}
+              className="w-full p-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/40 text-left transition-all disabled:opacity-40 disabled:hover:bg-rose-500/10"
+            >
+              <RefreshCw className="w-4 h-4 text-rose-400 mb-1" />
+              <span className="text-xs font-bold text-white block">🗑️ Borrar todo y poner datos de ejemplo</span>
+              <span className="text-[10px] text-gray-400">
+                {isCloudConnected
+                  ? 'No disponible con una casa conectada a la nube: desconéctala primero.'
+                  : 'Borra tu despensa, lista, zonas, recetas, casas y bitácora reales y las reemplaza por datos de demostración. Antes se descarga una copia de seguridad.'}
               </span>
             </button>
           </div>

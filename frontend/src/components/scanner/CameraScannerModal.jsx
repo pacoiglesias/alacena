@@ -3,17 +3,17 @@ import { decodeVideoFrame, decodeImageFile, hasNativeDetector } from '../../util
 import { diagLog, diagSessionStart } from '../../utils/scannerDiag';
 import { 
   X, Camera, ScanLine, CheckCircle2, Plus, Minus,
-  ShoppingCart, Warehouse, AlertCircle, Sparkles, 
-  Keyboard, Image as ImageIcon, RefreshCw, Check, Search, Zap,
-  Wine, Edit3, Flashlight, Receipt, FileText, Loader2, ArrowRight,
-  TrendingDown, TrendingUp, Award, DollarSign
+  ShoppingCart, AlertCircle, 
+  Keyboard, Image as ImageIcon, RefreshCw, Check, Search,
+  Flashlight, Receipt, FileText, Loader2, ArrowRight,
+  TrendingDown, TrendingUp, Award
 } from 'lucide-react';
 import TicketReview from '../shopping/TicketReview';
 import { audio } from '../../services/audioService';
 import { lookupBarcode } from '../../services/barcodeLookupService';
-import { findProductByScanCode, extractCodeFromScan, cameraErrorMessage, isScannerVideoFlowing, isScannerStreamingVideo, isBlackBudgetExceeded, SCANNER_BLACK_BUDGET_MS } from '../../utils/scanHelper';
+import { findProductByScanCode, cameraErrorMessage, isScannerVideoFlowing, isScannerStreamingVideo, isBlackBudgetExceeded } from '../../utils/scanHelper';
 import { isCavaZone, isAlcoholicOrBeverage, sanitizeCavaProduct } from '../../utils/cavaGuard';
-import { extractShoppingListFromImage, preprocessImageForOcr, extractTextFromFile } from '../../services/ocrService';
+import { extractShoppingListFromImage, extractTextFromFile } from '../../services/ocrService';
 import { parseRawShoppingText } from '../../services/smartListParser';
 import { analyzeTicketPriceIntelligence, recordPricePoints } from '../../services/priceIntelligenceService';
 import { notify } from '../../services/notice';
@@ -60,6 +60,15 @@ export default function CameraScannerModal({
   // El último modo elegido se recuerda en localStorage: el escáner ya no
   // exige volver a elegirlo en cada artículo. INTERACTIVE solo la primera vez.
   const SCAN_DIRECTION_MODES = ['INTERACTIVE', 'ADD_ENTRY', 'CONSUME_EXIT', 'RESTOCK_SUPER'];
+  const SCAN_DIRECTION_LABELS = { INTERACTIVE: 'Consultar / Preguntar', ADD_ENTRY: '➕ +1 Entrada Despensa', CONSUME_EXIT: '➖ -1 Salida Consumo', RESTOCK_SUPER: '🛒 Mandar al Súper' };
+  // E8: modo simple por defecto — el modo recordado es lo primero visible
+  // y los demás quedan colapsados detrás de "Cambiar". La cámara no cambia.
+  const [simpleMode, setSimpleMode] = useState(() => {
+    try { return localStorage.getItem('alacena:scan_simple') !== '0'; } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('alacena:scan_simple', simpleMode ? '1' : '0'); } catch { /* sin almacenamiento */ }
+  }, [simpleMode]);
   const [scanDirectionMode, setScanDirectionMode] = useState(() => {
     try {
       const saved = localStorage.getItem('alacena:scan_direction');
@@ -1161,11 +1170,33 @@ TOTAL MXN                    $2,303.00`;
           {activeTab === 'BARCODE' && (
             <div className="space-y-4">
               
-              {/* Selector de Dirección Inmediata */}
+              {/* Selector de Dirección Inmediata (E8: modo simple por defecto) */}
               <div className="p-3 rounded-2xl bg-[var(--bg-sunken)] border border-[var(--border-soft)] space-y-1.5">
-                <span className="text-[10px] font-extrabold text-[var(--gold)] uppercase tracking-wider block">
-                  ¿Qué hacer al detectar el código?
-                </span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-extrabold text-[var(--gold)] uppercase tracking-wider">
+                    ¿Qué hacer al detectar el código?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { audio.click(); setSimpleMode((v) => !v); }}
+                    className="text-[10px] font-bold text-emerald-300 hover:text-white shrink-0"
+                    aria-pressed={simpleMode}
+                  >
+                    {simpleMode ? 'Ver los 4 modos' : 'Modo simple'}
+                  </button>
+                </div>
+                {simpleMode ? (
+                  <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-emerald-500/20 border border-emerald-400 text-emerald-300">
+                    <span className="text-xs font-bold">{SCAN_DIRECTION_LABELS[scanDirectionMode] || 'Consultar / Preguntar'}</span>
+                    <button
+                      type="button"
+                      onClick={() => { audio.click(); setSimpleMode(false); }}
+                      className="text-[11px] font-bold underline underline-offset-2 shrink-0"
+                    >
+                      Cambiar
+                    </button>
+                  </div>
+                ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   {[
                     { id: 'INTERACTIVE', label: 'Consultar / Preguntar', icon: Search, color: 'text-amber-300' },
@@ -1195,6 +1226,7 @@ TOTAL MXN                    $2,303.00`;
                     );
                   })}
                 </div>
+                )}
               </div>
 
               {/* Mensaje de Confirmación Rápida */}

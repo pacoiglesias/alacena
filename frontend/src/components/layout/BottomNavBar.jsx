@@ -85,12 +85,13 @@ export default function BottomNavBar({
                 key={item.id}
                 type="button"
                 onClick={item.action}
+                aria-label="Escanear"
                 className="relative -top-4 flex flex-col items-center group focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded-full"
                 title="Escanear Código de Barras o Ticket de Compra"
               >
                 <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-emerald-600 via-emerald-500 to-amber-500 p-0.5 shadow-lg shadow-emerald-950/60 transition-transform active:scale-95 group-hover:scale-105 border-2 border-[var(--bg-sunken)]">
                   <div className="w-full h-full rounded-full bg-[var(--bg-elevated)] flex items-center justify-center text-emerald-400 group-hover:text-emerald-300">
-                    <IconComponent className="w-6 h-6 animate-pulse" />
+                    <IconComponent className="w-6 h-6" />
                   </div>
                 </div>
                 <span className="text-[10px] font-extrabold tracking-tight text-emerald-400 mt-0.5 font-sans">

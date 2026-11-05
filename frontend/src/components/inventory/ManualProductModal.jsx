@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  X, Check, DollarSign, MapPin, Tag, Box, UserCheck, Store, 
-  AlertCircle, QrCode, Sparkles, Printer, Calendar, Trash2, 
-  Plus, Settings, Star
+  X, Check, MapPin, Tag, Box, UserCheck, Store, 
+  QrCode, Calendar, Trash2, 
+  Plus, Settings, Camera
 } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
 import { audio } from '../../services/audioService';
 import { getCatalogs, addCustomStore, addCustomStaff } from '../../services/catalogsService';
 import { isCavaZone } from '../../utils/cavaGuard';
@@ -34,7 +33,7 @@ export default function ManualProductModal({
   const [staff, setStaff] = useState('');
   const [barcode, setBarcode] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
-  const [showQrPreview, setShowQrPreview] = useState(false);
+  const [photo, setPhoto] = useState('');
 
   // Inline quick adds
   const [isAddingQuickStore, setIsAddingQuickStore] = useState(false);
@@ -87,6 +86,7 @@ export default function ManualProductModal({
       setStaff(initialProduct.lastLoggedBy || (effectiveStaffList[0]?.name || 'María (Jefa de Cocina)'));
       setBarcode(initialProduct.barcode || `ALC-${Date.now().toString(36).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`);
       setExpiryDate(initialProduct.expiryDate || '');
+      setPhoto(initialProduct.photo || '');
     } else {
       setName('');
       setZone(zones[0]?.name || 'Alacena Principal');
@@ -100,6 +100,7 @@ export default function ManualProductModal({
       setStaff(effectiveStaffList[0]?.name || 'María (Jefa de Cocina)');
       setBarcode(`ALC-${Date.now().toString(36).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`);
       setExpiryDate('');
+      setPhoto('');
     }
   }, [initialProduct, isOpen, zones, catalogs]);
 
@@ -132,12 +133,33 @@ export default function ManualProductModal({
       lastLoggedBy: staff || effectiveStaffList[0]?.name || 'Administrador General',
       barcode: activeBarcode,
       expiryDate: expiryDate || null,
+      photo: photo || null,
       isWine: isCava ? true : Boolean(initialProduct?.isWine),
       updatedAt: new Date().toISOString(),
     };
 
     onSave(productPayload);
     onClose();
+  };
+
+  // E7: foto propia del producto (cámara o galería), reducida a 512 px
+  // para que no infle el respaldo ni el documento en la nube.
+  const handlePhotoFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, 512 / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        setPhoto(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSaveQuickStore = (e) => {
@@ -210,6 +232,35 @@ export default function ManualProductModal({
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white text-sm focus:outline-none focus:border-[var(--gold)]"
             />
+          </div>
+
+          {/* E7: foto propia del producto */}
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)]">
+            {photo ? (
+              <img src={photo} alt="Foto del producto" className="w-14 h-14 rounded-xl object-cover border border-[var(--border-soft)]" />
+            ) : (
+              <div className="w-14 h-14 rounded-xl bg-white/5 border border-[var(--border-soft)] flex items-center justify-center text-[var(--ink-tertiary)]">
+                <Camera className="w-5 h-5" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <span className="block text-xs font-bold text-[var(--ink-secondary)] uppercase tracking-wider">Foto del producto</span>
+              <span className="block text-[11px] text-[var(--ink-tertiary)]">Se ve en la tarjeta en vez del icono gris. Opcional.</span>
+            </div>
+            <label className="px-3 py-2 rounded-xl bg-[var(--gold)] text-[var(--on-gold)] text-xs font-bold cursor-pointer shrink-0">
+              {photo ? 'Cambiar foto' : 'Tomar foto'}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handlePhotoFile(e.target.files?.[0])}
+              />
+            </label>
+            {photo && (
+              <button type="button" onClick={() => setPhoto('')} className="px-2 py-2 text-xs font-bold text-rose-400 hover:text-white shrink-0" aria-label="Quitar foto">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
           {/* Zona y Categoría */}
