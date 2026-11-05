@@ -20,6 +20,9 @@ export default function CavaProCommandCenterModal({
   onOpenAuditTab,
   onExportBackupJson,
   onResetDemoData,
+  onRestorePreCloudBackup,
+  hasPreCloudBackup,
+  preCloudBackupDate,
   onOpenChangelog,
   onToggleMute,
   isMuted,
@@ -273,6 +276,20 @@ export default function CavaProCommandCenterModal({
                 <span className="text-[10px] text-gray-400">Ver versión y audio</span>
               </button>
             </div>
+
+            <button
+              onClick={() => handleAction(onRestorePreCloudBackup)}
+              disabled={!hasPreCloudBackup}
+              className="w-full mt-2.5 p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all disabled:opacity-40"
+            >
+              <History className="w-4 h-4 text-sky-400 mb-1" />
+              <span className="text-xs font-bold text-white block">↩️ Restaurar copia previa a la nube</span>
+              <span className="text-[10px] text-gray-400">
+                {hasPreCloudBackup && preCloudBackupDate
+                  ? `Despensa y lista guardadas el ${new Date(preCloudBackupDate).toLocaleDateString('es-MX')}`
+                  : 'Sin copia guardada en este dispositivo'}
+              </span>
+            </button>
           </div>
 
         </div>

@@ -60,6 +60,26 @@ import {
   deduplicateInventoryProducts
 } from './utils/deduplication';
 import { sanitizeAllInventory, sanitizeCavaProduct } from './utils/cavaGuard';
+import { migrateProductsExpiry } from './utils/productExpiry';
+import {
+  PRE_CLOUD_BACKUP_KEY,
+  FIRST_CONNECT_DECISION_KEY,
+  shouldIgnoreSnapshot,
+  isUsablePreCloudBackup,
+  ensurePreCloudBackup,
+  consumePreCloudBackup,
+  needsFirstConnectChoice,
+} from './utils/cloudSyncGuard';
+import CloudFirstConnectModal from './components/layout/CloudFirstConnectModal';
+
+// Adaptador de almacenamiento para la guardia de nube (testeable en node).
+// A nivel de módulo para no recrearlo en cada render (el efecto de nube
+// depende solo de cloudAllowed).
+const localStorageAdapter = {
+  get: (key) => readLocalState(key, null),
+  set: (key, value) => writeLocalState(key, value),
+  remove: (key) => { try { localStorage.removeItem(key); } catch { /* sin almacenamiento */ } },
+};
 
 // Initial shopping list generated from low stock items
 const INITIAL_SHOPPING_LIST = [
@@ -100,7 +120,7 @@ export default function App() {
   const [products, setProducts] = useState(() => {
     const saved = readLocalState('alacena_products', []);
     return saved
-      ? sanitizeAllInventory(deduplicateInventoryProducts(saved), INITIAL_ZONES)
+      ? sanitizeAllInventory(deduplicateInventoryProducts(migrateProductsExpiry(saved)), INITIAL_ZONES)
       : [];
   });
 
@@ -287,6 +307,46 @@ export default function App() {
 
   const [cloudAllowed, setCloudAllowed] = useState(false);
   const [cloudState, setCloudState] = useState('local');
+  // Primera conexión a la nube (E1): mientras no haya decisión guardada y
+  // haya datos locales, los snapshots de la nube se retienen aquí y se pide
+  // elegir subir/descargar; nunca se pisa lo local en silencio.
+  const [pendingCloud, setPendingCloud] = useState(null);
+
+  const handleFirstConnectUpload = () => {
+    // Subir lo local tal cual está en pantalla (la nube no ha pisado nada).
+    // Las escrituras están en pausa hasta liberar la conexión: sin esto, los
+    // save* se descartan en silencio (canSync() sin allowPaused).
+    setCloudWritesPaused(false);
+    products.forEach((p) => saveProductToCloud(p));
+    shoppingList.forEach((i) => saveShoppingItemToCloud(i));
+    writeLocalState(FIRST_CONNECT_DECISION_KEY, { decision: 'upload', decidedAt: new Date().toISOString() });
+    setPendingCloud(null);
+    setCloudState('pending');
+  };
+
+  const handleFirstConnectDownload = () => {
+    if (pendingCloud?.products) setProducts(pendingCloud.products);
+    if (pendingCloud?.shoppingList) setShoppingList(pendingCloud.shoppingList);
+    writeLocalState(FIRST_CONNECT_DECISION_KEY, { decision: 'download', decidedAt: new Date().toISOString() });
+    setPendingCloud(null);
+    // Lo local ya es lo de la nube: liberar la conexión (despausa, marca
+    // inicializado, aplica bitácora/historial retenidos, estado synced).
+    cloudRelease.current?.();
+  };
+
+  const handleRestorePreCloudBackup = async () => {
+    const backup = localStorageAdapter.get(PRE_CLOUD_BACKUP_KEY);
+    if (!isUsablePreCloudBackup(backup)) {
+      notify('No hay ninguna copia previa a la nube guardada en este dispositivo.');
+      return;
+    }
+    if (await confirmDialog('⚠️ Esto reemplaza tu despensa y tu lista del súper actuales con la copia guardada justo antes de conectar la nube. ¿Deseas continuar?')) {
+      consumePreCloudBackup(localStorageAdapter);
+      setProducts(migrateProductsExpiry(backup.products || []));
+      setShoppingList(backup.shoppingList || []);
+      notify('✅ Copia previa a la nube restaurada.');
+    }
+  };
   const [storageError, setStorageError] = useState(false);
   useEffect(() => {
     let currentUser;
@@ -318,20 +378,24 @@ export default function App() {
   useEffect(() => {
     if (!cloudAllowed) return;
     const before = getSnapshot();
-    const oldCopy = readLocalState('alacena_before_cloud_connection', {});
-    if (before.products.length || before.shoppingList.length || !oldCopy.products?.length) writeLocalState('alacena_before_cloud_connection', {...before,savedAt:new Date().toISOString()});
+    // Copia previa a la nube (E1): solo si aún no hay una usable, para que no
+    // se sobrescriba en cada reconexión (antes era de un solo uso).
+    ensurePreCloudBackup(localStorageAdapter, { products: before.products, shoppingList: before.shoppingList });
     let productRows, shoppingRows, open = !navigator.onLine && readLocalState('alacena_cloud_initialized_uid','')===getCloudUser()?.uid;
     let bufferedAudit, bufferedHistory;
     setCloudWritesPaused(!open);
     historyCursor.current = null; historyOlderLoaded.current = false;
     const fail = () => setCloudState('error');
+    // Total local (despensa + lista) para decidir si hay algo que proteger (E1).
+    const localTotal = () => readLocalState('alacena_products', []).length + readLocalState('alacena_shopping_list', []).length;
+    const hasDecision = () => !!readLocalState(FIRST_CONNECT_DECISION_KEY, null)?.decision;
     const applyHistory = (rows,page) => {
       setPurchaseHistory((previous) => mergeHistory(previous,rows));
       if (!historyOlderLoaded.current) { historyCursor.current=page.cursor; setHistoryMore(page.hasMore); }
     };
     const release = (uploaded = false) => {
       open=true; setCloudWritesPaused(false); setLocalImportOffer(false);
-      if (productRows && (!uploaded || productRows.length)) setProducts(productRows);
+      if (productRows && (!uploaded || productRows.length)) setProducts(migrateProductsExpiry(productRows));
       if (shoppingRows && (!uploaded || shoppingRows.length)) setShoppingList(shoppingRows);
       if (bufferedAudit) setAuditLogs((prev) => mergeHistory(prev,bufferedAudit,'timestamp'));
       if (bufferedHistory) applyHistory(...bufferedHistory);
@@ -346,14 +410,27 @@ export default function App() {
       } else release();
     };
     const unsubProducts=subscribeToProducts(null,(rows,meta) => {
-      if (meta?.fromCache && !rows.length) return;
-      if (open) setProducts(rows);
-      else if (!meta?.fromCache) {productRows=rows;decide();}
+      // Guardia E1: un snapshot vacío del servidor nunca vacía lo local.
+      if (shouldIgnoreSnapshot({ rowCount: rows.length, fromCache: !!meta?.fromCache, localCount: readLocalState('alacena_products', []).length })) return;
+      const migrated = migrateProductsExpiry(rows);
+      if (open) { setProducts(migrated); return; }
+      // Primera conexión (E1): con datos locales y sin decisión guardada, el
+      // snapshot se retiene y se pregunta subir/descargar; la oferta de
+      // migración (3.10.0) solo se usa cuando ya hay decisión.
+      if (needsFirstConnectChoice({ localCount: localTotal(), decided: hasDecision() })) {
+        setPendingCloud((prev) => ({ ...(prev || { shoppingList: null, shoppingArrived: false }), products: migrated, productsArrived: true }));
+        return;
+      }
+      if (!meta?.fromCache) { productRows=migrated; decide(); }
     },fail);
     const unsubShopping=subscribeToShoppingList(null,(rows,meta) => {
-      if (meta?.fromCache && !rows.length) return;
-      if (open) {setShoppingList(rows);setCloudState(meta?.hasPendingWrites?'pending':meta?.fromCache?'cached':'synced');}
-      else if (!meta?.fromCache) {shoppingRows=rows;decide();}
+      if (shouldIgnoreSnapshot({ rowCount: rows.length, fromCache: !!meta?.fromCache, localCount: readLocalState('alacena_shopping_list', []).length })) return;
+      if (open) { setShoppingList(rows); setCloudState(meta?.hasPendingWrites?'pending':meta?.fromCache?'cached':'synced'); return; }
+      if (needsFirstConnectChoice({ localCount: localTotal(), decided: hasDecision() })) {
+        setPendingCloud((prev) => ({ ...(prev || { products: null, productsArrived: false }), shoppingList: rows, shoppingArrived: true }));
+        return;
+      }
+      if (!meta?.fromCache) { shoppingRows=rows; decide(); }
     },fail);
     const unsubAudit=subscribeToAuditLogs((rows) => {bufferedAudit=rows;if(open)setAuditLogs((prev) => mergeHistory(prev,rows,'timestamp'));},fail);
     const unsubHistory=subscribeToPurchaseHistory((rows,page) => {bufferedHistory=[rows,page];if(open)applyHistory(rows,page);},fail);
@@ -1219,10 +1296,23 @@ export default function App() {
         onOpenAuditTab={() => setActiveTab('audit')}
         onExportBackupJson={handleExportBackupJson}
         onResetDemoData={handleResetDemoData}
+        onRestorePreCloudBackup={handleRestorePreCloudBackup}
+        hasPreCloudBackup={isUsablePreCloudBackup(readLocalState(PRE_CLOUD_BACKUP_KEY, null))}
+        preCloudBackupDate={readLocalState(PRE_CLOUD_BACKUP_KEY, null)?.savedAt || null}
         onOpenChangelog={() => setIsChangelogOpen(true)}
         onToggleMute={handleToggleMute}
         isMuted={isMuted}
         lowStockCount={products.filter((p) => (p.quantity || 0) <= (p.minStock || 0)).length}
+      />
+      )}
+
+      {pendingCloud && (<CloudFirstConnectModal
+        isOpen
+        localCount={products.length + shoppingList.length}
+        cloudCount={(pendingCloud.products?.length || 0) + (pendingCloud.shoppingList?.length || 0)}
+        bothArrived={!!(pendingCloud.productsArrived && pendingCloud.shoppingArrived)}
+        onUpload={handleFirstConnectUpload}
+        onDownload={handleFirstConnectDownload}
       />
       )}
 

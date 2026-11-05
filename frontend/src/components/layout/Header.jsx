@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { notify } from '../../services/notice';
+import { getProductExpiryDate } from '../../utils/productExpiry';
 import { APP_VERSION } from '../../version';
 import { DEFAULT_MENU_TABS, ICON_MAP } from './menuConfig';
 const CustomTabNamesModal = lazy(() => import('./CustomTabNamesModal'));
@@ -70,8 +71,9 @@ export default function Header({
   const criticalAlertCount = React.useMemo(() => {
     const now = new Date();
     const expiring = products.filter((p) => {
-      if (!p.expirationDate) return false;
-      const diffDays = Math.ceil((new Date(p.expirationDate) - now) / (1000 * 60 * 60 * 24));
+      const expiry = getProductExpiryDate(p);
+      if (!expiry) return false;
+      const diffDays = Math.ceil((new Date(expiry) - now) / (1000 * 60 * 60 * 24));
       return diffDays <= 3 && (p.quantity || 0) > 0;
     }).length;
     const lowStock = products.filter((p) => (p.quantity || 0) <= (p.minStock || 0)).length;

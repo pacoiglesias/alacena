@@ -4,6 +4,7 @@ import {
   Wine, CheckCircle2, Share2, Sparkles, X, ChevronRight, Utensils 
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
+import { getProductExpiryDate } from '../../utils/productExpiry';
 
 export default function KitchenDaySummaryModal({
   isOpen,
@@ -19,11 +20,12 @@ export default function KitchenDaySummaryModal({
   const expiringItems = useMemo(() => {
     const now = new Date();
     return products.filter((p) => {
-      if (!p.expirationDate) return false;
-      const exp = new Date(p.expirationDate);
+      const expiry = getProductExpiryDate(p);
+      if (!expiry) return false;
+      const exp = new Date(expiry);
       const diffDays = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
       return diffDays <= 4 && (p.quantity || 0) > 0;
-    }).sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
+    }).sort((a, b) => new Date(getProductExpiryDate(a)) - new Date(getProductExpiryDate(b)));
   }, [products]);
 
   const lowStockItems = useMemo(() => {
@@ -57,7 +59,7 @@ export default function KitchenDaySummaryModal({
     if (expiringItems.length > 0) {
       text += `🚨 *URGE CONSUMIR HOY O MAÑANA (Caducidad Próxima):*\n`;
       expiringItems.forEach((it) => {
-        text += `• ${it.name} (${it.quantity} ${it.unit}) — Vence: ${it.expirationDate}\n`;
+        text += `• ${it.name} (${it.quantity} ${it.unit}) — Vence: ${getProductExpiryDate(it)}\n`;
       });
       text += `\n`;
     } else {
@@ -137,7 +139,7 @@ export default function KitchenDaySummaryModal({
                       <span className="text-[11px] text-gray-400">{item.quantity} {item.unit} · {item.zone}</span>
                     </div>
                     <span className="text-rose-400 font-mono font-bold text-[11px] bg-rose-950/60 px-2 py-1 rounded-lg">
-                      Vence: {item.expirationDate}
+                      Vence: {getProductExpiryDate(item)}
                     </span>
                   </div>
                 ))}

@@ -7,6 +7,7 @@ import {
 import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
 import { areItemsEquivalent, deduplicateRecipeIngredients } from '../../utils/deduplication';
+import { getProductExpiryDate } from '../../utils/productExpiry';
 import { notify } from '../../services/notice';
 import { planRecipe } from '../../utils/cookRecipe';
 
@@ -69,8 +70,9 @@ export default function RecipesView({
     const now = new Date();
     // Insumos que caducan en <= 6 días con existencia
     const expiring = products.filter((p) => {
-      if (!p.expirationDate || (p.quantity || 0) <= 0) return false;
-      const diffDays = Math.ceil((new Date(p.expirationDate) - now) / (1000 * 60 * 60 * 24));
+      const expiry = getProductExpiryDate(p);
+      if (!expiry || (p.quantity || 0) <= 0) return false;
+      const diffDays = Math.ceil((new Date(expiry) - now) / (1000 * 60 * 60 * 24));
       return diffDays <= 6;
     });
 
