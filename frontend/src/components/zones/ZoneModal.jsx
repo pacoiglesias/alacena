@@ -100,7 +100,7 @@ export default function ZoneModal({ isOpen, onClose, onSave, onDelete, initialZo
               </p>
             </div>
           </div>
-          <button
+          <button aria-label="Cerrar"
             onClick={() => {
               audio.click();
               onClose();

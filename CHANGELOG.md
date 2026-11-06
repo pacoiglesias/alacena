@@ -5,6 +5,21 @@ Fuente: `frontend/src/components/changelog/ChangelogModal.jsx`, el historial que
 la propia app muestra en pantalla. Este archivo es solo el espejo en la raíz
 del repo; la fuente canónica sigue siendo el modal.
 
+## Sin publicar (rama `fix/mejoras-seguras-2026-11-05`, PR #2)
+
+Revisión final antes de fusionar: sin cambios de comportamiento salvo lo indicado.
+
+- **Caducidad en días de calendario:** inventario, badge de alertas, Resumen Diario
+  y Chef Zero-Waste ya no calculan `Math.ceil` sobre milisegundos (el mismo producto
+  marcaba 2d por la noche y 3d por la mañana, y una fecha inválida acababa en
+  "Vence en NaNd"). Nuevo `daysUntilExpiry()` en `utils/productExpiry.js` (hoy = 0,
+  mañana = 1, ayer = -1), con los mismos umbrales (3/4/6/15 días); el Resumen Diario
+  muestra "8 nov 2026" en vez del ISO y "Vence hoy" para el día 0. 4 tests nuevos.
+- **Accesibilidad:** los 24 botones de cierre de modal que solo mostraban una ✕ ya
+  tienen `aria-label="Cerrar"` (el escáner y el diagnóstico ya lo tenían).
+- **PWA:** colores del manifiesto alineados con el tema oscuro de la app.
+- **Limpieza:** dos variables muertas menos en `depletionPredictorService`.
+
 ## v3.10.2-Casa — 5 noviembre 2026 · ACTUAL · PRODUCCIÓN
 
 Cocinar descuenta bien, el súper afina los kilos y la nube ya separa las casas.

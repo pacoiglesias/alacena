@@ -286,7 +286,7 @@ export default function SystemManualModal({ isOpen, onClose }) {
               <span>Imprimir / PDF</span>
             </button>
 
-            <button
+            <button aria-label="Cerrar"
               onClick={() => {
                 audio.click();
                 onClose();

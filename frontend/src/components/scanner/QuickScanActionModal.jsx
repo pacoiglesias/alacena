@@ -110,7 +110,7 @@ export default function QuickScanActionModal({
             </div>
           </div>
 
-          <button
+          <button aria-label="Cerrar"
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-[var(--ink-secondary)] hover:text-white transition-all cursor-pointer"
           >

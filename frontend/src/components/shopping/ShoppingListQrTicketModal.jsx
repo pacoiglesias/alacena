@@ -176,7 +176,7 @@ export default function ShoppingListQrTicketModal({
               Ticket QR de Orden para el Súper
             </h3>
           </div>
-          <button
+          <button aria-label="Cerrar"
             onClick={() => {
               audio.click();
               onClose();

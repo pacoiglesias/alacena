@@ -48,7 +48,7 @@ export default function HouseholdsModal({
               </p>
             </div>
           </div>
-          <button
+          <button aria-label="Cerrar"
             onClick={() => {
               audio.click();
               onClose();

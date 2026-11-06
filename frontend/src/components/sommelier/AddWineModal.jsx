@@ -137,7 +137,7 @@ export default function AddWineModal({ isOpen, onClose, onSave, zones }) {
               </p>
             </div>
           </div>
-          <button
+          <button aria-label="Cerrar"
             onClick={() => {
               audio.click();
               onClose();

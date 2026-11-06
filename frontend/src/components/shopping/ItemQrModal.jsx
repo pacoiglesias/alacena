@@ -258,7 +258,7 @@ export default function ItemQrModal({ isOpen, onClose, item, activeHouse, onUpda
               </span>
             </div>
           </div>
-          <button
+          <button aria-label="Cerrar"
             onClick={() => {
               audio.click();
               onClose();

@@ -63,7 +63,7 @@ export default function ChangelogModal({ isOpen, onClose }) {
             >
               {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
             </button>
-            <button
+            <button aria-label="Cerrar"
               onClick={() => {
                 audio.click();
                 onClose();
