@@ -24,7 +24,7 @@
     "@zxing/library": "^0.23.0",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
-    "dexie": "^4.4.6",
+    "dexie": "^4.4.7",
     "firebase": "^13.0.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
