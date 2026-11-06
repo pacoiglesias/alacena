@@ -61,7 +61,7 @@ export default function CavaProCommandCenterModal({
               </p>
             </div>
           </div>
-          <button
+          <button aria-label="Cerrar"
             onClick={() => {
               audio.click();
               onClose();

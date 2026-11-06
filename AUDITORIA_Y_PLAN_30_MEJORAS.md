@@ -1,5 +1,11 @@
 # 🏛️ ALACENA Enterprise — Auditoría Maestra y Plan de 30 Mejoras
-> ⚠️ DOCUMENTO HISTÓRICO (v2.4.0, 11-oct-2026): plan "Titanium" ya superado — varias de sus 30 mejoras (escáner, FEFO, PWA, backup) ya existen en la app. Se conserva como referencia; la auditoría vigente es `alacena-audit-2026-10-30.md` (v3.9.5) y sus ítems se cerraron en 3.10.1 (E1, E4) y 3.10.2 (resto).
+> ⛔ DOCUMENTO SUPERADO — NO USAR COMO PLAN VIGENTE. Histórico (v2.4.0, 11-oct-2026):
+> el plan "Titanium" de 30 mejoras ya está superado — varias de sus mejoras (escáner,
+> FEFO, PWA, backup) ya existen en la app y los ítems de la auditoría del 30-oct-2026
+> se cerraron en 3.10.1 (E1, E4) y 3.10.2 (resto). Se conserva SOLO como referencia
+> histórica; la auditoría vigente es la del 5-nov-2026 y el historial de versiones
+> vive en `CHANGELOG.md` y en el modal de la app. No abrir nuevas tareas desde este
+> documento.
 **Documento de Arquitectura y Hoja de Ruta Ejecutiva**  
 **Versión del Sistema:** v2.4.0-Titanium-Nova | **Fecha:** 11 de Octubre, 2026  
 **Ambiente de Producción:** https://alacena-enterprise-prod.web.app  

@@ -15,15 +15,14 @@ import ItemQrModal from '../shopping/ItemQrModal';
 import PantryQrBookletModal from '../shopping/PantryQrBookletModal';
 import InventoryChartsWidget from './InventoryChartsWidget';
 import { confirmDialog } from '../../services/notice';
+import { daysUntilExpiry } from '../../utils/productExpiry';
 
 // Helper: cálculo del estado de caducidad FEFO
 export function getExpiryStatus(expiryDate) {
-  if (!expiryDate) return null;
-  const now = new Date();
-  const exp = new Date(expiryDate);
-  const diffTime = exp.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const diffDays = daysUntilExpiry(expiryDate);
+  if (diffDays === null) return null;
   if (diffDays < 0) return { label: 'Caducado', days: diffDays, level: 'expired', badgeClass: 'bg-rose-600 text-white border border-rose-400 font-extrabold shadow-sm' };
+  if (diffDays === 0) return { label: 'Vence hoy', days: diffDays, level: 'critical', badgeClass: 'bg-rose-500 text-white border border-rose-300 font-extrabold shadow-sm animate-pulse' };
   if (diffDays <= 3) return { label: `Vence en ${diffDays}d`, days: diffDays, level: 'critical', badgeClass: 'bg-rose-500 text-white border border-rose-300 font-extrabold shadow-sm animate-pulse' };
   if (diffDays <= 15) return { label: `Vence en ${diffDays}d`, days: diffDays, level: 'warning', badgeClass: 'bg-amber-400 text-[var(--on-gold)] border border-amber-200 font-extrabold shadow-sm' };
   return { label: `Vence en ${diffDays}d`, days: diffDays, level: 'good', badgeClass: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' };

@@ -4,7 +4,23 @@ import {
   getProductExpiryDate,
   migrateProductExpiry,
   migrateProductsExpiry,
+  daysUntilExpiry,
+  formatExpiryDate,
 } from '../src/utils/productExpiry.js';
+
+// Fecha `YYYY-MM-DD` en hora local, para construir casos sin depender de UTC.
+function localIso(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+function daysFromNow(n, hour = 12) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  d.setHours(hour, 0, 0, 0);
+  return d;
+}
 
 // E4: la app usa UN SOLO campo de caducidad: `expiryDate`.
 // `expirationDate` es un campo muerto que nada escribe; estos tests fijan
@@ -48,4 +64,40 @@ test('migrar una lista convierte solo los documentos viejos', () => {
   assert.equal(migrated[1].expiryDate, '2026-11-06');
   assert.equal(migrated[2].expiryDate, undefined);
   assert.equal(migrateProductsExpiry(null), null);
+});
+
+// Días de calendario: hoy = 0, mañana = 1, ayer = -1.
+test('daysUntilExpiry cuenta días de calendario, no milisegundos', () => {
+  assert.equal(daysUntilExpiry(localIso(daysFromNow(0))), 0);
+  assert.equal(daysUntilExpiry(localIso(daysFromNow(1))), 1);
+  assert.equal(daysUntilExpiry(localIso(daysFromNow(3))), 3);
+  assert.equal(daysUntilExpiry(localIso(daysFromNow(-1))), -1);
+  assert.equal(daysUntilExpiry(localIso(daysFromNow(15))), 15);
+});
+
+test('daysUntilExpiry es estable durante el día: mismo día, mismo número', () => {
+  // Antes, con Math.ceil sobre milisegundos, un producto que vence en
+  // 3 días marcaba 2 por la noche y 3 por la mañana.
+  const target = localIso(daysFromNow(3));
+  assert.equal(daysUntilExpiry(target, daysFromNow(0, 0)), 3);
+  assert.equal(daysUntilExpiry(target, daysFromNow(0, 23)), 3);
+  assert.equal(daysUntilExpiry(target, daysFromNow(2, 23)), 1);
+});
+
+test('daysUntilExpiry acepta fecha-hora ISO y devuelve null si no es válida', () => {
+  assert.equal(daysUntilExpiry(new Date(daysFromNow(2)).toISOString()), 2);
+  assert.equal(daysUntilExpiry(new Date(daysFromNow(-2))), -2);
+  assert.equal(daysUntilExpiry('no-es-una-fecha'), null);
+  assert.equal(daysUntilExpiry('2026-13-40'), null);
+  assert.equal(daysUntilExpiry(''), null);
+  assert.equal(daysUntilExpiry(null), null);
+  assert.equal(daysUntilExpiry(undefined), null);
+});
+
+test('formatExpiryDate muestra la fecha legible y no inventa nada si es inválida', () => {
+  const formatted = formatExpiryDate('2026-11-08');
+  assert.match(formatted, /2026/);
+  assert.notEqual(formatted, '2026-11-08');
+  assert.equal(formatExpiryDate('no-es-una-fecha'), 'no-es-una-fecha');
+  assert.equal(formatExpiryDate(null), '');
 });

@@ -5,7 +5,6 @@
  */
 
 export function calculateDepletionPredictions(products = [], learnedMemory = {}) {
-  const now = Date.now();
   const predictions = [];
 
   products.forEach((product) => {
@@ -15,7 +14,6 @@ export function calculateDepletionPredictions(products = [], learnedMemory = {})
     const currentQty = parseFloat(product.quantity) || 0;
     const minStock = parseFloat(product.minStock) || 1;
     const timesConsumed = parseFloat(memory.timesConsumed) || 0;
-    const timesPurchased = parseFloat(memory.timesPurchased) || 1;
 
     // Calcular consumo estimado diario
     // 1. Si tenemos historial de consumo registrado

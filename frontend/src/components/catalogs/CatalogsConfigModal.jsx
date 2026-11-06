@@ -328,7 +328,7 @@ export default function CatalogsConfigModal({ isOpen, onClose, onCatalogsUpdated
               </p>
             </div>
           </div>
-          <button
+          <button aria-label="Cerrar"
             onClick={() => {
               audio.click();
               onClose();
