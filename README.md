@@ -7,6 +7,22 @@ Proyecto Firebase: `alacena-enterprise-prod`, target: `alacena-app`. `alacena.bo
 
 Lista del súper, inventario por casa, QR y códigos de barras, revisión de tickets, compras parciales e historial de devoluciones. Consulta [la auditoría, comprobaciones y límites de esta versión](docs/AUDITORIA-3.8.0.md) y [el análisis de reglas](docs/firebase-security-audit.json).
 
+## Estado de los servicios (verificado 6 nov 2026)
+
+- **Hosting y Firestore: en producción.** La 3.10.2 sirve en `alacena.cobertores.com`
+  (`version.json` verificado en vivo).
+- **Cloud Functions: NO desplegadas.** El código existe en `functions/index.js`
+  (`predictiveConsumptionCron`, `onStockLevelAlert`, `globalEanLookup`), pero la
+  API de Cloud Functions está **deshabilitada** en el proyecto
+  `alacena-enterprise-prod` (también Cloud Scheduler) y no hay ninguna función
+  desplegada. El consumo predictivo y las alertas de stock por trigger **no están
+  corriendo**. Desplegarlas es decisión del propietario: requiere habilitar la API
+  (y plan Blaze si hay salida externa).
+- **Storage: NO provisionado.** El proyecto no tiene ningún bucket de Cloud Storage
+  (la lista de buckets devuelve vacía), así que las reglas de `storage.rules` no
+  están publicadas ni en uso; las fotos de producto se guardan por otra vía.
+  No subir fotos a Storage hasta provisionarlo y publicar sus reglas.
+
 ## Desarrollo y comprobación
 
 Requiere Node 24 y Firebase CLI autenticado para publicar. Desde `frontend`:
