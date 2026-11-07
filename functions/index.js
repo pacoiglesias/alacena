@@ -1,6 +1,36 @@
 /**
  * ALACENA Enterprise - Cloud Functions
- * Módulo de Consumo Predictivo (ML Heurístico), Disparadores de Stock y Sincronización Multi-Tenant.
+ * Consumo predictivo, alertas de stock y búsqueda EAN.
+ *
+ * MODELO DE DATOS REAL de la app (colecciones top-level, sin `workspaces/`):
+ * - products: { id, name, zone, category, quantity, unit, minStock,
+ *     idealStock, unitPriceMxn, store, barcode, householdId, householdName,
+ *     burnRateWeekly? }
+ *     Stock bajo en la app: quantity <= minStock (App.jsx,
+ *     handleAutoGenerateShoppingList / InventoryView).
+ * - shopping_list: { id, name, quantity, unit, department, store,
+ *     targetZone, estimatedPriceMxn, householdId, householdName,
+ *     currency, checked, source?, createdAt, updatedAt }
+ *     La app deduce duplicados por sameStockItem (misma casa + misma
+ *     unidad normalizada + nombre equivalente), NO por itemId.
+ * - audit_logs: bitácora forense de TEXTO { id, timestamp (ISO), staff,
+ *     action, description, details, householdId, householdName }.
+ *     Los consumos se registran con acción CONSUMO_STOCK pero SIN itemId
+ *     ni quantityDelta, así que el cron NO puede atribuir consumos por
+ *     producto desde audit_logs. Usa los niveles de stock y, cuando la
+ *     app lo escribe en el producto, burnRateWeekly.
+ * - global_ean_cache: catálogo maestro de códigos de barras (top-level).
+ *
+ * El modelo anterior (workspaces/{id}/inventory, workspaces/{id}/audit_logs
+ * con acción SCAN_CONSUME, trigger workspaces/{id}/inventory/{itemId}) era
+ * legado: el frontend no tiene ninguna referencia a `workspaces/` y la app
+ * nunca escribe ahí, así que el cron no generaba sugerencias y el trigger
+ * nunca se disparaba. Reescritura 6-nov-2026 al modelo real.
+ *
+ * PENDIENTE antes de fusionar: confirmar en Firebase Console que no hay
+ * datos activos en `workspaces/` (la sesión de Firebase CLI de esta VM
+ * está caducada: el refresh token devuelve invalid_grant/invalid_rapt y
+ * no se pudo comprobar Firestore desde aquí).
  */
 
 const { onSchedule } = require("firebase-functions/v2/scheduler");
@@ -11,181 +41,331 @@ const admin = require("firebase-admin");
 admin.initializeApp();
 const db = admin.firestore();
 
+const REGION = "us-central1";
+const EAN_ALLOWED_ORIGIN = "https://alacena.cobertores.com";
+const DEFAULT_HOUSEHOLD_ID = "house-1";
+const DEFAULT_HOUSEHOLD_NAME = "Casa México";
+const DEFAULT_CURRENCY = "MXN";
+/** Firestore permite 500 escrituras por batch; se trocea en 400. */
+const BATCH_MAX_WRITES = 400;
+/** Días restantes para considerar urgente una sugerencia predictiva. */
+const PREDICTIVE_DAYS_THRESHOLD = 3;
+
+// --- utilidades -----------------------------------------------------------
+
+function round3(n) {
+  return Math.round(n * 1000) / 1000;
+}
+
+function toNum(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+/** Misma normalización de nombre que sameStockItem de la app. */
+function normalizeName(name) {
+  const s = String(name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return s
+    .split(" ")
+    .map((w) => {
+      if (w.length > 3 && w.endsWith("es")) return w.slice(0, -2);
+      if (w.length > 2 && w.endsWith("s")) return w.slice(0, -1);
+      return w;
+    })
+    .join(" ");
+}
+
+function normalizeUnit(unit) {
+  return String(unit || "piezas").trim().toLowerCase();
+}
+
+/** Misma deduplicación que sameStockItem de la app. */
+function sameStockItem(a, b) {
+  const houseA = a.householdId || DEFAULT_HOUSEHOLD_ID;
+  const houseB = b.householdId || DEFAULT_HOUSEHOLD_ID;
+  return (
+    houseA === houseB &&
+    normalizeUnit(a.unit) === normalizeUnit(b.unit) &&
+    normalizeName(a.name) === normalizeName(b.name)
+  );
+}
+
+/** Dígito de control EAN/UPC (peso 3,1 alternando desde la derecha). */
+function eanCheckDigitValid(code) {
+  const digits = code.slice(0, -1).split("").reverse();
+  let sum = 0;
+  digits.forEach((d, i) => {
+    sum += Number(d) * (i % 2 === 0 ? 3 : 1);
+  });
+  const check = (10 - (sum % 10)) % 10;
+  return check === Number(code[code.length - 1]);
+}
+
+/** EAN-8, UPC-A (12) o EAN-13 con dígito de control válido. */
+function isValidBarcode(code) {
+  if (typeof code !== "string") return false;
+  const clean = code.trim();
+  if (!/^\d{8}$|^\d{12}$|^\d{13}$/.test(clean)) return false;
+  return eanCheckDigitValid(clean);
+}
+
+/** Confirma escrituras en trozos de BATCH_MAX_WRITES como mucho. */
+async function commitOpsInChunks(ops) {
+  let commits = 0;
+  let batch = db.batch();
+  let count = 0;
+  for (const op of ops) {
+    if (count >= BATCH_MAX_WRITES) {
+      await batch.commit();
+      commits += 1;
+      batch = db.batch();
+      count = 0;
+    }
+    if (op.type === "set") batch.set(op.ref, op.data);
+    else batch.update(op.ref, op.data);
+    count += 1;
+  }
+  if (count > 0) {
+    await batch.commit();
+    commits += 1;
+  }
+  return commits;
+}
+
+/** Nombre y moneda de la casa (defaults de la app si no hay documento). */
+async function loadHouseholdMeta(householdId) {
+  try {
+    const snap = await db.collection("households").doc(householdId).get();
+    if (snap.exists) {
+      const data = snap.data() || {};
+      return {
+        householdName: data.name || DEFAULT_HOUSEHOLD_NAME,
+        currency: data.currency || DEFAULT_CURRENCY,
+      };
+    }
+  } catch (err) {
+    console.warn(`loadHouseholdMeta: no se pudo leer households/${householdId}:`, err.message);
+  }
+  return { householdName: DEFAULT_HOUSEHOLD_NAME, currency: DEFAULT_CURRENCY };
+}
+
+/**
+ * Lista de la compra de una casa. Se filtra por householdId en la consulta
+ * y por `checked` en memoria: dos filtros de igualdad necesitarían un
+ * índice compuesto en Firestore.
+ */
+async function loadHouseholdShoppingList(householdId) {
+  const snap = await db
+    .collection("shopping_list")
+    .where("householdId", "==", householdId)
+    .get();
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+}
+
+/** Sugerencia con la forma exacta que usa la app (handleAddShoppingItem). */
+function buildSuggestionDoc({ id, product, householdName, currency, source }) {
+  const qty = toNum(product.quantity, 0);
+  const ideal = toNum(product.idealStock, 5);
+  return {
+    id,
+    name: product.name,
+    barcode: product.barcode || "",
+    unit: product.unit || "piezas",
+    // Como handleAutoGenerateShoppingList: ideal - existencia, mínimo 0.01.
+    quantity: Math.max(0.01, round3(ideal - qty)),
+    department: product.category || "Abarrotes",
+    store: product.store || "Supermercado",
+    targetZone: product.zone || "Alacena Principal",
+    estimatedPriceMxn: Math.max(0, toNum(product.unitPriceMxn, 0)),
+    householdId: product.householdId || DEFAULT_HOUSEHOLD_ID,
+    householdName: householdName || DEFAULT_HOUSEHOLD_NAME,
+    currency: currency || DEFAULT_CURRENCY,
+    checked: false,
+    source,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+}
+
+/**
+ * Evalúa los productos de una casa: sugiere los que se van a agotar y, si
+ * el producto trae burnRateWeekly, actualiza sus métricas de consumo.
+ * Devuelve cuántas sugerencias generó.
+ */
+async function processHousehold(householdId, products) {
+  const meta = await loadHouseholdMeta(householdId);
+  const existingItems = await loadHouseholdShoppingList(householdId);
+  const ops = [];
+  let suggestionsCount = 0;
+
+  for (const { ref, data } of products) {
+    const qty = toNum(data.quantity, 0);
+    const min = toNum(data.minStock, 0);
+    const burnRateWeekly = toNum(data.burnRateWeekly, NaN);
+    const hasBurnRate = Number.isFinite(burnRateWeekly) && burnRateWeekly > 0;
+    const daysLeft = hasBurnRate ? qty / (burnRateWeekly / 7) : null;
+
+    // Urgente como la app: stock <= mínimo, o <= 3 días según el ritmo.
+    const needsSuggestion =
+      (daysLeft !== null && daysLeft <= PREDICTIVE_DAYS_THRESHOLD) || qty <= min;
+
+    if (hasBurnRate) {
+      ops.push({
+        type: "update",
+        ref,
+        data: {
+          dias_estimados_restantes: Math.round(daysLeft * 10) / 10,
+          run_rate_diario: Math.round((burnRateWeekly / 7) * 100) / 100,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+      });
+    }
+
+    if (!needsSuggestion) continue;
+    if (!data.name || !String(data.name).trim()) continue;
+
+    const alreadyListed = existingItems.some(
+      (item) => !item.checked && sameStockItem(item, data)
+    );
+    if (alreadyListed) continue;
+
+    const newRef = db.collection("shopping_list").doc();
+    ops.push({
+      type: "set",
+      ref: newRef,
+      data: buildSuggestionDoc({
+        id: newRef.id,
+        product: data,
+        householdName: meta.householdName,
+        currency: meta.currency,
+        source: "AI_PREDICTIVE",
+      }),
+    });
+    // Evita duplicar dentro de esta misma pasada.
+    existingItems.push({ ...ops[ops.length - 1].data, checked: false });
+    suggestionsCount += 1;
+  }
+
+  await commitOpsInChunks(ops);
+  return suggestionsCount;
+}
+
 /**
  * 1. Consumo Predictivo (Cron Diario a las 03:00 AM)
- * Analiza el historial de Audit Logs de los últimos 30 días para calcular la
- * frecuencia_consumo_promedio y sugerir artículos a la lista de compras antes de que se agoten.
+ * Recorre los productos por casa y sugiere a la lista de la compra los que
+ * están en mínimo o se agotan en <= 3 días según su ritmo semanal.
+ * Cada casa se procesa aislada: si una falla, las demás siguen.
  */
 exports.predictiveConsumptionCron = onSchedule(
   {
     schedule: "every day 03:00",
     timeZone: "America/Mexico_City",
+    region: REGION,
     memory: "256MiB",
   },
-  async (event) => {
+  async () => {
     console.log("Iniciando análisis de consumo predictivo multi-tenant...");
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const productsSnap = await db.collection("products").get();
 
-    // Iterar workspaces (inquilinos/familias)
-    const workspacesSnap = await db.collection("workspaces").get();
-
-    for (const workspaceDoc of workspacesSnap.docs) {
-      const workspaceId = workspaceDoc.id;
-      const inventoryRef = db.collection(`workspaces/${workspaceId}/inventory`);
-      const auditRef = db.collection(`workspaces/${workspaceId}/audit_logs`);
-      const shoppingRef = db.collection(`workspaces/${workspaceId}/shopping_list`);
-
-      // 1. Obtener consumos de los últimos 30 días
-      const consumeLogsSnap = await auditRef
-        .where("action", "==", "SCAN_CONSUME")
-        .where("timestamp", ">=", thirtyDaysAgo)
-        .get();
-
-      if (consumeLogsSnap.empty) continue;
-
-      // 2. Agrupar consumos por itemId
-      const consumptionMap = {};
-      consumeLogsSnap.forEach((doc) => {
-        const data = doc.data();
-        const itemId = data.itemId;
-        if (!itemId) return;
-
-        if (!consumptionMap[itemId]) {
-          consumptionMap[itemId] = {
-            totalConsumed: 0,
-            timestamps: [],
-            itemName: data.itemName,
-            unit: data.unit || "pza",
-          };
-        }
-        consumptionMap[itemId].totalConsumed += Math.abs(data.quantityDelta || 1);
-        consumptionMap[itemId].timestamps.push(data.timestamp.toDate());
-      });
-
-      // 3. Evaluar cada producto contra su stock actual
-      const batch = db.batch();
-      let suggestionsCount = 0;
-
-      for (const [itemId, stats] of Object.entries(consumptionMap)) {
-        const itemDoc = await inventoryRef.doc(itemId).get();
-        if (!itemDoc.exists) continue;
-
-        const item = itemDoc.data();
-        const currentQty = item.currentQuantity || 0;
-        const dailyRunRate = stats.totalConsumed / 30.0; // Unidades consumidas por día
-        const daysRemaining = dailyRunRate > 0 ? currentQty / dailyRunRate : 999;
-
-        // Frecuencia promedio en días entre reposiciones
-        const avgFrequencyDays = dailyRunRate > 0 ? (1 / dailyRunRate) : 30;
-
-        // Actualizar métrica en el documento del producto
-        batch.update(inventoryRef.doc(itemId), {
-          frecuencia_consumo_promedio: Number(avgFrequencyDays.toFixed(1)),
-          run_rate_diario: Number(dailyRunRate.toFixed(2)),
-          dias_estimados_restantes: Number(daysRemaining.toFixed(1)),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        // Si se proyecta que el stock se agote en <= 3 días y no está ya en la lista
-        if (daysRemaining <= 3 && currentQty <= item.minAlertQuantity * 1.5) {
-          const existingShopSnap = await shoppingRef
-            .where("itemId", "==", itemId)
-            .where("isPurchased", "==", false)
-            .limit(1)
-            .get();
-
-          if (existingShopSnap.empty) {
-            const neededQty = Math.max(1, (item.idealQuantity || 3) - currentQty);
-            const newShopDoc = shoppingRef.doc();
-            batch.set(newShopDoc, {
-              id: newShopDoc.id,
-              householdId: item.householdId,
-              itemId: itemId,
-              name: item.name,
-              category: item.category,
-              neededQuantity: neededQty,
-              unit: item.unit || "pza",
-              estimatedPrice: item.unitPrice || 0,
-              isPurchased: false,
-              source: "AI_PREDICTIVE",
-              cheapestVendor: item.lastPurchasePlace || "Costco Wholesale",
-              createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-            suggestionsCount++;
-          }
-        }
-      }
-
-      await batch.commit();
-      console.log(`Workspace ${workspaceId}: Generadas ${suggestionsCount} sugerencias predictivas.`);
+    const byHousehold = new Map();
+    for (const docSnap of productsSnap.docs) {
+      const data = docSnap.data() || {};
+      const householdId = data.householdId || DEFAULT_HOUSEHOLD_ID;
+      if (!byHousehold.has(householdId)) byHousehold.set(householdId, []);
+      byHousehold.get(householdId).push({ id: docSnap.id, ref: docSnap.ref, data });
     }
 
-    return { success: true };
+    let suggestionsTotal = 0;
+    for (const [householdId, items] of byHousehold) {
+      try {
+        const count = await processHousehold(householdId, items);
+        suggestionsTotal += count;
+        console.log(`Casa ${householdId}: generadas ${count} sugerencias predictivas.`);
+      } catch (err) {
+        console.error(`Casa ${householdId}: falló el análisis predictivo:`, err);
+      }
+    }
+
+    return { success: true, suggestions: suggestionsTotal };
   }
 );
 
 /**
  * 2. Disparador de Stock Bajo en Tiempo Real
- * Cuando el stock de un producto baja de su umbral mínimo tras un escaneo,
- * lo añade de forma reactiva a la lista de compras del hogar.
+ * Cuando un producto de `products` queda en su mínimo o por debajo, lo
+ * añade a la lista de compras de su casa si aún no está (sin comprar).
  */
 exports.onStockLevelAlert = onDocumentWritten(
-  "workspaces/{workspaceId}/inventory/{itemId}",
+  { document: "products/{productId}", region: REGION },
   async (event) => {
-    const afterData = event.data.after.data();
-    if (!afterData) return; // Eliminación
+    const after = event.data && event.data.after;
+    if (!after || !after.exists) return; // Eliminación
 
-    const currentQty = afterData.currentQuantity || 0;
-    const minAlert = afterData.minAlertQuantity || 1;
+    const data = after.data() || {};
+    if (!data.name || !String(data.name).trim()) return;
 
-    if (currentQty <= minAlert) {
-      const { workspaceId, itemId } = event.params;
-      const shoppingRef = db.collection(`workspaces/${workspaceId}/shopping_list`);
+    const currentQty = toNum(data.quantity, 0);
+    const minAlert = toNum(data.minStock, 0);
+    if (currentQty > minAlert) return;
 
-      const existingSnap = await shoppingRef
-        .where("itemId", "==", itemId)
-        .where("isPurchased", "==", false)
-        .limit(1)
-        .get();
+    const householdId = data.householdId || DEFAULT_HOUSEHOLD_ID;
+    const existingItems = await loadHouseholdShoppingList(householdId);
+    const alreadyListed = existingItems.some(
+      (item) => !item.checked && sameStockItem(item, data)
+    );
+    if (alreadyListed) return;
 
-      if (existingSnap.empty) {
-        const needed = Math.max(1, (afterData.idealQuantity || 3) - currentQty);
-        await shoppingRef.add({
-          householdId: afterData.householdId,
-          itemId: itemId,
-          name: afterData.name,
-          category: afterData.category,
-          neededQuantity: needed,
-          unit: afterData.unit || "pza",
-          estimatedPrice: afterData.unitPrice || 0,
-          isPurchased: false,
-          source: "LOW_STOCK_RULE",
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      }
-    }
+    const meta = await loadHouseholdMeta(householdId);
+    const newRef = db.collection("shopping_list").doc();
+    await newRef.set(
+      buildSuggestionDoc({
+        id: newRef.id,
+        product: data,
+        householdName: meta.householdName,
+        currency: meta.currency,
+        source: "LOW_STOCK_RULE",
+      })
+    );
+    console.log(
+      `Stock bajo: ${data.name} (${currentQty} <= ${minAlert}) añadido a la lista de ${householdId}.`
+    );
   }
 );
 
 /**
  * 3. Endpoint de Fallback Global EAN / UPC
+ * Solo acepta EAN-8, UPC-A o EAN-13 con dígito de control válido, y solo
+ * responde a alacena.cobertores.com (CORS).
  */
-exports.globalEanLookup = onRequest(async (req, res) => {
-  const barcode = req.query.barcode;
-  if (!barcode) {
-    return res.status(400).json({ error: "Falta el parámetro barcode" });
-  }
+exports.globalEanLookup = onRequest(
+  { region: REGION, cors: [EAN_ALLOWED_ORIGIN] },
+  async (req, res) => {
+    const barcode = req.query && req.query.barcode;
+    if (barcode === undefined || barcode === null || barcode === "") {
+      return res.status(400).json({ error: "Falta el parámetro barcode" });
+    }
+    if (!isValidBarcode(barcode)) {
+      return res.status(400).json({
+        error: "Parámetro barcode inválido: se espera EAN-8, UPC-A o EAN-13 con dígito de control válido",
+      });
+    }
 
-  // Consulta en catálogo maestro cacheado de Firestore
-  const cached = await db.collection("global_ean_cache").doc(barcode).get();
-  if (cached.exists) {
-    return res.json({ source: "CACHE", product: cached.data() });
-  }
+    // Consulta en catálogo maestro cacheado de Firestore
+    const cached = await db.collection("global_ean_cache").doc(barcode).get();
+    if (cached.exists) {
+      return res.json({ source: "CACHE", product: cached.data() });
+    }
 
-  return res.json({
-    source: "NOT_FOUND",
-    requires_metadata_update: true,
-    barcode: barcode,
-  });
-});
+    return res.json({
+      source: "NOT_FOUND",
+      requires_metadata_update: true,
+      barcode,
+    });
+  }
+);
