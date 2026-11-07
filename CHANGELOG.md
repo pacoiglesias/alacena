@@ -5,6 +5,17 @@ Fuente: `frontend/src/components/changelog/ChangelogModal.jsx`, el historial que
 la propia app muestra en pantalla. Este archivo es solo el espejo en la raíz
 del repo; la fuente canónica sigue siendo el modal.
 
+## Funciones en la nube — 6 noviembre 2026 · DESPLEGADAS · PRODUCCIÓN
+
+El consumo predictivo y las alertas de stock ya corren en la nube.
+
+- **Tres funciones en vivo:** la búsqueda de códigos (EAN), las alertas de stock
+  al cambiar un producto y el consumo predictivo diario ya están desplegados y
+  corriendo (us-central1, Node 22, despliegue automático con WIF, plan Blaze).
+- **Reescritas al modelo real:** ahora trabajan sobre `products`, `shopping_list`
+  y `audit_logs` por `householdId`, como hace la app. Antes usaban el modelo
+  antiguo de `workspaces`, que la app ya no usa.
+
 ## Sin publicar (rama `fix/mejoras-seguras-2026-11-05`, PR #2)
 
 Revisión final antes de fusionar: sin cambios de comportamiento salvo lo indicado.
