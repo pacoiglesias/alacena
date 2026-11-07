@@ -25,7 +25,7 @@
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
     "dexie": "^4.4.7",
-    "firebase": "^13.0.0",
+    "firebase": "^13.2.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",
     "lucide-react": "^1.55.0",
