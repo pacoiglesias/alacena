@@ -7,17 +7,22 @@ Proyecto Firebase: `alacena-enterprise-prod`, target: `alacena-app`. `alacena.bo
 
 Lista del súper, inventario por casa, QR y códigos de barras, revisión de tickets, compras parciales e historial de devoluciones. Consulta [la auditoría, comprobaciones y límites de esta versión](docs/AUDITORIA-3.8.0.md) y [el análisis de reglas](docs/firebase-security-audit.json).
 
-## Estado de los servicios (verificado 6 nov 2026)
+## Estado de los servicios (actualizado 7 nov 2026)
 
 - **Hosting y Firestore: en producción.** La 3.10.2 sirve en `alacena.cobertores.com`
   (`version.json` verificado en vivo).
-- **Cloud Functions: NO desplegadas.** El código existe en `functions/index.js`
-  (`predictiveConsumptionCron`, `onStockLevelAlert`, `globalEanLookup`), pero la
-  API de Cloud Functions está **deshabilitada** en el proyecto
-  `alacena-enterprise-prod` (también Cloud Scheduler) y no hay ninguna función
-  desplegada. El consumo predictivo y las alertas de stock por trigger **no están
-  corriendo**. Desplegarlas es decisión del propietario: requiere habilitar la API
-  (y plan Blaze si hay salida externa).
+- **Cloud Functions: DESPLEGADAS (6 nov 2026, 23:14 CST).** Las 3 funciones v2 en
+  `us-central1` (Node 22), verificadas en vivo: `globalEanLookup` (HTTPS),
+  `onStockLevelAlert` (trigger Firestore sobre `products/{productId}`) y
+  `predictiveConsumptionCron` (programada, diaria a las 03:00 CST). Despliegue
+  automático con GitHub Actions + federación WIF (sin clave JSON) y plan Blaze
+  activo desde el 6 nov 2026. Reescritas el 6 nov (PR #10) al modelo real que usa
+  la app (`products`, `shopping_list`, `audit_logs` por `householdId`).
+  Seguridad (PR #11, 7 nov): `globalEanLookup` exige token y claim
+  `alacenaAccess`; las reglas Firestore/Storage con aislamiento por hogar están
+  en el repo, pero su despliegue es manual y exige ANTES actualizar el claim del
+  propietario (`scripts/configure_owner_access.cjs`) y que Paco cierre y vuelva
+  a abrir sesión — sin eso, las reglas nuevas niegan el acceso.
 - **Storage: NO provisionado.** El proyecto no tiene ningún bucket de Cloud Storage
   (la lista de buckets devuelve vacía), así que las reglas de `storage.rules` no
   están publicadas ni en uso; las fotos de producto se guardan por otra vía.
