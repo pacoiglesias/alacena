@@ -339,13 +339,53 @@ exports.onStockLevelAlert = onDocumentWritten(
 );
 
 /**
+ * Exige un ID token de Firebase válido con el claim alacenaAccess.
+ * Devuelve el token decodificado, o responde 401/403 y devuelve null.
+ * (AL-2, 7-nov-2026: antes la función era pública; solo CORS la
+ * "protegía" y CORS no es autenticación — cualquier cliente fuera del
+ * navegador lo ignora. El frontend hoy ni llama a esta función; si se
+ * vuelve a usar desde la app, el cliente debe enviar
+ * `Authorization: Bearer <idToken>`.)
+ */
+async function requireHomeAccess(req, res) {
+  const header = req.headers && req.headers.authorization;
+  const match =
+    typeof header === "string" ? header.match(/^Bearer (.+)$/) : null;
+  if (!match) {
+    res.status(401).json({
+      error: "Falta el token de autenticación (Authorization: Bearer)",
+    });
+    return null;
+  }
+  let decoded;
+  try {
+    decoded = await admin.auth().verifyIdToken(match[1]);
+  } catch (error) {
+    console.warn(
+      "globalEanLookup: token inválido",
+      error.code || error.message
+    );
+    res.status(401).json({ error: "Token de autenticación inválido" });
+    return null;
+  }
+  if (decoded == null || decoded.alacenaAccess !== true) {
+    res.status(403).json({ error: "La cuenta no tiene acceso a Alacena" });
+    return null;
+  }
+  return decoded;
+}
+
+/**
  * 3. Endpoint de Fallback Global EAN / UPC
- * Solo acepta EAN-8, UPC-A o EAN-13 con dígito de control válido, y solo
- * responde a alacena.cobertores.com (CORS).
+ * Solo acepta EAN-8, UPC-A o EAN-13 con dígito de control válido, solo
+ * responde a alacena.cobertores.com (CORS) y solo a cuentas autenticadas
+ * con el claim alacenaAccess (verifyIdToken, ver requireHomeAccess).
  */
 exports.globalEanLookup = onRequest(
   { region: REGION, cors: [EAN_ALLOWED_ORIGIN] },
   async (req, res) => {
+    const caller = await requireHomeAccess(req, res);
+    if (caller === null) return;
     const barcode = req.query && req.query.barcode;
     if (barcode === undefined || barcode === null || barcode === "") {
       return res.status(400).json({ error: "Falta el parámetro barcode" });

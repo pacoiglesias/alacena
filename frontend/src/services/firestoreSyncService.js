@@ -156,11 +156,16 @@ export async function logAuditEventToCloud(logEntry) {
 }
 
 // 8. Escuchar Bitácora en Tiempo Real (para ver qué consumió cada casa)
-export function subscribeToAuditLogs(onUpdate, onError) {
+// AL-1: filtrada por la casa activa. Sin el filtro, las reglas (que exigen
+// householdId en las casas del claim) deniegan la consulta: las reglas no
+// son filtros.
+export function subscribeToAuditLogs(householdId, onUpdate, onError) {
   if (!db) return () => {};
+  if (!householdId) { onError?.(new Error('Falta la casa activa para leer la bitácora.')); return () => {}; }
   try {
     const ref = collection(db, 'audit_logs');
-    return onSnapshot(ref, (snapshot) => {
+    const q = query(ref, where('householdId', '==', householdId));
+    return onSnapshot(q, (snapshot) => {
       const logs = [];
       snapshot.forEach((docSnap) => {
         logs.push({ ...docSnap.data(), id: docSnap.id });
@@ -177,8 +182,11 @@ export function subscribeToAuditLogs(onUpdate, onError) {
 // 9. Inicializar datos semilla en la nube si está vacía
 export async function seedCloudIfEmpty(snapshot) {
   if (!await canSync(true) || !navigator.onLine) throw new Error('Conecta la cuenta autorizada y vuelve a tener internet antes de subir tus datos.');
-  const [products, list, history] = await Promise.all(['products','shopping_list','purchase_history'].map((name) => getDocs(query(collection(db,name),limit(1)))));
-  if (!products.empty || !list.empty || !history.empty) throw new Error('La nube ya contiene datos. No se subió nada: conserva tu copia y revisa la restauración para combinar.');
+  // AL-1: la comprobación se acota a la casa activa; una consulta sin
+  // filtrar por householdId la deniegan las reglas.
+  const houseId = snapshot.activeHouse?.id || 'house-1';
+  const [products, list, history] = await Promise.all(['products','shopping_list','purchase_history'].map((name) => getDocs(query(collection(db,name),where('householdId','==',houseId),limit(1)))));
+  if (!products.empty || !list.empty || !history.empty) throw new Error('La nube ya contiene datos de esta casa. No se subió nada: conserva tu copia y revisa la restauración para combinar.');
   return restoreCloudSnapshot(snapshot, {}, true);
 }
 // The inventory, outstanding list and receipt are committed atomically in Firebase.
@@ -204,15 +212,20 @@ export async function savePurchaseTransaction(productWrites, shoppingChanges, re
 }
 
 const HISTORY_PAGE_SIZE = 30;
-export function subscribeToPurchaseHistory(onUpdate, onError) {
-  return onSnapshot(query(collection(db,'purchase_history'),orderBy('date','desc'),limit(HISTORY_PAGE_SIZE)), (snapshot) => {
+// AL-1: historial filtrado por la casa activa (las reglas exigen householdId
+// en las casas del claim). Requiere el índice compuesto purchase_history
+// (householdId ASC, date DESC) de firestore.indexes.json.
+export function subscribeToPurchaseHistory(householdId, onUpdate, onError) {
+  if (!householdId) { onError?.(new Error('Falta la casa activa para leer el historial de compras.')); return () => {}; }
+  return onSnapshot(query(collection(db,'purchase_history'),where('householdId','==',householdId),orderBy('date','desc'),limit(HISTORY_PAGE_SIZE)), (snapshot) => {
     if (snapshot.empty && snapshot.metadata.fromCache) return;
     onUpdate(snapshot.docs.map((d) => ({...d.data(),id:d.id})), {cursor:snapshot.docs.at(-1),hasMore:snapshot.size===HISTORY_PAGE_SIZE,fromCache:snapshot.metadata.fromCache});
   },onError);
 }
-export async function fetchPurchaseHistoryPage(cursor) {
+export async function fetchPurchaseHistoryPage(householdId, cursor) {
   if (!await canSync() || !navigator.onLine) throw new Error('Conéctate a internet para cargar compras anteriores.');
-  const q = query(collection(db,'purchase_history'),orderBy('date','desc'),...(cursor ? [startAfter(cursor)] : []),limit(HISTORY_PAGE_SIZE));
+  if (!householdId) throw new Error('Falta la casa activa para cargar compras anteriores.');
+  const q = query(collection(db,'purchase_history'),where('householdId','==',householdId),orderBy('date','desc'),...(cursor ? [startAfter(cursor)] : []),limit(HISTORY_PAGE_SIZE));
   const page = await getDocs(q);
   return {rows:page.docs.map((d) => ({...d.data(),id:d.id})),cursor:page.docs.at(-1),hasMore:page.size===HISTORY_PAGE_SIZE};
 }
@@ -226,12 +239,21 @@ function sortObject(value) {
 }
 export async function restoreCloudSnapshot(next, current, importing = false) {
   if (!await canSync(importing) || !navigator.onLine) throw new Error('La cuenta debe tener acceso y conexión para restaurar en la nube.');
+  // AL-1: las reglas exigen householdId en las casas del claim. Las filas
+  // locales antiguas (zonas, recetas, documentos de casa) no siempre lo
+  // traen: se sella aquí con la casa activa (o el propio id en households)
+  // para que la restauración no se deniegue. Los productos, la lista, la
+  // bitácora y el historial ya lo traen desde la app; si falta, se sella
+  // igual. Nota: si en la nube ya hay documentos antiguos SIN householdId,
+  // la lectura de conflicto (tx.get) se deniega y la restauración falla;
+  // en ese caso hay que sellarlos una vez con el Admin SDK.
+  const houseIdFor = (field, id, row) => row.householdId || (field === 'households' ? String(id) : (next.activeHouse?.id || 'house-1'));
   const operations = [];
   for (const [field,name] of Object.entries(RESTORE_COLLECTIONS)) {
     const immutable = ['auditLogs','purchaseHistory'].includes(field);
     const before = new Map((current[field] || []).map((r) => [r.id,r]));
     const after = new Map((next[field] || []).map((r) => [r.id,r]));
-    for (const [id,row] of after) if (!before.has(id) || (!immutable && stable(before.get(id))!==stable(row))) operations.push({ref:doc(db,name,String(id)),row,before:before.get(id),immutable,field});
+    for (const [id,row] of after) if (!before.has(id) || (!immutable && stable(before.get(id))!==stable(row))) operations.push({ref:doc(db,name,String(id)),row:{...row,householdId:houseIdFor(field,id,row)},before:before.get(id),immutable,field});
     if (!immutable && !importing) for (const [id,row] of before) if (!after.has(id)) operations.push({ref:doc(db,name,String(id)),row:null,before:row,field});
   }
   if (operations.length>400) throw new Error('Esta restauración cambia más de 400 documentos. No se cambió nada. Restaura un respaldo más pequeño o trabaja primero en una copia local.');
