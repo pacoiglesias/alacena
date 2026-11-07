@@ -160,6 +160,32 @@ export default function ChangelogModal({ isOpen, onClose }) {
         {activeTab === 'changelog' && (
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
 
+            {/* Funciones en la nube — 6 Noviembre 2026 */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
+                    Funciones en la nube
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-400">DESPLEGADAS · PRODUCCIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">6 Noviembre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2 font-display">
+                El consumo predictivo y las alertas de stock ya corren en la nube
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Tres funciones en vivo:</strong> la búsqueda de códigos (EAN), las alertas de stock al cambiar un producto y el consumo predictivo diario ya están desplegados y corriendo. El despliegue es automático con cada cambio, sin claves guardadas.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Reescritas al modelo real:</strong> ahora trabajan sobre tus productos, tu lista del súper y tu historial por casa, como hace la app. Antes usaban un modelo antiguo que la app ya no usa.</span>
+                </li>
+              </ul>
+            </div>
+
             {/* Release v3.10.2-Casa */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
               <div className="flex items-center justify-between mb-3">
