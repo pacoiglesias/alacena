@@ -163,6 +163,20 @@ function loadFunctions() {
     firestore: Object.assign(() => fakeDb, {
       FieldValue: { serverTimestamp: () => ({ __serverTimestamp: true }) },
     }),
+    // verifyIdToken simulado (AL-2): solo "token-valido" trae el claim.
+    auth: () => ({
+      verifyIdToken: async (token) => {
+        if (token === "token-valido") {
+          return { uid: "test-user", alacenaAccess: true };
+        }
+        if (token === "token-sin-acceso") {
+          return { uid: "test-user", alacenaAccess: false };
+        }
+        const error = new Error("Token inválido");
+        error.code = "auth/invalid-id-token";
+        throw error;
+      },
+    }),
   };
   Module._load = function (request, ...args) {
     if (request === "firebase-admin") return fakeAdmin;
@@ -419,16 +433,48 @@ test("alerta: stock bajo añade a la lista; stock suficiente, borrado o sin nomb
 
 // --- EAN ------------------------------------------------------------------
 
+// Petición autenticada con el claim (AL-2): el resto de tests EAN la usan.
+function authedReq(barcode) {
+  return {
+    headers: { authorization: "Bearer token-valido" },
+    query: barcode === undefined ? {} : { barcode },
+  };
+}
+
+test("ean: sin token -> 401; token inválido -> 401; token sin claim -> 403", async () => {
+  loadFunctions();
+  let res = makeRes();
+  await captured.ean({ query: { barcode: "5449000000996" } }, res);
+  assert.equal(res._code, 401);
+  assert.match(res._body.error, /Falta el token/);
+
+  res = makeRes();
+  await captured.ean(
+    { headers: { authorization: "Bearer token-roto" }, query: { barcode: "5449000000996" } },
+    res
+  );
+  assert.equal(res._code, 401);
+  assert.match(res._body.error, /inválido/);
+
+  res = makeRes();
+  await captured.ean(
+    { headers: { authorization: "Bearer token-sin-acceso" }, query: { barcode: "5449000000996" } },
+    res
+  );
+  assert.equal(res._code, 403);
+  assert.match(res._body.error, /no tiene acceso/);
+});
+
 test("ean: falta el código -> 400; formato o dígito inválido -> 400", async () => {
   loadFunctions();
   let res = makeRes();
-  await captured.ean({ query: {} }, res);
+  await captured.ean(authedReq(undefined), res);
   assert.equal(res._code, 400);
   assert.match(res._body.error, /Falta el parámetro barcode/);
 
   for (const bad of ["ABC", "123", "5449000000997", "75012345678901", "  "]) {
     res = makeRes();
-    await captured.ean({ query: { barcode: bad } }, res);
+    await captured.ean(authedReq(bad), res);
     assert.equal(res._code, 400, `esperaba 400 para ${JSON.stringify(bad)}`);
     assert.match(res._body.error, /inválido/);
   }
@@ -440,20 +486,20 @@ test("ean: código válido en caché -> CACHE; válido sin caché -> NOT_FOUND",
     name: "Refresco de cola", brand: "Coca-Cola",
   });
   let res = makeRes();
-  await captured.ean({ query: { barcode: "5449000000996" } }, res);
+  await captured.ean(authedReq("5449000000996"), res);
   assert.equal(res._code, 200);
   assert.equal(res._body.source, "CACHE");
   assert.equal(res._body.product.name, "Refresco de cola");
 
   res = makeRes();
-  await captured.ean({ query: { barcode: "96385074" } }, res); // EAN-8 válido
+  await captured.ean(authedReq("96385074"), res); // EAN-8 válido
   assert.equal(res._code, 200);
   assert.equal(res._body.source, "NOT_FOUND");
   assert.equal(res._body.requires_metadata_update, true);
   assert.equal(res._body.barcode, "96385074");
 
   res = makeRes();
-  await captured.ean({ query: { barcode: "036000291452" } }, res); // UPC-A válido
+  await captured.ean(authedReq("036000291452"), res); // UPC-A válido
   assert.equal(res._code, 200);
   assert.equal(res._body.source, "NOT_FOUND");
 });

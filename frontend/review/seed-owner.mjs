@@ -9,5 +9,5 @@ let user;
 try{user=await post('/identitytoolkit.googleapis.com/v1/accounts:signUp?key=review-only',{email,password:'solo-emulador-2026',returnSecureToken:true});}
 catch{const data=await post('/identitytoolkit.googleapis.com/v1/projects/demo-alacena-review/accounts:lookup',{email:[email]},true);user={localId:data.users?.[0]?.localId};}
 if(!user.localId)throw Error('Missing local review user');
-await post('/identitytoolkit.googleapis.com/v1/projects/demo-alacena-review/accounts:update',{localId:user.localId,emailVerified:true,customAttributes:JSON.stringify({alacenaAccess:true})},true);
+await post('/identitytoolkit.googleapis.com/v1/projects/demo-alacena-review/accounts:update',{localId:user.localId,emailVerified:true,customAttributes:JSON.stringify({alacenaAccess:true,households:['house-1','house-2','house-spain']})},true);
 console.log('Cuenta ficticia lista: revision@alacena.test. Sin cambios en producción.');

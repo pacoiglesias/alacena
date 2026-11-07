@@ -1,14 +1,28 @@
 rules_version = '2';
 // =============================================================================
 // 🛡️ ALACENA Enterprise & CavaPro — Firestore Security Rules
-// Versión: v3.10.2 (antes v3.3.0-Titanium-Aurora-Perfection)
+// Versión: v3.10.3 (antes v3.10.2)
 // Proyecto: alacena-enterprise-prod
 // Estatus: PRODUCCIÓN (Audit Trail Append-Only + Multi-Tenant RBAC + Web & Mobile)
+//
+// AISLAMIENTO POR CASA (AL-1, 7-nov-2026): antes hasHomeAccess() solo exigía
+// estar autenticado + email verificado + claim global alacenaAccess, y
+// ninguna regla comprobaba householdId: cualquier cuenta con el claim veía,
+// editaba y borraba los datos de TODAS las casas. Ahora el custom claim
+// lleva `households`: la lista de IDs de casas autorizadas
+// (scripts/configure_owner_access.cjs), y cada regla de las colecciones
+// vivas exige que el householdId del documento esté en esa lista.
+// ⚠️ ORDEN DE DESPLIEGUE: primero ejecutar configure_owner_access.cjs para
+// añadir `households` al claim de Paco y volver a iniciar sesión en la app
+// (el claim viaja en el ID token); DESPUÉS desplegar estas reglas. Sin el
+// claim actualizado, el acceso se deniega (falla cerrada).
+// El RBAC de workspaces/ de abajo es código muerto (el frontend no usa
+// workspaces/); se deja como está.
 // Nota E5 (3.10.2): la app suscribe products y shopping_list filtradas por
-// householdId activo (where householdId == casa); las reglas exigen el claim
-// global alacenaAccess + email verificado. El aislamiento por casa lo aplica
-// la consulta por casa; /global_ean_cache sigue siendo solo caché pública
-// código→nombre, sin datos del hogar.
+// householdId activo (where householdId == casa); audit_logs y
+// purchase_history también se suscriben ya filtradas por casa activa.
+// /global_ean_cache sigue siendo solo caché pública código→nombre, sin
+// datos del hogar; su creación ahora exige hasHomeAccess() (AL-3).
 // =============================================================================
 
 service cloud.firestore {
@@ -27,6 +41,28 @@ service cloud.firestore {
     function hasHomeAccess() {
       return isAuthenticated() && request.auth.token.email_verified == true &&
         request.auth.token.alacenaAccess == true;
+    }
+
+    // Casas autorizadas en el custom claim (`households`: lista de IDs).
+    // Sin claim, la lista es vacía y todo se deniega (falla cerrada).
+    function claimHouseholds() {
+      return request.auth.token.households is list ? request.auth.token.households : [];
+    }
+
+    // ¿Pertenece este householdId a una casa autorizada del usuario?
+    function householdAllowed(householdId) {
+      return householdId is string && householdId in claimHouseholds();
+    }
+
+    // La casa del documento EXISTENTE (lectura/borrado, y actualización:
+    // impide mover a otra casa un documento que no es tuyo).
+    function existingHouseholdAllowed() {
+      return householdAllowed(resource.data.householdId);
+    }
+
+    // La casa del documento RESULTANTE (creación/actualización).
+    function newHouseholdAllowed() {
+      return householdAllowed(request.resource.data.householdId);
     }
 
     function validHomeRecord() {
@@ -85,7 +121,9 @@ service cloud.firestore {
     // =========================================================================
     match /global_ean_cache/{barcode} {
       allow read: if true; // Lectura pública para escaneo rápido de códigos
-      allow create: if isAuthenticated() &&
+      // AL-3: antes lo creaba cualquier usuario autenticado (sin claim ni
+      // email verificado) y podía envenenar el catálogo maestro compartido.
+      allow create: if hasHomeAccess() &&
         request.resource.data.barcode == barcode &&
         request.resource.data.createdAt == request.time;
       allow update, delete: if isAuthenticated() && request.auth.token.role == 'superadmin';
@@ -94,30 +132,55 @@ service cloud.firestore {
     // =========================================================================
     // 🏠 COLECCIONES GLOBALES / WEB DIRECTAS:
     // Soporte para clientes web y sincronización directa
+    // Cada documento lleva householdId y debe pertenecer a una casa del claim.
+    // Las consultas de lista deben filtrar por householdId (where == casa):
+    // las reglas no son filtros y una consulta sin filtrar se deniega.
     // =========================================================================
 
     match /products/{productId} {
-      allow read, delete: if hasHomeAccess();
-      allow create, update: if hasHomeAccess() && validHomeRecord();
+      allow read, delete: if hasHomeAccess() && existingHouseholdAllowed();
+      allow create: if hasHomeAccess() && validHomeRecord() && newHouseholdAllowed();
+      allow update: if hasHomeAccess() && validHomeRecord() && existingHouseholdAllowed() && newHouseholdAllowed();
     }
     match /shopping_list/{itemId} {
-      allow read, delete: if hasHomeAccess();
-      allow create, update: if hasHomeAccess() && validHomeRecord() &&
-        request.resource.data.quantity > 0 && request.resource.data.checked is bool;
+      allow read, delete: if hasHomeAccess() && existingHouseholdAllowed();
+      allow create: if hasHomeAccess() && validHomeRecord() &&
+        request.resource.data.quantity > 0 && request.resource.data.checked is bool &&
+        newHouseholdAllowed();
+      allow update: if hasHomeAccess() && validHomeRecord() &&
+        request.resource.data.quantity > 0 && request.resource.data.checked is bool &&
+        existingHouseholdAllowed() && newHouseholdAllowed();
     }
-    match /zones/{zoneId} { allow read, write: if hasHomeAccess(); }
-    match /recipes/{recipeId} { allow read, write: if hasHomeAccess(); }
-    match /households/{houseId} { allow read, write: if hasHomeAccess(); }
-    match /learned_products/{productId} { allow read, write: if hasHomeAccess(); }
+    match /zones/{zoneId} {
+      allow read, delete: if hasHomeAccess() && existingHouseholdAllowed();
+      allow create: if hasHomeAccess() && newHouseholdAllowed();
+      allow update: if hasHomeAccess() && existingHouseholdAllowed() && newHouseholdAllowed();
+    }
+    match /recipes/{recipeId} {
+      allow read, delete: if hasHomeAccess() && existingHouseholdAllowed();
+      allow create: if hasHomeAccess() && newHouseholdAllowed();
+      allow update: if hasHomeAccess() && existingHouseholdAllowed() && newHouseholdAllowed();
+    }
+    // El documento de la casa se identifica por su propio ID (house-1, ...).
+    match /households/{houseId} {
+      allow read, write: if hasHomeAccess() && houseId in claimHouseholds();
+    }
+    match /learned_products/{productId} {
+      allow read, delete: if hasHomeAccess() && existingHouseholdAllowed();
+      allow create: if hasHomeAccess() && newHouseholdAllowed();
+      allow update: if hasHomeAccess() && existingHouseholdAllowed() && newHouseholdAllowed();
+    }
     match /purchase_history/{receiptId} {
-      allow read: if hasHomeAccess();
-      allow create: if hasHomeAccess() && request.resource.data.items is list && request.resource.data.items.size() <= 150 && request.resource.data.totalMxn is number && request.resource.data.totalMxn >= 0;
-      allow update: if hasHomeAccess() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['items']) && request.resource.data.items is list && request.resource.data.items.size() <= 150;
+      allow read: if hasHomeAccess() && existingHouseholdAllowed();
+      allow create: if hasHomeAccess() && newHouseholdAllowed() && request.resource.data.items is list && request.resource.data.items.size() <= 150 && request.resource.data.totalMxn is number && request.resource.data.totalMxn >= 0;
+      allow update: if hasHomeAccess() && existingHouseholdAllowed() && newHouseholdAllowed() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['items']) && request.resource.data.items is list && request.resource.data.items.size() <= 150;
       allow delete: if false;
     }
     match /audit_logs/{logId} {
-      allow read: if hasHomeAccess();
-      allow create: if hasHomeAccess() && request.resource.data.cloudTimestamp == request.time &&
+      allow read: if hasHomeAccess() && existingHouseholdAllowed();
+      // AL-5: la creación exige además que el householdId del log esté en
+      // las casas del claim (antes bastaba el claim global).
+      allow create: if hasHomeAccess() && newHouseholdAllowed() && request.resource.data.cloudTimestamp == request.time &&
         request.resource.data.description is string && request.resource.data.description.size() <= 4000;
       allow update, delete: if false;
     }
@@ -127,13 +190,13 @@ service cloud.firestore {
       allow create: if isAuthenticated(); // Alta de nueva cuenta/familia SaaS
       allow update, delete: if isWorkspaceAdmin(workspaceId);
 
-      // --- Miembros y Asignación de Roles del Workspace ---
+      // --- Miembros y Asignación de Roles del Workspace --
       match /members/{memberId} {
         allow read: if isWorkspaceMember(workspaceId);
         allow write: if isWorkspaceAdmin(workspaceId);
       }
 
-      // --- Residencias / Hogares del Workspace ---
+      // --- Residencias / Hogares del Workspace --
       match /households/{householdId} {
         allow read: if isWorkspaceMember(workspaceId);
         allow create, update, delete: if isWorkspaceAdmin(workspaceId);

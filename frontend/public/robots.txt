@@ -1,0 +1,3 @@
+# Alacena es una app privada (requiere cuenta autorizada): no indexar nada.
+User-agent: *
+Disallow: /

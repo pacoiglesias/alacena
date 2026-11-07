@@ -438,8 +438,8 @@ export default function App() {
       }
       if (!meta?.fromCache) { shoppingRows=rows; decide(); }
     },fail);
-    const unsubAudit=subscribeToAuditLogs((rows) => {bufferedAudit=rows;if(open)setAuditLogs((prev) => mergeHistory(prev,rows,'timestamp'));},fail);
-    const unsubHistory=subscribeToPurchaseHistory((rows,page) => {bufferedHistory=[rows,page];if(open)applyHistory(rows,page);},fail);
+    const unsubAudit=subscribeToAuditLogs(activeHouse.id,(rows) => {bufferedAudit=rows;if(open)setAuditLogs((prev) => mergeHistory(prev,rows,'timestamp'));},fail);
+    const unsubHistory=subscribeToPurchaseHistory(activeHouse.id,(rows,page) => {bufferedHistory=[rows,page];if(open)applyHistory(rows,page);},fail);
     return () => {cloudRelease.current=null;unsubProducts();unsubShopping();unsubAudit();unsubHistory();setCloudWritesPaused(false);};
   }, [cloudAllowed, activeHouse.id]);
   // Audio mute toggle
@@ -1107,7 +1107,7 @@ export default function App() {
   const loadOlderPurchases = async () => {
     if(historyLoading) return;
     setHistoryLoading(true);setHistoryError('');
-    try {const page=await fetchPurchaseHistoryPage(historyCursor.current);historyOlderLoaded.current=true;historyCursor.current=page.cursor;setHistoryMore(page.hasMore);setPurchaseHistory((prev) => mergeHistory(prev,page.rows));}
+    try {const page=await fetchPurchaseHistoryPage(activeHouse.id,historyCursor.current);historyOlderLoaded.current=true;historyCursor.current=page.cursor;setHistoryMore(page.hasMore);setPurchaseHistory((prev) => mergeHistory(prev,page.rows));}
     catch(error){setHistoryError(error.message);}
     finally{setHistoryLoading(false);}
   };

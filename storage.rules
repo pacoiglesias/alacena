@@ -1,25 +1,43 @@
 rules_version = '2';
+// =============================================================================
+// 🛡️ ALACENA Enterprise — Storage Security Rules
+// Versión: v3.10.3
+// Proyecto: alacena-enterprise-prod
+//
+// AISLAMIENTO POR CASA (AL-4, 7-nov-2026): antes cualquier usuario con el
+// claim leía y borraba las fotos de CUALQUIER casa: el householdId de la
+// ruta no se comprobaba. Ahora la casa de la ruta debe estar en la lista
+// `households` del custom claim (scripts/configure_owner_access.cjs).
+// ⚠️ Igual que en firestore.rules: primero actualizar el claim de Paco y
+// volver a iniciar sesión; después desplegar estas reglas.
+// =============================================================================
 service firebase.storage {
   match /b/{bucket}/o {
-    
+
     function isAuthenticated() {
       return request.auth != null && request.auth.token.email_verified == true && request.auth.token.alacenaAccess == true;
     }
 
+    // ¿Está esta casa en las casas autorizadas del custom claim?
+    function householdAllowed(householdId) {
+      return request.auth != null && request.auth.token.households is list &&
+        householdId in request.auth.token.households;
+    }
+
     // Carpeta de fotos de productos del hogar
     match /households/{householdId}/products/{allPaths=**} {
-      allow read: if isAuthenticated();
-      allow delete: if isAuthenticated();
+      allow read: if isAuthenticated() && householdAllowed(householdId);
+      allow delete: if isAuthenticated() && householdAllowed(householdId);
       // Solo imagenes con tamano menor a 15MB
-      allow create, update: if isAuthenticated() &&
+      allow create, update: if isAuthenticated() && householdAllowed(householdId) &&
         request.resource.size < 15 * 1024 * 1024 &&
         request.resource.contentType.matches('image/.*');
     }
 
     // Carpeta de escaneos de OpenAI Vision / fotos temporales
     match /vision_analysis/{householdId}/{imageId} {
-      allow read, delete: if isAuthenticated();
-      allow create, update: if isAuthenticated() &&
+      allow read, delete: if isAuthenticated() && householdAllowed(householdId);
+      allow create, update: if isAuthenticated() && householdAllowed(householdId) &&
         request.resource.size < 20 * 1024 * 1024 &&
         request.resource.contentType.matches('image/.*');
     }

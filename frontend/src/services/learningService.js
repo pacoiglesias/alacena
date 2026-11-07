@@ -39,6 +39,9 @@ export async function learnProduct(product) {
     zone: product.zone || 'Alacena Principal',
     photo: product.photo || null,
     isWine: Boolean(product.isWine),
+    // AL-1: las reglas de learned_products exigen householdId en las casas
+    // del claim; sin él, la escritura se deniega.
+    householdId: product.householdId || 'house-1',
     lastUsedAt: new Date().toISOString(),
   };
 
@@ -93,6 +96,9 @@ export async function trackConsumption(product, quantity = 1) {
       const docId = barcode || name.toLowerCase().replace(/[^a-z0-9]/g, '_');
       const docRef = doc(db, 'learned_products', docId);
       await updateDoc(docRef, {
+        // AL-1: sella la casa si el producto la trae (documentos antiguos
+        // sin householdId no se pueden actualizar por reglas).
+        ...(product.householdId ? { householdId: product.householdId } : {}),
         timesConsumed: increment(parseFloat(quantity) || 1),
         lastConsumedAt: new Date().toISOString(),
       }).catch(() => {});
