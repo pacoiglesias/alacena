@@ -3,6 +3,15 @@ name: Desplegar Alacena
 # Despliega hosting y Cloud Functions en alacena-enterprise-prod
 # usando federacion de identidades (WIF): GitHub se autentica
 # directamente con Google, sin clave JSON. No usa secretos.
+#
+# NOTA: las reglas de Firestore/Storage (firestore.rules,
+# firestore.indexes.json, storage.rules) NO se despliegan aquí a
+# propósito. Publicarlas exige ANTES actualizar el claim del
+# propietario (scripts/configure_owner_access.cjs, con los IDs de sus
+# casas) y que Paco cierre y vuelva a abrir sesión; si las reglas
+# nuevas se publican con el claim viejo, la app pierde el acceso.
+# Las reglas se despliegan a mano, por separado. Por eso firestore.*
+# tampoco está en los paths de este trigger.
 
 on:
   push:
@@ -11,8 +20,6 @@ on:
       - 'frontend/**'
       - 'functions/**'
       - 'firebase.json'
-      - 'firestore.rules'
-      - 'firestore.indexes.json'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
@@ -20,18 +27,27 @@ permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: deploy-alacena
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            frontend/package-lock.json
+            functions/package-lock.json
 
       - name: Instalar Firebase CLI
-        run: npm install -g firebase-tools
+        run: npm install -g firebase-tools@15.35.0
 
       - id: auth
         uses: google-github-actions/auth@v2
