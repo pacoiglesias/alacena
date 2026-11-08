@@ -28,7 +28,7 @@
     "firebase": "^13.2.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",
-    "lucide-react": "^1.55.0",
+    "lucide-react": "^1.69.0",
     "pdfjs-dist": "^6.5.438",
     "qrcode": "^1.5.4",
     "qrcode.react": "^4.2.0",
