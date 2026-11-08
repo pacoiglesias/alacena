@@ -16,6 +16,14 @@ db.version(2).stores({
   priceRecords: 'id, canonicalName, fullName, store, unitPrice, date'
 });
 
+// v3: el índice de recetas apuntaba a `difficulty`, un campo que las
+// recetas nunca han tenido (el real es `dificultad`). Dexie reconstruye
+// el índice en la migración y conserva todas las filas: no se toca
+// ningún dato, solo el nombre del índice.
+db.version(3).stores({
+  recipes: 'id, name, dificultad, tiempoMin'
+});
+
 // Helper sync utilities
 export async function syncPantryToIndexedDb(products, shoppingList, recipes, auditLogs) {
   try {

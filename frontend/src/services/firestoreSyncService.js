@@ -139,7 +139,56 @@ export async function deleteShoppingItemFromCloud(itemId) {
   }
 }
 
-// 7. Bitácora Forense Global (Consumos y Compras México ⇄ España)
+// 7. Escuchar Recetas por Hogar (mismo patrón que productos y lista)
+// AL-1: la consulta filtra por householdId porque las reglas lo exigen
+// (existingHouseholdAllowed deniega documentos sin casa o de otra casa).
+// Las recetas locales antiguas sin householdId se sellan con la casa
+// actual al guardarlas (saveRecipeToCloud), así que entran en la
+// suscripción en cuanto se suben.
+export function subscribeToRecipes(householdId, onUpdate, onError) {
+  if (!db) return () => {};
+  try {
+    const ref = collection(db, 'recipes');
+    const q = householdId
+      ? query(ref, where('householdId', '==', householdId))
+      : query(ref);
+
+    return onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+      const items = [];
+      snapshot.forEach((docSnap) => {
+        items.push({ ...docSnap.data(), id: docSnap.id });
+      });
+      onUpdate(items, snapshot.metadata);
+    }, (err) => { reportSyncError(err); onError?.(err); });
+  } catch {
+    return () => {};
+  }
+}
+
+// 8. Guardar o actualizar una receta en Firestore
+export async function saveRecipeToCloud(recipe) {
+  if (!await canSync()) return;
+  if (!db || !recipe?.id) return;
+  try {
+    const docRef = doc(db, 'recipes', String(recipe.id));
+    await setDoc(docRef, { ...recipe, householdId: recipe.householdId || 'house-1', updatedAt: new Date().toISOString() }, { merge: true });
+  } catch (err) {
+    reportSyncError(err);
+  }
+}
+
+// 9. Eliminar receta de Firestore
+export async function deleteRecipeFromCloud(recipeId) {
+  if (!await canSync()) return;
+  if (!db || !recipeId) return;
+  try {
+    await deleteDoc(doc(db, 'recipes', String(recipeId)));
+  } catch (err) {
+    reportSyncError(err);
+  }
+}
+
+// 10. Bitácora Forense Global (Consumos y Compras México ⇄ España)
 export async function logAuditEventToCloud(logEntry) {
   if (!await canSync()) return;
   if (!db || !logEntry?.id) return;
@@ -155,7 +204,7 @@ export async function logAuditEventToCloud(logEntry) {
   }
 }
 
-// 8. Escuchar Bitácora en Tiempo Real (para ver qué consumió cada casa)
+// 11. Escuchar Bitácora en Tiempo Real (para ver qué consumió cada casa)
 // AL-1: filtrada por la casa activa. Sin el filtro, las reglas (que exigen
 // householdId en las casas del claim) deniegan la consulta: las reglas no
 // son filtros.
@@ -179,7 +228,7 @@ export function subscribeToAuditLogs(householdId, onUpdate, onError) {
   }
 }
 
-// 9. Inicializar datos semilla en la nube si está vacía
+// 12. Inicializar datos semilla en la nube si está vacía
 export async function seedCloudIfEmpty(snapshot) {
   if (!await canSync(true) || !navigator.onLine) throw new Error('Conecta la cuenta autorizada y vuelve a tener internet antes de subir tus datos.');
   // AL-1: la comprobación se acota a la casa activa; una consulta sin

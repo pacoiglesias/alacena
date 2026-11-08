@@ -23,6 +23,7 @@ export const disconnectGoogle = () => session().then((m) => m.disconnectGoogle()
 export const connectReviewUser = () => session().then((m) => m.connectReviewUser());
 export const subscribeToProducts = subscribe(cloud, 'subscribeToProducts');
 export const subscribeToShoppingList = subscribe(cloud, 'subscribeToShoppingList');
+export const subscribeToRecipes = subscribe(cloud, 'subscribeToRecipes');
 export const subscribeToAuditLogs = subscribe(cloud, 'subscribeToAuditLogs');
 export const subscribeToPurchaseHistory = subscribe(cloud, 'subscribeToPurchaseHistory');
 export const saveProductToCloud = invoke('saveProductToCloud');
@@ -30,6 +31,8 @@ export const savePurchaseTransaction = invoke('savePurchaseTransaction');
 export const deleteProductFromCloud = invoke('deleteProductFromCloud');
 export const saveShoppingItemToCloud = invoke('saveShoppingItemToCloud');
 export const deleteShoppingItemFromCloud = invoke('deleteShoppingItemFromCloud');
+export const saveRecipeToCloud = invoke('saveRecipeToCloud');
+export const deleteRecipeFromCloud = invoke('deleteRecipeFromCloud');
 export const logAuditEventToCloud = invoke('logAuditEventToCloud');
 export const fetchPurchaseHistoryPage = invoke('fetchPurchaseHistoryPage', true);
 export const seedCloudIfEmpty = invoke('seedCloudIfEmpty', true);

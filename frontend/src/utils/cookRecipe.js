@@ -1,7 +1,11 @@
 import { belongsToHouse } from './householdShopping.js';
 import { areItemsEquivalent, normalizeItemName } from './deduplication.js';
 const rounded = (n) => Math.round(n * 1000) / 1000;
-const units = { g:['mass',0.001], gr:['mass',0.001], gramos:['mass',0.001], kg:['mass',1], kilos:['mass',1], ml:['volume',0.001], l:['volume',1], lt:['volume',1], litros:['volume',1], pieza:['count',1], piezas:['count',1], pz:['count',1], unidad:['count',1], unidades:['count',1], botellas:['bottle',1] };
+// Unidades de cocina caseras (volumen, en litros): sin ellas una receta
+// con «2 cucharadas de aceite» no casaba con un stock en litros/ml y el
+// ingrediente se daba por faltante. Singular y plural porque la tabla se
+// consulta con el nombre ya normalizado, sin singularizar.
+const units = { g:['mass',0.001], gr:['mass',0.001], gramos:['mass',0.001], kg:['mass',1], kilos:['mass',1], ml:['volume',0.001], l:['volume',1], lt:['volume',1], litros:['volume',1], cucharada:['volume',0.015], cucharadas:['volume',0.015], cucharadita:['volume',0.005], cucharaditas:['volume',0.005], taza:['volume',0.24], tazas:['volume',0.24], pieza:['count',1], piezas:['count',1], pz:['count',1], unidad:['count',1], unidades:['count',1], botellas:['bottle',1] };
 export function amountInUnit(amount, from, to) {
   const a = units[normalizeItemName(from || 'piezas')], b = units[normalizeItemName(to || 'piezas')];
   if (normalizeItemName(from || 'piezas') === normalizeItemName(to || 'piezas')) return amount;
