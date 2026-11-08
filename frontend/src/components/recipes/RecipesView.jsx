@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Utensils, ChefHat, CheckCircle2, AlertCircle, Sparkles, 
   Plus, X, Check, ShoppingCart, Clock, 
-  Flame, Play, Pause, RotateCcw, Trash2
+  Flame, Play, Pause, RotateCcw, Trash2, Pencil
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
@@ -23,12 +23,16 @@ export default function RecipesView({
   staffList = [],
   onCookRecipe,
   onCreateRecipe,
+  onUpdateRecipe,
+  onDeleteRecipe,
   onAddMissingToShoppingList,
   householdId = 'house-1',
 }) {
   const [cookingRecipe, setCookingRecipe] = useState(null);
   const [selectedStaff, setSelectedStaff] = useState('');
   const [isNewRecipeModalOpen, setIsNewRecipeModalOpen] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [activeCookModeRecipe, setActiveCookModeRecipe] = useState(null);
   
   // Porciones escalables por receta { [recipeId]: portions }
@@ -154,6 +158,37 @@ export default function RecipesView({
     setNewIngredients(newIngredients.filter((_, i) => i !== idx));
   };
 
+  const resetRecipeForm = () => {
+    setEditingRecipe(null);
+    setNewRecipeName('');
+    setNewRecipeDesc('');
+    setNewRecipePortions(4);
+    setNewRecipeTime(35);
+    setNewRecipeDifficulty('Media');
+    setNewIngredients([{ productName: '', amount: 1, unit: 'kg' }]);
+  };
+
+  const handleOpenNewRecipe = () => {
+    resetRecipeForm();
+    setIsNewRecipeModalOpen(true);
+  };
+
+  const handleEditRecipe = (recipe) => {
+    audio.click();
+    setEditingRecipe(recipe);
+    setNewRecipeName(recipe.name || '');
+    setNewRecipeDesc(recipe.description || '');
+    setNewRecipePortions(recipe.portions || 4);
+    setNewRecipeTime(recipe.tiempoMin || 35);
+    setNewRecipeDifficulty(recipe.dificultad || 'Media');
+    setNewIngredients(
+      recipe.ingredients?.length
+        ? recipe.ingredients.map((i) => ({ productName: i.productName || '', amount: i.amount || 1, unit: i.unit || 'kg' }))
+        : [{ productName: '', amount: 1, unit: 'kg' }]
+    );
+    setIsNewRecipeModalOpen(true);
+  };
+
   const handleSaveNewRecipe = (e) => {
     e.preventDefault();
     if (!newRecipeName.trim()) return;
@@ -163,36 +198,45 @@ export default function RecipesView({
       newIngredients.filter((i) => i.productName.trim())
     );
 
-    const createdRecipe = {
-      id: `rec-${Date.now()}`,
+    const formFields = {
       name: newRecipeName.trim(),
       description: newRecipeDesc.trim(),
       portions: parseInt(newRecipePortions) || 4,
       tiempoMin: parseInt(newRecipeTime) || 35,
       dificultad: newRecipeDifficulty,
-      category: 'Platos de Cocina',
       ingredients: cleanIngredients,
-      pasos: [
-        'Mise en place: preparar y medir todos los insumos.',
-        'Iniciar cocción al punto exacto deseado.',
-        'Montar y servir de inmediato para alta presentación patrimonial.'
-      ]
     };
 
-    onCreateRecipe(createdRecipe);
+    // Editar conserva id, categoría, pasos, foto y casa de la receta.
+    const savedRecipe = editingRecipe
+      ? { ...editingRecipe, ...formFields }
+      : {
+          id: `rec-${Date.now()}`,
+          ...formFields,
+          category: 'Platos de Cocina',
+          pasos: [
+            'Mise en place: preparar y medir todos los insumos.',
+            'Iniciar cocción al punto exacto deseado.',
+            'Montar y servir de inmediato para alta presentación patrimonial.'
+          ]
+        };
+
+    if (editingRecipe) {
+      onUpdateRecipe?.(savedRecipe);
+    } else {
+      onCreateRecipe(savedRecipe);
+    }
 
     // Revisar y agregar faltantes al súper si el usuario lo activó
     if (autoAddMissingToShopping && onAddMissingToShoppingList) {
-      const evalRes = evaluateRecipeWithPortions(createdRecipe, createdRecipe.portions);
+      const evalRes = evaluateRecipeWithPortions(savedRecipe, savedRecipe.portions);
       if (evalRes.missingIngredients.length > 0) {
         onAddMissingToShoppingList(evalRes.missingIngredients);
       }
     }
 
     setIsNewRecipeModalOpen(false);
-    setNewRecipeName('');
-    setNewRecipeDesc('');
-    setNewIngredients([{ productName: '', amount: 1, unit: 'kg' }]);
+    resetRecipeForm();
   };
 
   // E3: la confirmación de cocinar muestra la evaluación ya escalada
@@ -223,7 +267,7 @@ export default function RecipesView({
         <button
           onClick={() => {
             audio.click();
-            setIsNewRecipeModalOpen(true);
+            handleOpenNewRecipe();
           }}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-[var(--terracotta)] to-[var(--gold)] hover:brightness-110 transition-all shadow-md active:scale-95 shrink-0"
         >
@@ -284,7 +328,7 @@ export default function RecipesView({
           <button
             onClick={() => {
               audio.click();
-              setIsNewRecipeModalOpen(true);
+              handleOpenNewRecipe();
             }}
             className="mt-6 px-6 py-3 text-xs font-bold text-white bg-gradient-to-r from-[var(--terracotta)] to-[var(--gold)] rounded-2xl shadow-md transition-all"
           >
@@ -461,6 +505,45 @@ export default function RecipesView({
                       <span>🛒 Pedir {evalResult.missingIngredients.length} Faltantes al Súper (1 Clic)</span>
                     </button>
                   )}
+
+                  {/* Editar / Borrar: se guardan en la nube al momento */}
+                  {(onUpdateRecipe || onDeleteRecipe) && (
+                    <div className="flex items-center gap-2">
+                      {onUpdateRecipe && (
+                        <button
+                          onClick={() => handleEditRecipe(recipe)}
+                          className="flex-1 py-2 px-3 rounded-xl text-[11px] font-bold text-[var(--ink-secondary)] bg-[var(--bg-elevated)] hover:text-white border border-[var(--border-soft)] transition-all flex items-center justify-center gap-1.5"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          <span>Editar</span>
+                        </button>
+                      )}
+                      {onDeleteRecipe && (confirmDeleteId === recipe.id ? (
+                        <>
+                          <button
+                            onClick={() => { audio.delete(); onDeleteRecipe(recipe.id); setConfirmDeleteId(null); }}
+                            className="flex-1 py-2 px-3 rounded-xl text-[11px] font-bold text-white bg-rose-600 hover:bg-rose-500 transition-all"
+                          >
+                            Sí, borrar
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="flex-1 py-2 px-3 rounded-xl text-[11px] font-bold text-[var(--ink-secondary)] bg-[var(--bg-elevated)] border border-[var(--border-soft)] transition-all"
+                          >
+                            Cancelar
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => { audio.click(); setConfirmDeleteId(recipe.id); }}
+                          className="flex-1 py-2 px-3 rounded-xl text-[11px] font-bold text-[var(--ink-secondary)] hover:text-rose-300 bg-[var(--bg-elevated)] border border-[var(--border-soft)] transition-all flex items-center justify-center gap-1.5"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Borrar</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -477,11 +560,11 @@ export default function RecipesView({
               <div className="flex items-center gap-2.5">
                 <Utensils className="w-5 h-5 text-[var(--gold)]" />
                 <h3 className="font-display text-lg font-bold text-white">
-                  Crear Receta con Verificación Automática
+                  {editingRecipe ? 'Editar Receta' : 'Crear Receta con Verificación Automática'}
                 </h3>
               </div>
               <button aria-label="Cerrar"
-                onClick={() => setIsNewRecipeModalOpen(false)}
+                onClick={() => { setIsNewRecipeModalOpen(false); resetRecipeForm(); }}
                 className="p-1 text-gray-400 hover:text-white rounded-lg hover:bg-white/10"
               >
                 <X className="w-5 h-5" />
@@ -692,7 +775,7 @@ export default function RecipesView({
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--border-soft)]">
                 <button
                   type="button"
-                  onClick={() => setIsNewRecipeModalOpen(false)}
+                  onClick={() => { setIsNewRecipeModalOpen(false); resetRecipeForm(); }}
                   className="px-4 py-2 text-xs font-bold text-[var(--ink-tertiary)] hover:text-white"
                 >
                   Cancelar
@@ -701,7 +784,7 @@ export default function RecipesView({
                   type="submit"
                   className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[var(--terracotta)] to-[var(--gold)] shadow-md hover:brightness-110 active:scale-95"
                 >
-                  ✓ Guardar y Analizar Despensa
+                  {editingRecipe ? '✓ Guardar Cambios' : '✓ Guardar y Analizar Despensa'}
                 </button>
               </div>
             </form>

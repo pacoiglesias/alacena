@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { planRecipe } from './utils/cookRecipe';
 import { downloadBackup, snapshotSignature, preserveSafetyBackup, persistSnapshot, mergeHistory } from './utils/backup';
-import { belongsToHouse, sameStockItem, positiveQuantity, purchaseSummary, mergeHouseholdRows } from './utils/householdShopping';
+import { belongsToHouse, sameStockItem, positiveQuantity, purchaseSummary, mergeHouseholdRows, stepForUnit, roundQty3 } from './utils/householdShopping';
 import { readLocalState, writeLocalState } from './services/localState';
 import { reconcileReceiptList } from './utils/receiptReview';
 import { inventoryMovement } from './utils/inventoryMovement';
@@ -42,6 +42,9 @@ import {
   subscribeToShoppingList,
   saveShoppingItemToCloud,
   deleteShoppingItemFromCloud,
+  subscribeToRecipes,
+  saveRecipeToCloud,
+  deleteRecipeFromCloud,
   logAuditEventToCloud,
   subscribeToAuditLogs
 } from './services/cloudGateway';
@@ -319,6 +322,9 @@ export default function App() {
     setCloudWritesPaused(false);
     products.forEach((p) => saveProductToCloud(p));
     shoppingList.forEach((i) => saveShoppingItemToCloud(i));
+    // Las recetas locales sin casa se sellan con la casa activa al subir:
+    // así entran en la suscripción por casa de la nube.
+    recipes.forEach((r) => saveRecipeToCloud({ ...r, householdId: r.householdId || activeHouse.id }));
     writeLocalState(FIRST_CONNECT_DECISION_KEY, { decision: 'upload', decidedAt: new Date().toISOString() });
     setPendingCloud(null);
     setCloudState('pending');
@@ -384,7 +390,7 @@ export default function App() {
     // se sobrescriba en cada reconexión (antes era de un solo uso).
     ensurePreCloudBackup(localStorageAdapter, { products: before.products, shoppingList: before.shoppingList });
     let productRows, shoppingRows, open = !navigator.onLine && readLocalState('alacena_cloud_initialized_uid','')===getCloudUser()?.uid;
-    let bufferedAudit, bufferedHistory;
+    let bufferedAudit, bufferedHistory, bufferedRecipes;
     setCloudWritesPaused(!open);
     historyCursor.current = null; historyOlderLoaded.current = false;
     const fail = () => setCloudState('error');
@@ -401,6 +407,7 @@ export default function App() {
       if (productRows && (!uploaded || productRows.length)) setProducts((prev) => mergeHouseholdRows(prev, migrateProductsExpiry(productRows), activeHouse.id));
       if (shoppingRows && (!uploaded || shoppingRows.length)) setShoppingList((prev) => mergeHouseholdRows(prev, shoppingRows, activeHouse.id));
       if (bufferedAudit) setAuditLogs((prev) => mergeHistory(prev,bufferedAudit,'timestamp'));
+      if (bufferedRecipes && (!uploaded || bufferedRecipes.length)) setRecipes((prev) => mergeHouseholdRows(prev, bufferedRecipes, activeHouse.id));
       if (bufferedHistory) applyHistory(...bufferedHistory);
       writeLocalState('alacena_cloud_initialized_uid',getCloudUser()?.uid || '');
       setCloudState('synced');
@@ -438,9 +445,16 @@ export default function App() {
       }
       if (!meta?.fromCache) { shoppingRows=rows; decide(); }
     },fail);
+    const unsubRecipes=subscribeToRecipes(activeHouse.id,(rows,meta) => {
+      // Guardia E1: un snapshot vacío del servidor nunca vacía lo local.
+      const localHouseCount = readLocalState('alacena_recipes', []).filter((r) => belongsToHouse(r, activeHouse.id)).length;
+      if (shouldIgnoreSnapshot({ rowCount: rows.length, fromCache: !!meta?.fromCache, localCount: localHouseCount })) return;
+      bufferedRecipes=rows;
+      if (open) setRecipes((prev) => mergeHouseholdRows(prev, rows, activeHouse.id));
+    },fail);
     const unsubAudit=subscribeToAuditLogs(activeHouse.id,(rows) => {bufferedAudit=rows;if(open)setAuditLogs((prev) => mergeHistory(prev,rows,'timestamp'));},fail);
     const unsubHistory=subscribeToPurchaseHistory(activeHouse.id,(rows,page) => {bufferedHistory=[rows,page];if(open)applyHistory(rows,page);},fail);
-    return () => {cloudRelease.current=null;unsubProducts();unsubShopping();unsubAudit();unsubHistory();setCloudWritesPaused(false);};
+    return () => {cloudRelease.current=null;unsubProducts();unsubShopping();unsubRecipes();unsubAudit();unsubHistory();setCloudWritesPaused(false);};
   }, [cloudAllowed, activeHouse.id]);
   // Audio mute toggle
   const handleToggleMute = () => {
@@ -1068,11 +1082,36 @@ export default function App() {
     } catch (error) { setOperationNotice(error.message); return false; }
   };
   const handleCreateRecipe = (newRecipe) => {
-    setRecipes((prev) => [newRecipe, ...prev]);
+    // Sello de casa al crear: sin householdId la receta no entra en la
+    // suscripción por casa ni la aceptan las reglas de la nube.
+    const stamped = { ...newRecipe, householdId: newRecipe.householdId || activeHouse.id };
+    setRecipes((prev) => [stamped, ...prev]);
+    saveRecipeToCloud(stamped);
     addAuditEntry(
       'Chef Carlos (Parrilla & Cava)',
       'ALTA_RECETA',
-      `Creó nueva receta "${newRecipe.name}" con ${newRecipe.ingredients.length} ingredientes`
+      `Creó nueva receta "${stamped.name}" con ${stamped.ingredients.length} ingredientes`
+    );
+  };
+  const handleUpdateRecipe = (updatedRecipe) => {
+    const stamped = { ...updatedRecipe, householdId: updatedRecipe.householdId || activeHouse.id };
+    setRecipes((prev) => prev.map((r) => (r.id === stamped.id ? stamped : r)));
+    saveRecipeToCloud(stamped);
+    addAuditEntry(
+      'Chef Carlos (Parrilla & Cava)',
+      'EDICION_RECETA',
+      `Editó la receta "${stamped.name}" (${stamped.ingredients.length} ingredientes)`
+    );
+  };
+  const handleDeleteRecipe = (recipeId) => {
+    const target = recipes.find((r) => r.id === recipeId);
+    if (!target) return;
+    setRecipes((prev) => prev.filter((r) => r.id !== recipeId));
+    deleteRecipeFromCloud(recipeId);
+    addAuditEntry(
+      'Chef Carlos (Parrilla & Cava)',
+      'ELIMINACION_RECETA',
+      `Eliminó la receta "${target.name}"`
     );
   };
 
@@ -1229,18 +1268,35 @@ export default function App() {
             staffList={staffList}
             onCookRecipe={handleCookRecipe}
             onCreateRecipe={handleCreateRecipe}
+            onUpdateRecipe={handleUpdateRecipe}
+            onDeleteRecipe={handleDeleteRecipe}
             onAddMissingToShoppingList={(missingItems) => {
               missingItems.forEach((item) => {
-                const deficit = Math.max(1, (item.required || 1) - (item.available || 0));
+                // Departamento: el del producto equivalente en el
+                // inventario de esta casa (su categoría); si el
+                // ingrediente no está en la despensa, el departamento
+                // canónico de la lista es «Abarrotes» (antes todo iba a
+                // 'ABARROTES' en mayúsculas, que no casaba con ningún
+                // departamento real de la lista).
+                const match = products.find((p) => belongsToHouse(p, activeHouse.id) && areItemsEquivalent(p.name, item.name));
+                // Cantidad: el déficit real en la unidad del
+                // ingrediente (planRecipe ya lo trae calculado), sin
+                // forzar el mínimo de 1 de antes; solo se redondea al
+                // alza al paso mínimo de la unidad (stepForUnit: 0,1 en
+                // kg/l, 1 en el resto) cuando el déficit es positivo
+                // pero menor que ese paso, para no pedir 0,03 piezas.
+                const rawDeficit = Number.isFinite(item.deficit) ? item.deficit : (item.required || 0) - (item.available || 0);
+                const step = stepForUnit(item.unit || 'piezas');
+                const quantity = rawDeficit > 0 ? Math.max(step, roundQty3(rawDeficit)) : step;
                 handleAddShoppingItem({
                   id: `shop-${Date.now()}-${item.name}`,
                   name: item.name,
-                  quantity: deficit,
-                  unit: item.unit || 'kg',
-                  department: 'ABARROTES',
-                  store: 'Supermercado',
-                  estimatedPriceMxn: 0,
-                  targetZone: 'Alacena Principal',
+                  quantity,
+                  unit: item.unit || 'piezas',
+                  department: match?.category || 'Abarrotes',
+                  store: item.store || match?.store || 'Supermercado',
+                  estimatedPriceMxn: item.unitPriceMxn || 0,
+                  targetZone: match?.zone || 'Alacena Principal',
                   checked: false,
                 });
               });
