@@ -1263,7 +1263,7 @@ export default function App() {
         {activeTab === 'recipes' && (
           <RecipesView
             householdId={activeHouse.id}
-            recipes={recipes}
+            recipes={recipes.filter((r) => belongsToHouse(r, activeHouse.id))}
             products={products.filter((p) => belongsToHouse(p, activeHouse.id))}
             staffList={staffList}
             onCookRecipe={handleCookRecipe}

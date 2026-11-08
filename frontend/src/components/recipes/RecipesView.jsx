@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Utensils, ChefHat, CheckCircle2, AlertCircle, Sparkles, 
-  Plus, X, Check, ShoppingCart, Clock, 
-  Flame, Play, Pause, RotateCcw, Trash2, Pencil
+import {
+  Utensils, ChefHat, CheckCircle2, AlertCircle, Sparkles,
+  Plus, X, Check, ShoppingCart, Clock,
+  Flame, Play, Pause, RotateCcw, Trash2, Pencil,
+  Camera, ImageOff, ArrowUp, ArrowDown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
@@ -11,10 +12,15 @@ import { getProductExpiryDate, daysUntilExpiry } from '../../utils/productExpiry
 import { notify } from '../../services/notice';
 import { planRecipe } from '../../utils/cookRecipe';
 
-const SAMPLE_RECIPE_PHOTOS = [
-  'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop&q=80', // Ribeye
-  'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=800&auto=format&fit=crop&q=80', // Salmón
-  'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=800&auto=format&fit=crop&q=80', // Pasta / Postre
+// Categorías del recetario: las que ya usan las recetas de la app
+// («Platos de Cocina» era la única que el formulario podía guardar)
+// más «Postres», que faltaba para dulces como la Bala baiana.
+const RECIPE_CATEGORIES = [
+  'Platos de Cocina',
+  'Platos Fuertes',
+  'Cenas & Almuerzos',
+  'Pescados',
+  'Postres',
 ];
 
 export default function RecipesView({
@@ -64,6 +70,9 @@ export default function RecipesView({
   const [newRecipePortions, setNewRecipePortions] = useState(4);
   const [newRecipeTime, setNewRecipeTime] = useState(35);
   const [newRecipeDifficulty, setNewRecipeDifficulty] = useState('Media');
+  const [newRecipeCategory, setNewRecipeCategory] = useState('Platos de Cocina');
+  const [newRecipePhoto, setNewRecipePhoto] = useState('');
+  const [newSteps, setNewSteps] = useState(['']);
   const [autoAddMissingToShopping, setAutoAddMissingToShopping] = useState(true);
   const [newIngredients, setNewIngredients] = useState([
     { productName: '', amount: 1, unit: 'kg' },
@@ -158,6 +167,54 @@ export default function RecipesView({
     setNewIngredients(newIngredients.filter((_, i) => i !== idx));
   };
 
+  // Foto propia de la receta: mismo patrón E7 que la foto de producto
+  // (ManualProductModal): cámara o galería, reducida a 512 px y guardada
+  // como data URL en el campo `foto` del documento de la receta.
+  const handleRecipePhotoFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, 512 / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        setNewRecipePhoto(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Editor de pasos: lista de textos editable y reordenable.
+  const handleAddStep = () => {
+    audio.click();
+    setNewSteps([...newSteps, '']);
+  };
+
+  const handleUpdateStep = (idx, value) => {
+    const updated = [...newSteps];
+    updated[idx] = value;
+    setNewSteps(updated);
+  };
+
+  const handleRemoveStep = (idx) => {
+    audio.delete();
+    // Siempre queda al menos una fila (vacía) para seguir escribiendo.
+    setNewSteps(newSteps.length > 1 ? newSteps.filter((_, i) => i !== idx) : ['']);
+  };
+
+  const handleMoveStep = (idx, delta) => {
+    const target = idx + delta;
+    if (target < 0 || target >= newSteps.length) return;
+    audio.click();
+    const updated = [...newSteps];
+    [updated[idx], updated[target]] = [updated[target], updated[idx]];
+    setNewSteps(updated);
+  };
+
   const resetRecipeForm = () => {
     setEditingRecipe(null);
     setNewRecipeName('');
@@ -165,6 +222,9 @@ export default function RecipesView({
     setNewRecipePortions(4);
     setNewRecipeTime(35);
     setNewRecipeDifficulty('Media');
+    setNewRecipeCategory('Platos de Cocina');
+    setNewRecipePhoto('');
+    setNewSteps(['']);
     setNewIngredients([{ productName: '', amount: 1, unit: 'kg' }]);
   };
 
@@ -181,6 +241,11 @@ export default function RecipesView({
     setNewRecipePortions(recipe.portions || 4);
     setNewRecipeTime(recipe.tiempoMin || 35);
     setNewRecipeDifficulty(recipe.dificultad || 'Media');
+    setNewRecipeCategory(recipe.category || 'Platos de Cocina');
+    setNewRecipePhoto(recipe.foto || '');
+    setNewSteps(
+      recipe.pasos?.length ? recipe.pasos.map((p) => String(p)) : ['']
+    );
     setNewIngredients(
       recipe.ingredients?.length
         ? recipe.ingredients.map((i) => ({ productName: i.productName || '', amount: i.amount || 1, unit: i.unit || 'kg' }))
@@ -198,27 +263,29 @@ export default function RecipesView({
       newIngredients.filter((i) => i.productName.trim())
     );
 
+    // Pasos escritos por el usuario, sin filas vacías; si no escribió
+    // ninguno, la receta queda sin pasos y el Modo Cocinar usa su guía
+    // genérica de respaldo (ya no se fuerzan los 3 pasos de relleno).
+    const cleanSteps = newSteps.map((s) => s.trim()).filter(Boolean);
+
     const formFields = {
       name: newRecipeName.trim(),
       description: newRecipeDesc.trim(),
       portions: parseInt(newRecipePortions) || 4,
       tiempoMin: parseInt(newRecipeTime) || 35,
       dificultad: newRecipeDifficulty,
+      category: newRecipeCategory,
+      foto: newRecipePhoto || null,
+      pasos: cleanSteps,
       ingredients: cleanIngredients,
     };
 
-    // Editar conserva id, categoría, pasos, foto y casa de la receta.
+    // Editar conserva id y casa de la receta; el resto sale del formulario.
     const savedRecipe = editingRecipe
       ? { ...editingRecipe, ...formFields }
       : {
           id: `rec-${Date.now()}`,
           ...formFields,
-          category: 'Platos de Cocina',
-          pasos: [
-            'Mise en place: preparar y medir todos los insumos.',
-            'Iniciar cocción al punto exacto deseado.',
-            'Montar y servir de inmediato para alta presentación patrimonial.'
-          ]
         };
 
     if (editingRecipe) {
@@ -338,9 +405,8 @@ export default function RecipesView({
       ) : (
         /* Recipes Editorial Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {recipes.map((recipe, index) => {
+          {recipes.map((recipe) => {
             const evalResult = evaluateRecipeWithPortions(recipe);
-            const photoUrl = recipe.foto || SAMPLE_RECIPE_PHOTOS[index % SAMPLE_RECIPE_PHOTOS.length];
 
             return (
               <div
@@ -350,11 +416,19 @@ export default function RecipesView({
                 <div>
                   {/* Header con Foto Full-Bleed 16:9 + Gradiente */}
                   <div className="relative aspect-video w-full overflow-hidden bg-[var(--bg-elevated)]">
-                    <img
-                      src={photoUrl}
-                      alt={recipe.name}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 brightness-90"
-                    />
+                    {recipe.foto ? (
+                      <img
+                        src={recipe.foto}
+                        alt={recipe.name}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 brightness-90"
+                      />
+                    ) : (
+                      /* Sin foto propia: marcador neutro, nada de fotos de stock. */
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-[var(--ink-tertiary)]">
+                        <ImageOff className="w-10 h-10" />
+                        <span className="text-[11px] font-bold uppercase tracking-wider">Sin foto</span>
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-base)] via-[var(--bg-base)]/40 to-transparent" />
 
                     {/* Badge de Disponibilidad en Despensa */}
@@ -378,12 +452,17 @@ export default function RecipesView({
                       </span>
                     </div>
 
-                    {/* Tiempo y Dificultad */}
-                    <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                    {/* Tiempo y Categoría */}
+                    <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
                       <span className="px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-md text-[10px] text-white font-mono flex items-center gap-1 border border-white/10">
                         <Clock className="w-3 h-3 text-[var(--gold)]" />
                         <span>{recipe.tiempoMin || 30}m</span>
                       </span>
+                      {recipe.category && (
+                        <span className="px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-md text-[10px] text-[var(--gold)] font-bold border border-white/10">
+                          {recipe.category}
+                        </span>
+                      )}
                     </div>
 
                     {/* Título en Base de Foto */}
@@ -642,6 +721,53 @@ export default function RecipesView({
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-bold text-[var(--ink-secondary)] uppercase mb-1">
+                  Categoría:
+                </label>
+                <select
+                  value={newRecipeCategory}
+                  onChange={(e) => setNewRecipeCategory(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white text-xs font-bold"
+                >
+                  {(RECIPE_CATEGORIES.includes(newRecipeCategory)
+                    ? RECIPE_CATEGORIES
+                    : [newRecipeCategory, ...RECIPE_CATEGORIES]
+                  ).map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Foto propia de la receta (mismo patrón E7 que productos) */}
+              <div className="flex items-center gap-3 p-3 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)]">
+                {newRecipePhoto ? (
+                  <img src={newRecipePhoto} alt="Foto de la receta" className="w-14 h-14 rounded-xl object-cover border border-[var(--border-soft)]" />
+                ) : (
+                  <div className="w-14 h-14 rounded-xl bg-white/5 border border-[var(--border-soft)] flex items-center justify-center text-[var(--ink-tertiary)]">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <span className="block text-xs font-bold text-[var(--ink-secondary)] uppercase tracking-wider">Foto del platillo</span>
+                  <span className="block text-[11px] text-[var(--ink-tertiary)]">Se ve en la tarjeta de la receta. Sin foto, la tarjeta muestra «Sin foto». Opcional.</span>
+                </div>
+                <label className="px-3 py-2 rounded-xl bg-[var(--gold)] text-[var(--on-gold)] text-xs font-bold cursor-pointer shrink-0">
+                  {newRecipePhoto ? 'Cambiar foto' : 'Tomar foto'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleRecipePhotoFile(e.target.files?.[0])}
+                  />
+                </label>
+                {newRecipePhoto && (
+                  <button type="button" onClick={() => setNewRecipePhoto('')} className="px-2 py-2 text-xs font-bold text-rose-400 hover:text-white shrink-0" aria-label="Quitar foto">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
               {/* Ingredientes dinámicos con autocompletado y validación de stock */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -753,6 +879,71 @@ export default function RecipesView({
                 </datalist>
               </div>
 
+              {/* Editor de pasos reales de la receta */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[var(--gold)] uppercase tracking-wider">
+                    Pasos de Preparación:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleAddStep}
+                    className="text-xs font-bold text-[var(--gold)] hover:underline flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Añadir Paso</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {newSteps.map((step, idx) => (
+                    <div key={idx} className="flex items-start gap-2 p-2.5 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)]">
+                      <span className="w-6 h-6 rounded-full bg-[var(--gold)]/20 text-[var(--gold)] font-bold text-xs flex items-center justify-center shrink-0 mt-1">
+                        {idx + 1}
+                      </span>
+                      <textarea
+                        rows="2"
+                        value={step}
+                        onChange={(e) => handleUpdateStep(idx, e.target.value)}
+                        placeholder={`Paso ${idx + 1}: describe qué hay que hacer...`}
+                        className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-soft)] text-white text-xs focus:border-[var(--gold)] outline-none"
+                      />
+                      <div className="flex flex-col gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleMoveStep(idx, -1)}
+                          disabled={idx === 0}
+                          className="p-1 text-gray-500 hover:text-white rounded-lg disabled:opacity-30"
+                          aria-label="Subir paso"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveStep(idx, 1)}
+                          disabled={idx === newSteps.length - 1}
+                          className="p-1 text-gray-500 hover:text-white rounded-lg disabled:opacity-30"
+                          aria-label="Bajar paso"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveStep(idx)}
+                          className="p-1 text-gray-500 hover:text-rose-400 rounded-lg"
+                          aria-label="Borrar paso"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-[var(--ink-tertiary)]">
+                  Estos son los pasos que se ven en el Modo Cocinar. Si los dejas vacíos, se usa una guía genérica.
+                </p>
+              </div>
+
               {/* Opción Proactiva: Mandar al súper al guardar */}
               <div className="p-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-soft)] flex items-center justify-between">
                 <div>
@@ -858,7 +1049,7 @@ export default function RecipesView({
               <h4 className="text-sm font-bold text-white uppercase tracking-wider">
                 Pasos de Preparación:
               </h4>
-              {(activeCookModeRecipe.pasos || [
+              {(activeCookModeRecipe.pasos?.length ? activeCookModeRecipe.pasos : [
                 'Mise en place: preparar y medir todos los insumos.',
                 'Iniciar cocción al punto exacto deseado.',
                 'Montar y servir de inmediato para alta presentación patrimonial.'
