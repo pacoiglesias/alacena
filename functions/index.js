@@ -37,9 +37,11 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { getAuth } = require("firebase-admin/auth");
 
 admin.initializeApp();
-const db = admin.firestore();
+const db = getFirestore();
 
 const REGION = "us-central1";
 const EAN_ALLOWED_ORIGIN = "https://alacena.cobertores.com";
@@ -188,8 +190,8 @@ function buildSuggestionDoc({ id, product, householdName, currency, source }) {
     currency: currency || DEFAULT_CURRENCY,
     checked: false,
     source,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 }
 
@@ -222,7 +224,7 @@ async function processHousehold(householdId, products) {
         data: {
           dias_estimados_restantes: Math.round(daysLeft * 10) / 10,
           run_rate_diario: Math.round((burnRateWeekly / 7) * 100) / 100,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         },
       });
     }
@@ -359,7 +361,7 @@ async function requireHomeAccess(req, res) {
   }
   let decoded;
   try {
-    decoded = await admin.auth().verifyIdToken(match[1]);
+    decoded = await getAuth().verifyIdToken(match[1]);
   } catch (error) {
     console.warn(
       "globalEanLookup: token inválido",

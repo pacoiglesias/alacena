@@ -158,13 +158,14 @@ function loadFunctions() {
   delete require.cache[require.resolve("./index.js")];
   fakeDb = new FakeFirestore();
   captured = {};
-  const fakeAdmin = {
-    initializeApp: () => {},
-    firestore: Object.assign(() => fakeDb, {
-      FieldValue: { serverTimestamp: () => ({ __serverTimestamp: true }) },
-    }),
-    // verifyIdToken simulado (AL-2): solo "token-valido" trae el claim.
-    auth: () => ({
+  const fakeAdmin = { initializeApp: () => {} };
+  const fakeFirestoreModule = {
+    getFirestore: () => fakeDb,
+    FieldValue: { serverTimestamp: () => ({ __serverTimestamp: true }) },
+  };
+  // verifyIdToken simulado (AL-2): solo "token-valido" trae el claim.
+  const fakeAuthModule = {
+    getAuth: () => ({
       verifyIdToken: async (token) => {
         if (token === "token-valido") {
           return { uid: "test-user", alacenaAccess: true };
@@ -180,6 +181,8 @@ function loadFunctions() {
   };
   Module._load = function (request, ...args) {
     if (request === "firebase-admin") return fakeAdmin;
+    if (request === "firebase-admin/firestore") return fakeFirestoreModule;
+    if (request === "firebase-admin/auth") return fakeAuthModule;
     if (request === "firebase-functions/v2/scheduler") {
       return {
         onSchedule: (opts, handler) => {
