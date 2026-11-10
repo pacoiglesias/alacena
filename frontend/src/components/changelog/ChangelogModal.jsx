@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.10.2-Casa';
+export const SYSTEM_VERSION = 'v3.11.0-Casa';
 export const RELEASE_DATE = '5 Noviembre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
@@ -186,6 +186,48 @@ export default function ChangelogModal({ isOpen, onClose }) {
               </ul>
             </div>
 
+            {/* Release v3.11.0-Casa */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
+                    v3.11.0-Casa
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">10 Noviembre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2 font-display">
+                Inventario en serio: el stock bajo vuelve a la lista, el QR descuenta lo justo y cada ficha se completa
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Stock bajo que sí avisa:</strong> reparada la alerta que debía meter en tu lista lo que llega a su mínimo; ahora ningún producto bajo mínimo se queda fuera, y sin duplicar lo que ya está en la lista.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>QR con la cantidad de verdad:</strong> al escanear eliges cuánto consumes o repones (en kilos y litros: 0,1 · 0,25 · 0,5 · 1, a 3 decimales) y tienes «Deshacer» si el escaneo fue equivocado.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Fichas incompletas a la vista:</strong> Inventario marca «Incompleto» a lo que le falta código, caducidad, zona o stock mínimo, con contador y un filtro para ver solo esos productos y completarlos.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Lotes por caducidad:</strong> un mismo producto puede tener varios lotes con su fecha; al consumir se gasta primero el que antes vence y la fecha que ves es siempre la del lote más próximo.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Recibir la compra en un paso:</strong> al guardar la compra corriges cuánto compraste de verdad por artículo; lo comprado entra a la despensa y lo que faltó se queda pendiente en la lista, sin borrar la línea.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Alta rápida por zonas:</strong> el escáner tiene zona fija visible que se queda entre escaneos y entre visitas, el código desconocido te pide el nombre sin inventarlo, y el alta manual trae «Guardar y siguiente» para encadenar productos de la misma zona.</span>
+                </li>
+              </ul>
+            </div>
+
             {/* Release v3.10.2-Casa */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
               <div className="flex items-center justify-between mb-3">
@@ -193,7 +235,6 @@ export default function ChangelogModal({ isOpen, onClose }) {
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
                     v3.10.2-Casa
                   </span>
-                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
                 </div>
                 <span className="text-xs text-gray-400">5 Noviembre 2026</span>
               </div>

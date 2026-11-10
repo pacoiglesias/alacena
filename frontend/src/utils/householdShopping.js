@@ -39,6 +39,25 @@ export function roundQty3(value) {
   return Math.round(Number(value) * 1000) / 1000;
 }
 
+// Cantidades REALES compradas al recibir la compra (3.11.0): el modal de
+// confirmación permite corregir por línea cuánto se compró de verdad.
+// `receivedById` mapea id de la línea -> cantidad comprada (número).
+// Una cantidad 0 (o inválida) significa «no comprado»: la línea NO entra
+// a la despensa y se devuelve aparte para que siga pendiente en la lista.
+// Las líneas sin corrección conservan la cantidad de la lista.
+export function applyReceivedQuantities(items, receivedById = {}) {
+  const received = [];
+  const notPurchased = [];
+  for (const item of items || []) {
+    const hasCorrection = Object.prototype.hasOwnProperty.call(receivedById, item.id);
+    const raw = hasCorrection ? Number(receivedById[item.id]) : Number(item.quantity);
+    const quantity = Math.round(raw * 1000) / 1000;
+    if (Number.isFinite(quantity) && quantity > 0) received.push({ ...item, quantity });
+    else notPurchased.push(item);
+  }
+  return { received, notPurchased };
+}
+
 // Unidad que sugiere el alta rápida del súper por el nombre (Q2): el alta
 // ya no fija siempre 'piezas' cuando se escribe leche, carne o verdura.
 // Solo una sugerencia editable: la tarjeta permite corregir la cantidad

@@ -1,4 +1,5 @@
 import { belongsToHouse } from './householdShopping.js';
+import { applyMovementToLots } from './productLots.js';
 
 export function inventoryMovement(products, { id, amount, direction, householdId }) {
   const product = products.find((p) => p.id === id && belongsToHouse(p, householdId));
@@ -12,6 +13,11 @@ export function inventoryMovement(products, { id, amount, direction, householdId
     throw new Error(`Solo hay ${current} ${product.unit || 'piezas'} de ${product.name}.`);
   const delta = Math.round(quantity * (direction === 'in' ? 1 : -1) * 1000) / 1000;
   if (!delta) throw new Error('La cantidad mínima es 0.001.');
-  const updated = { ...product, quantity: Math.round((current + delta) * 1000) / 1000, updatedAt: new Date().toISOString() };
+  // Lotes FEFO (3.11.0): si el producto tiene lotes, el movimiento los
+  // descuenta/suma en orden de caducidad y la fecha visible sigue al lote
+  // vigente más próximo. Sin lotes, el producto queda como siempre.
+  const lotMovement = applyMovementToLots(product, delta);
+  const updated = { ...product, quantity: Math.round((current + delta) * 1000) / 1000, updatedAt: new Date().toISOString(),
+    ...(lotMovement ? { lots: lotMovement.lots, expiryDate: lotMovement.expiryDate } : {}) };
   return { product, updated, delta, products: products.map((p) => p.id === id ? updated : p) };
 }

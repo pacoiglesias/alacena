@@ -12,7 +12,9 @@
  *     targetZone, estimatedPriceMxn, householdId, householdName,
  *     currency, checked, source?, createdAt, updatedAt }
  *     La app deduce duplicados por sameStockItem (misma casa + misma
- *     unidad normalizada + nombre equivalente), NO por itemId.
+ *     unidad normalizada + nombre equivalente; si ambos traen barcode,
+ *     manda el barcode), NO por itemId. El sameStockItem de abajo es un
+ *     puerto fiel del de la app: ver la nota «CAUSA RAÍZ 3.11.0».
  * - audit_logs: bitácora forense de TEXTO { id, timestamp (ISO), staff,
  *     action, description, details, householdId, householdName }.
  *     Los consumos se registran con acción CONSUMO_STOCK pero SIN itemId
@@ -64,37 +66,82 @@ function toNum(value, fallback) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-/** Misma normalización de nombre que sameStockItem de la app. */
-function normalizeName(name) {
-  const s = String(name || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+/**
+ * Puerto fiel de normalizeItemName de la app
+ * (frontend/src/utils/deduplication.js). NO reinventar: la deduplicación
+ * de las funciones tiene que coincidir con la de la app, o ambas partes
+ * discrepan sobre si un producto «ya está en la lista».
+ */
+function normalizeItemName(str) {
+  if (!str) return "";
+  return String(str)
     .toLowerCase()
-    .replace(/[^a-z0-9 ]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  return s
-    .split(" ")
-    .map((w) => {
-      if (w.length > 3 && w.endsWith("es")) return w.slice(0, -2);
-      if (w.length > 2 && w.endsWith("s")) return w.slice(0, -1);
-      return w;
-    })
-    .join(" ");
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Quitar acentos (á -> a, é -> e)
+    .replace(/[°º]/g, "") // Símbolos de grado y ordinales (5° -> 5)
+    .replace(/[^\w\s]/g, " ") // Signos de puntuación y paréntesis
+    .trim()
+    .replace(/\s+/g, " "); // Colapsar espacios múltiples
 }
 
-function normalizeUnit(unit) {
-  return String(unit || "piezas").trim().toLowerCase();
+/**
+ * Puerto fiel de areItemsEquivalent de la app
+ * (frontend/src/utils/deduplication.js): igualdad normalizada o igualdad
+ * tras pasar cada palabra a singular (con su mapa de casos comunes y la
+ * regla ces -> z: «nueces» equivale a «nuez», «peces» a «pez»).
+ * La normalización anterior de functions/index.js singularizaba distinto
+ * («nueces» -> «nuec», palabras de 3 letras acabadas en s -> sin s) y
+ * duplicaba artículos que la app ya tenía en la lista.
+ */
+function areItemsEquivalent(nameA = "", nameB = "") {
+  const normA = normalizeItemName(nameA);
+  const normB = normalizeItemName(nameB);
+  if (!normA || !normB) return false;
+  if (normA === normB) return true;
+
+  const toSingular = (w) => {
+    const common = {
+      tomates: "tomate", jitomates: "jitomate", chiles: "chile",
+      elotes: "elote", aguacates: "aguacate", aceites: "aceite",
+      quesos: "queso", huevos: "huevo",
+    };
+    if (common[w]) return common[w];
+    if (w.endsWith("ces")) return w.slice(0, -3) + "z"; // peces -> pez
+    if (w.endsWith("es") && w.length > 4) return w.slice(0, -2);
+    if (w.endsWith("s") && !w.endsWith("ss") && w.length > 3) return w.slice(0, -1);
+    return w;
+  };
+
+  const singA = normA.split(" ").map(toSingular).join(" ");
+  const singB = normB.split(" ").map(toSingular).join(" ");
+  return singA === singB;
 }
 
-/** Misma deduplicación que sameStockItem de la app. */
+/**
+ * Puerto fiel de sameStockItem de la app
+ * (frontend/src/utils/householdShopping.js).
+ *
+ * CAUSA RAÍZ 3.11.0: la versión anterior ignoraba el barcode y declaraba
+ * «ya está en la lista» a todo artículo con el mismo nombre normalizado y
+ * la misma unidad. En la app, si AMBOS artículos traen barcode, la
+ * identidad es el barcode: con otro barcode es OTRO artículo (pasa con
+ * los barcodes sintéticos «ALC-…» que la app genera al dar de alta
+ * productos desde compras/escáner y con presentaciones distintas del
+ * mismo producto). Resultado: un producto en su mínimo (p. ej. 0,6 kg
+ * con mínimo 1 en house-1) que en la app NO estaba en la lista nunca
+ * entraba por ninguna de las dos vías — la alerta y el cron comparten
+ * este sameStockItem — y el fallo era silencioso: ambas funciones
+ * «funcionaban» y devolvían 0 sugerencias.
+ */
 function sameStockItem(a, b) {
   const houseA = a.householdId || DEFAULT_HOUSEHOLD_ID;
   const houseB = b.householdId || DEFAULT_HOUSEHOLD_ID;
   return (
     houseA === houseB &&
-    normalizeUnit(a.unit) === normalizeUnit(b.unit) &&
-    normalizeName(a.name) === normalizeName(b.name)
+    normalizeItemName(a.unit || "piezas") === normalizeItemName(b.unit || "piezas") &&
+    (a.barcode && b.barcode
+      ? String(a.barcode) === String(b.barcode)
+      : areItemsEquivalent(a.name, b.name))
   );
 }
 
