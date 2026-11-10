@@ -6,6 +6,7 @@ import {
 import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
 import { getCatalogs } from '../../services/catalogsService';
+import { applyReceivedQuantities, stepForUnit } from '../../utils/householdShopping';
 import DialogLayer from '../layout/DialogLayer';
 
 export default function ReceiptReconciliationModal({
@@ -18,11 +19,33 @@ export default function ReceiptReconciliationModal({
   // Todos los hooks al inicio incondicionalmente
   const catalogs = useMemo(() => getCatalogs(), []);
 
+  // Cantidad REAL comprada por línea (3.11.0 «Recibir compra»): editable
+  // en este modal; 0 = no comprado (no entra a la despensa y la línea
+  // sigue pendiente en la lista). Se inicializa con lo que pedía la lista.
+  const [receivedQty, setReceivedQty] = useState({});
+  React.useEffect(() => {
+    if (isOpen) {
+      const initial = {};
+      checkedItems.forEach((item) => { if (item.id) initial[item.id] = String(item.quantity ?? 1); });
+      setReceivedQty(initial);
+    }
+  }, [isOpen, checkedItems]);
+
+  const receivedMap = useMemo(() => {
+    const map = {};
+    Object.entries(receivedQty).forEach(([id, value]) => { map[id] = Number(value); });
+    return map;
+  }, [receivedQty]);
+  const { received: receivedItems } = useMemo(
+    () => applyReceivedQuantities(checkedItems, receivedMap),
+    [checkedItems, receivedMap]
+  );
+
   const totalEstimatedMxn = useMemo(() => {
-    return checkedItems.reduce((acc, item) => {
+    return receivedItems.reduce((acc, item) => {
       return acc + ((item.quantity || 1) * (item.estimatedPriceMxn || 0));
     }, 0);
-  }, [checkedItems]);
+  }, [receivedItems]);
 
   const [realTotalMxn, setRealTotalMxn] = useState('');
   const [buyerName, setBuyerName] = useState(() => {
@@ -33,12 +56,15 @@ export default function ReceiptReconciliationModal({
   const [saving,setSaving] = useState(false), [error,setError] = useState('');
   const submitting = React.useRef(false);
 
-  // Sincronizar precio real inicial cuando abre
+  // Sincronizar precio real inicial SOLO al abrir (con las cantidades de
+  // la lista); corregir cantidades después no debe pisar el total tecleado.
   React.useEffect(() => {
     if (isOpen) {
-      setRealTotalMxn(totalEstimatedMxn.toFixed(2));
+      const initial = checkedItems.reduce((acc, item) => acc + ((item.quantity || 1) * (item.estimatedPriceMxn || 0)), 0);
+      setRealTotalMxn(initial.toFixed(2));
     }
-  }, [isOpen, totalEstimatedMxn]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -50,10 +76,13 @@ export default function ReceiptReconciliationModal({
   const isUnderBudget = varianceMxn < -0.01;
 
   const handleConfirm = async () => {
-    if (!validTotal || submitting.current || !checkedItems.length) return;
+    if (!validTotal || submitting.current || !receivedItems.length) {
+      if (!receivedItems.length) setError('Marca al menos un artículo como comprado: todos están en 0.');
+      return;
+    }
     submitting.current=true;setSaving(true);setError('');
     try {
-    const result = await onConfirmPurchase({checkedItems,realTotalMxn:parsedRealTotal,buyerName:buyerName || 'Administrador',ticketNotes:ticketNotes.trim(),varianceMxn});
+    const result = await onConfirmPurchase({checkedItems:receivedItems,realTotalMxn:parsedRealTotal,buyerName:buyerName || 'Administrador',ticketNotes:ticketNotes.trim(),varianceMxn});
     if(result===false){setError('No se pudo registrar. Tu selección se conserva; revisa los artículos y vuelve a intentar.');return;}
     audio.cook();
     audio.haptic(50);
@@ -82,10 +111,10 @@ export default function ReceiptReconciliationModal({
             </div>
             <div>
               <h3 className="font-display text-xl font-bold text-white tracking-tight">
-                Guardar mi compra
+                Recibir compra
               </h3>
               <p className="text-xs text-[var(--ink-secondary)] mt-0.5">
-                Ingreso de {checkedItems.length} artículos a la despensa y control de gasto real
+                Confirma cuánto compraste de verdad por artículo: eso es lo que entra a la despensa. Lo puesto a 0 sigue pendiente en la lista.
               </p>
             </div>
           </div>
@@ -103,20 +132,42 @@ export default function ReceiptReconciliationModal({
           {/* Resumen de Artículos a Transferir */}
           <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
             <div className="flex items-center justify-between text-xs font-semibold text-[var(--ink-secondary)] mb-2">
-              <span>Artículos seleccionados ({checkedItems.length})</span>
+              <span>Artículos a ingresar ({receivedItems.length} de {checkedItems.length}) · cantidad real comprada</span>
               <span>Total Estimado: ${totalEstimatedMxn.toFixed(2)} {currency}</span>
             </div>
-            <div className="max-h-32 overflow-y-auto space-y-1.5 pr-1 no-scrollbar">
-              {checkedItems.map((item, idx) => (
-                <div key={item.id || idx} className="flex items-center justify-between text-xs py-1 border-b border-white/5">
-                  <span className="text-white font-medium truncate max-w-[240px]">
-                    • {item.name} <span className="text-gray-400">({item.quantity} {item.unit})</span>
+            <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1 no-scrollbar">
+              {checkedItems.map((item, idx) => {
+                const qtyValue = receivedQty[item.id] ?? String(item.quantity ?? 1);
+                const bought = Number(qtyValue) > 0;
+                return (
+                <div key={item.id || idx} className="flex items-center justify-between gap-2 text-xs py-1 border-b border-white/5">
+                  <span className={`font-medium truncate max-w-[200px] ${bought ? 'text-white' : 'text-gray-500 line-through'}`}>
+                    • {item.name} <span className="text-gray-400">({item.unit})</span>
                   </span>
-                  <span className="text-emerald-400 font-mono">
-                    ${((item.quantity || 1) * (item.estimatedPriceMxn || 0)).toFixed(2)}
+                  <span className="flex items-center gap-1.5 shrink-0">
+                    <input
+                      aria-label={`Cantidad comprada de ${item.name}`}
+                      type="number"
+                      min="0"
+                      step={stepForUnit(item.unit)}
+                      value={qtyValue}
+                      onChange={(e) => setReceivedQty((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                      className="w-20 px-2 py-1 rounded-lg bg-black/40 border border-white/15 text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setReceivedQty((prev) => ({ ...prev, [item.id]: bought ? '0' : String(item.quantity ?? 1) }))}
+                      className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-semibold text-gray-300 hover:text-white"
+                    >
+                      {bought ? 'No comprado' : 'Deshacer'}
+                    </button>
+                    <span className="text-emerald-400 font-mono w-16 text-right">
+                      ${(((Number(qtyValue) > 0 ? Number(qtyValue) : 0)) * (item.estimatedPriceMxn || 0)).toFixed(2)}
+                    </span>
                   </span>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -227,7 +278,7 @@ export default function ReceiptReconciliationModal({
           </button>
           
           <button
-            disabled={!validTotal || saving || !checkedItems.length} onClick={handleConfirm}
+            disabled={!validTotal || saving || !receivedItems.length} onClick={handleConfirm}
             className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-950/50 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <CheckCircle2 className="w-4 h-4 text-emerald-200" />

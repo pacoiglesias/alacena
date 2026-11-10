@@ -16,6 +16,7 @@ import PantryQrBookletModal from '../shopping/PantryQrBookletModal';
 import InventoryChartsWidget from './InventoryChartsWidget';
 import { confirmDialog } from '../../services/notice';
 import { daysUntilExpiry } from '../../utils/productExpiry';
+import { missingProductFields } from '../../utils/productCompleteness';
 
 // Helper: cálculo del estado de caducidad FEFO
 export function getExpiryStatus(expiryDate) {
@@ -112,11 +113,15 @@ export default function InventoryView({
     let lowStockCount = 0;
     let totalValuationMxn = 0;
     let expiringSoonCount = 0;
+    let incompleteCount = 0;
 
     products.forEach((p) => {
       totalValuationMxn += (p.quantity || 0) * (p.unitPriceMxn || 0);
       if (p.quantity <= p.minStock) {
         lowStockCount++;
+      }
+      if (missingProductFields(p).length > 0) {
+        incompleteCount++;
       }
       const expStatus = getExpiryStatus(p.expiryDate);
       if (expStatus && expStatus.days <= 15) {
@@ -124,7 +129,7 @@ export default function InventoryView({
       }
     });
 
-    return { totalItems, lowStockCount, totalValuationMxn, expiringSoonCount };
+    return { totalItems, lowStockCount, totalValuationMxn, expiringSoonCount, incompleteCount };
   }, [products]);
 
   // Filtered products (Filtrados por Residencia Activa México vs España)
@@ -144,6 +149,7 @@ export default function InventoryView({
         const expStatus = getExpiryStatus(p.expiryDate);
         if (!expStatus || expStatus.days > 15) return false;
       }
+      if (statusFilter === 'INCOMPLETE' && missingProductFields(p).length === 0) return false;
 
       if (search.trim()) {
         const query = search.toLowerCase();
@@ -237,7 +243,7 @@ export default function InventoryView({
             <BarChart3 className="w-4 h-4 text-[var(--gold)]" />
             Resumen
             <span className="text-[11px] font-medium text-[var(--ink-tertiary)]">
-              {metrics.totalItems} insumos · {metrics.lowStockCount} por agotarse · {metrics.expiringSoonCount} por vencer
+              {metrics.totalItems} insumos · {metrics.lowStockCount} por agotarse · {metrics.expiringSoonCount} por vencer · {metrics.incompleteCount} incompletos
             </span>
           </span>
           <ChevronDown className={`w-4 h-4 text-[var(--ink-tertiary)] transition-transform duration-200 ${showSummary ? 'rotate-180' : ''}`} />
@@ -625,6 +631,7 @@ export default function InventoryView({
             { id: 'OPTIMAL', label: 'Stock Óptimo' },
             { id: 'LOW', label: `Stock Bajo (${metrics.lowStockCount})` },
             { id: 'EXPIRING', label: `⏰ Por Vencer (${metrics.expiringSoonCount})` },
+            { id: 'INCOMPLETE', label: `Ficha incompleta (${metrics.incompleteCount})` },
             { id: 'OUT', label: 'Agotados' },
           ].map((st) => (
             <button
@@ -681,6 +688,13 @@ export default function InventoryView({
               const isLow = (p.quantity || 0) <= (p.minStock || 0);
               const isOut = (p.quantity || 0) <= 0;
               const wineColor = getWineStyleColor(p);
+              const missingFields = missingProductFields(p);
+              const incompleteBadge = missingFields.length > 0 ? (
+                <span title={`Ficha incompleta: falta ${missingFields.join(', ')}`} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-400/15 text-amber-300 border border-amber-400/40">
+                  <AlertTriangle className="w-2.5 h-2.5" />
+                  Incompleto · falta {missingFields.join(', ')}
+                </span>
+              ) : null;
 
               if (isWine) {
                 // FICHA VISUAL TIPO SOMMELIER (Fase 8.6 - Formato horizontal 2:1)
@@ -708,6 +722,7 @@ export default function InventoryView({
                         <h3 className="font-display text-lg font-bold text-white truncate mt-0.5">
                           {p.name}
                         </h3>
+                        {incompleteBadge && <div className="mt-1">{incompleteBadge}</div>}
                         <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--ink-secondary)] mt-1">
                           {p.vintage && (
                             <span className="px-2 py-0.5 rounded-md bg-[var(--bg-elevated)] text-[var(--gold)] font-mono-num font-bold text-[11px] border border-[var(--border-strong)]">
@@ -827,6 +842,7 @@ export default function InventoryView({
                         <h3 className="font-display text-base font-bold text-white truncate">
                           {p.name}
                         </h3>
+                        {incompleteBadge && <div className="mt-0.5">{incompleteBadge}</div>}
                         <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--ink-secondary)] mt-0.5">
                           <span>{p.category}</span>
                           <span>•</span>
@@ -985,6 +1001,7 @@ export default function InventoryView({
                   const isLow = (p.quantity || 0) <= (p.minStock || 0);
                   const isOut = (p.quantity || 0) <= 0;
                   const totalRowValuation = (p.quantity || 0) * (p.unitPriceMxn || 0);
+                  const missingFields = missingProductFields(p);
 
                   return (
                     <tr 
@@ -1006,6 +1023,11 @@ export default function InventoryView({
                             {p.zone}
                           </span>
                           <span className="truncate">{p.category}</span>
+                          {missingFields.length > 0 && (
+                            <span title={`Ficha incompleta: falta ${missingFields.join(', ')}`} className="px-1.5 py-0.2 rounded bg-amber-400/15 text-amber-300 border border-amber-400/40 font-bold text-[9px]">
+                              Incompleto · falta {missingFields.join(', ')}
+                            </span>
+                          )}
                           <span className="sm:hidden font-mono text-emerald-400/90 font-bold">
                             • ${totalRowValuation.toFixed(0)}
                           </span>

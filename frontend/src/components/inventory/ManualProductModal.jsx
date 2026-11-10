@@ -8,6 +8,17 @@ import { audio } from '../../services/audioService';
 import { getCatalogs, addCustomStore, addCustomStaff } from '../../services/catalogsService';
 import { isCavaZone } from '../../utils/cavaGuard';
 import { confirmDialog } from '../../services/notice';
+import { normalizeLots, totalLotsQuantity } from '../../utils/productLots';
+
+// Última zona usada en altas (la comparte el escáner, misma clave).
+export const LAST_ZONE_KEY = 'alacena:scan_target_zone';
+export function lastUsedZone(zones = []) {
+  try {
+    const saved = window.localStorage.getItem(LAST_ZONE_KEY);
+    if (saved && zones.some((z) => z.name === saved)) return saved;
+  } catch (_) { /* sin almacenamiento: se usa la primera zona */ }
+  return '';
+}
 
 export default function ManualProductModal({ 
   isOpen, 
@@ -34,6 +45,11 @@ export default function ManualProductModal({
   const [barcode, setBarcode] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [photo, setPhoto] = useState('');
+  // Lotes por caducidad (3.11.0): [{ expiryDate, quantity }]
+  const [lots, setLots] = useState([]);
+  // «Guardar y siguiente»: contador de altas encadenadas de esta sesión
+  const [savedNextCount, setSavedNextCount] = useState(0);
+  const saveAndNextRef = React.useRef(false);
 
   // Inline quick adds
   const [isAddingQuickStore, setIsAddingQuickStore] = useState(false);
@@ -86,10 +102,13 @@ export default function ManualProductModal({
       setStaff(initialProduct.lastLoggedBy || (effectiveStaffList[0]?.name || 'María (Jefa de Cocina)'));
       setBarcode(initialProduct.barcode || `ALC-${Date.now().toString(36).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`);
       setExpiryDate(initialProduct.expiryDate || '');
+      setLots(Array.isArray(initialProduct.lots) ? initialProduct.lots.map((l) => ({ expiryDate: l.expiryDate || '', quantity: l.quantity ?? '' })) : []);
       setPhoto(initialProduct.photo || '');
     } else {
       setName('');
-      setZone(zones[0]?.name || 'Alacena Principal');
+      // Alta nueva: arranca en la última zona usada (escáner o alta
+      // anterior) si sigue existiendo; si no, la primera zona.
+      setZone(lastUsedZone(zones) || zones[0]?.name || 'Alacena Principal');
       setCategory('Abarrotes');
       setQuantity(1);
       setUnit('kg');
@@ -100,8 +119,10 @@ export default function ManualProductModal({
       setStaff(effectiveStaffList[0]?.name || 'María (Jefa de Cocina)');
       setBarcode(`ALC-${Date.now().toString(36).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`);
       setExpiryDate('');
+      setLots([]);
       setPhoto('');
     }
+    setSavedNextCount(0);
   }, [initialProduct, isOpen, zones, catalogs]);
 
   if (!isOpen) return null;
@@ -112,18 +133,25 @@ export default function ManualProductModal({
     e.preventDefault();
     if (!name.trim()) return;
 
-    audio.success();
+    const andNext = saveAndNextRef.current && !initialProduct?.id;
+    saveAndNextRef.current = false;
 
     const isCava = isCavaZone(zone, zones);
     const finalUnit = isCava ? 'botellas' : unit;
     const finalCategory = isCava ? 'Vinos & Licores' : (category || 'Abarrotes');
+
+    // Lotes FEFO: solo viajan los lotes válidos (fecha + cantidad > 0).
+    // Si hay lotes, la existencia es su suma y la caducidad visible es la
+    // del lote que antes vence. Sin lotes, el producto queda como siempre.
+    const validLots = normalizeLots({ lots });
+    const hasLots = validLots.length > 0;
 
     const productPayload = {
       id: initialProduct?.id || `prod-${Date.now()}`,
       name: name.trim(),
       zone: zone || zones[0]?.name || 'Alacena Principal',
       category: finalCategory,
-      quantity: parseFloat(quantity) || 0,
+      quantity: hasLots ? totalLotsQuantity(validLots) : (parseFloat(quantity) || 0),
       unit: finalUnit,
       minStock: parseFloat(minStock) || 0,
       maxStock: parseFloat(maxStock) || 6,
@@ -132,13 +160,34 @@ export default function ManualProductModal({
       store: store.trim() || 'Costco Wholesale',
       lastLoggedBy: staff || effectiveStaffList[0]?.name || 'Administrador General',
       barcode: activeBarcode,
-      expiryDate: expiryDate || null,
+      expiryDate: hasLots ? validLots[0].expiryDate : (expiryDate || null),
+      lots: validLots,
       photo: photo || null,
       isWine: isCava ? true : Boolean(initialProduct?.isWine),
       updatedAt: new Date().toISOString(),
     };
 
-    onSave(productPayload);
+    const result = onSave(productPayload);
+    if (result === false) return; // El guardado fue rechazado: no cerrar ni encadenar.
+    audio.success();
+
+    // Recordar la zona para la siguiente alta (escáner y manual comparten).
+    try { window.localStorage.setItem(LAST_ZONE_KEY, productPayload.zone); } catch (_) { /* sin almacenamiento */ }
+
+    if (andNext) {
+      // Guardar y siguiente: se limpia SOLO lo propio del producto y se
+      // conserva zona, categoría, unidad, tienda y personal para seguir
+      // dando altas de la misma zona sin salir del formulario.
+      setSavedNextCount((n) => n + 1);
+      setName('');
+      setBarcode(`ALC-${Date.now().toString(36).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`);
+      setQuantity(1);
+      setUnitPriceMxn(0);
+      setExpiryDate('');
+      setLots([]);
+      setPhoto('');
+      return;
+    }
     onClose();
   };
 
@@ -452,6 +501,65 @@ export default function ManualProductModal({
             </div>
           </div>
 
+          {/* Lotes por caducidad (FEFO, 3.11.0) */}
+          <div className="p-3.5 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)] space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-[var(--gold)] uppercase tracking-wider">
+                <Calendar className="w-3.5 h-3.5 text-[var(--gold)]" />
+                <span>Lotes por caducidad (opcional)</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => { audio.click(); setLots((prev) => [...prev, { expiryDate: expiryDate || '', quantity: '' }]); }}
+                className="text-[10px] text-[var(--gold)] hover:underline flex items-center gap-1 font-mono font-bold"
+              >
+                <Plus className="w-3 h-3" />
+                <span>+ Añadir lote</span>
+              </button>
+            </div>
+            {lots.length === 0 ? (
+              <p className="text-[11px] text-[var(--ink-tertiary)] leading-relaxed">
+                Sin lotes: el producto usa su fecha de caducidad única, como siempre. Añade lotes si tienes el mismo producto con caducidades distintas: al consumir, se descuenta primero del que antes vence.
+              </p>
+            ) : (
+              <>
+                {lots.map((lot, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      aria-label={`Caducidad del lote ${idx + 1}`}
+                      value={lot.expiryDate || ''}
+                      onChange={(e) => setLots((prev) => prev.map((l, i) => i === idx ? { ...l, expiryDate: e.target.value } : l))}
+                      className="flex-1 px-3 py-1.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-soft)] text-white text-xs focus:outline-none focus:border-[var(--gold)]"
+                    />
+                    <input
+                      type="number"
+                      aria-label={`Cantidad del lote ${idx + 1}`}
+                      step="any"
+                      min="0"
+                      value={lot.quantity}
+                      onChange={(e) => setLots((prev) => prev.map((l, i) => i === idx ? { ...l, quantity: e.target.value } : l))}
+                      className="w-24 px-3 py-1.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-soft)] text-white font-mono text-xs focus:outline-none focus:border-[var(--gold)]"
+                      placeholder="Cant."
+                    />
+                    <span className="text-[11px] text-[var(--ink-secondary)]">{unit}</span>
+                    <button
+                      type="button"
+                      aria-label={`Quitar lote ${idx + 1}`}
+                      onClick={() => { audio.click(); setLots((prev) => prev.filter((_, i) => i !== idx)); }}
+                      className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/15"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                <p className="text-[11px] text-[var(--ink-secondary)]">
+                  Con lotes, la existencia guardada es su suma: <strong className="text-white">{totalLotsQuantity(normalizeLots({ lots }))} {unit}</strong> y la caducidad visible es la del lote más próximo.
+                </p>
+              </>
+            )}
+          </div>
+
           {/* SECCIÓN PROACTIVA: TIENDA DE COMPRA HABITUAL */}
           <div className="p-3.5 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)] space-y-2">
             <div className="flex items-center justify-between">
@@ -653,6 +761,16 @@ export default function ManualProductModal({
               >
                 Cancelar
               </button>
+              {!initialProduct?.id && (
+                <button
+                  type="submit"
+                  onClick={() => { saveAndNextRef.current = true; }}
+                  className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-[var(--gold)] bg-[var(--gold)]/10 hover:bg-[var(--gold)]/20 border border-[var(--gold)]/40 rounded-xl transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Guardar y siguiente{savedNextCount > 0 ? ` (${savedNextCount})` : ''}</span>
+                </button>
+              )}
               <button
                 type="submit"
                 className="flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-[var(--terracotta)] to-[var(--gold)] hover:brightness-110 rounded-xl transition-all shadow-md shadow-[var(--terracotta)]/20"

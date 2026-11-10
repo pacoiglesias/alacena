@@ -5,6 +5,30 @@ Fuente: `frontend/src/components/changelog/ChangelogModal.jsx`, el historial que
 la propia app muestra en pantalla. Este archivo es solo el espejo en la raíz
 del repo; la fuente canónica sigue siendo el modal.
 
+## 3.11.0 — 10 noviembre 2026 · Inventario y QR
+
+Ronda pedida por Paco («arregla todo y mejora todo») SIN tocar recetas ni cocinar:
+
+- **Stock bajo → lista (arreglo):** diagnóstico del producto bajo mínimo que no
+  entraba en la lista y test de regresión en functions (ver informe de la ronda).
+- **QR con cantidad real:** chips por unidad (kg/l: 0,1 · 0,25 · 0,5 · 1, a 3
+  decimales; piezas/botellas: 1) y botón «Deshacer» en el modal de escaneo rápido;
+  el modal ya muestra la existencia viva tras cada movimiento.
+- **Ficha «Incompleto»:** marca en Inventario (tarjetas y tabla), contador en el
+  resumen y filtro propio para productos sin código, sin caducidad, sin zona o
+  sin stock mínimo. No bloquea guardar: solo señala.
+- **Lotes por caducidad (FEFO):** `lots: [{expiryDate, quantity}]` por producto,
+  editor en el modal de producto; al consumir se descuenta primero del lote que
+  antes vence y la fecha visible sigue al lote vigente más próximo. Productos
+  sin lotes: comportamiento idéntico al anterior.
+- **Recibir la compra en un paso:** la confirmación de compra permite corregir
+  la cantidad real por artículo (0 = no comprado); todas las vías reconcilian
+  parcial: el resto no comprado queda pendiente en la lista.
+- **Alta rápida por zonas:** zona destino visible y persistente en el escáner
+  (misma clave que el alta manual), foco en el nombre cuando el código es
+  desconocido (nunca se inventa) y «Guardar y siguiente» en el alta manual
+  conservando la zona.
+
 ## Funciones en la nube — 6 noviembre 2026 · DESPLEGADAS · PRODUCCIÓN
 
 El consumo predictivo y las alertas de stock ya corren en la nube.

@@ -434,6 +434,129 @@ test("alerta: stock bajo añade a la lista; stock suficiente, borrado o sin nomb
   assert.equal(items[0].name, "Café");
 });
 
+// --- regresión 3.11.0: stock bajo -> lista (caso 0,6 kg / mínimo 1) -------
+// Fixtures inventados (ningún dato del hogar). El producto análogo al real:
+// quantity 0.6 kg, minStock 1, casa house-1.
+
+const REPRO_PRODUCT = {
+  id: "prod-repro-311", name: "Queso Inventado de Prueba", quantity: 0.6,
+  unit: "kg", minStock: 1, idealStock: 3, category: "Abarrotes",
+  store: "Supermercado", zone: "Alacena Principal", unitPriceMxn: 50,
+  barcode: "7509999999999", householdId: "house-1",
+};
+
+function reproAfter(product) {
+  return { exists: true, data: () => ({ ...product }) };
+}
+
+test("regresión 3.11.0 cron: producto bajo mínimo (0,6 <= 1) sin estar en lista -> exactamente 1 sugerencia", async () => {
+  loadFunctions();
+  await seedProduct(REPRO_PRODUCT);
+  const result = await captured.cron();
+  assert.equal(result.suggestions, 1);
+  const items = await listShopping();
+  assert.equal(items.length, 1);
+  assert.equal(items[0].name, "Queso Inventado de Prueba");
+  assert.equal(items[0].quantity, 2.4); // ideal 3 - existencia 0.6
+  assert.equal(items[0].source, "AI_PREDICTIVE");
+  // Segunda pasada del cron: la sugerencia ya creada no se duplica.
+  const again = await captured.cron();
+  assert.equal(again.suggestions, 0);
+  assert.equal((await listShopping()).length, 1);
+});
+
+test("regresión 3.11.0 alerta: producto bajo mínimo (0,6 <= 1) sin estar en lista -> exactamente 1 sugerencia", async () => {
+  loadFunctions();
+  await captured.alert({
+    params: { productId: REPRO_PRODUCT.id },
+    data: { after: reproAfter(REPRO_PRODUCT) },
+  });
+  const items = await listShopping();
+  assert.equal(items.length, 1);
+  assert.equal(items[0].name, "Queso Inventado de Prueba");
+  assert.equal(items[0].quantity, 2.4);
+  assert.equal(items[0].source, "LOW_STOCK_RULE");
+  // Repetir el aviso no duplica.
+  await captured.alert({
+    params: { productId: REPRO_PRODUCT.id },
+    data: { after: reproAfter(REPRO_PRODUCT) },
+  });
+  assert.equal((await listShopping()).length, 1);
+});
+
+test("regresión 3.11.0 causa raíz: mismo nombre/unidad pero OTRO barcode en lista NO cuenta como ya listado (como en la app)", async () => {
+  // En la app (sameStockItem de householdShopping.js), si ambos artículos
+  // traen barcode, la identidad es el barcode: otro barcode = otro artículo.
+  // Las funciones ignoraban el barcode y saltaban el producto para siempre.
+  loadFunctions();
+  await seedProduct(REPRO_PRODUCT);
+  await seedShoppingItem({
+    id: "shop-otro-barcode", name: "Queso Inventado de Prueba", quantity: 1,
+    unit: "kg", barcode: "7508888888888", householdId: "house-1", checked: false,
+  });
+  const result = await captured.cron();
+  assert.equal(result.suggestions, 1);
+  assert.equal((await listShopping()).length, 2);
+
+  // Y la alerta en tiempo real, partiendo de la misma situación:
+  loadFunctions();
+  await seedShoppingItem({
+    id: "shop-otro-barcode", name: "Queso Inventado de Prueba", quantity: 1,
+    unit: "kg", barcode: "7508888888888", householdId: "house-1", checked: false,
+  });
+  await captured.alert({
+    params: { productId: REPRO_PRODUCT.id },
+    data: { after: reproAfter(REPRO_PRODUCT) },
+  });
+  assert.equal((await listShopping()).length, 2);
+});
+
+test("regresión 3.11.0: ya está en lista (mismo barcode) -> 0 sugerencias en cron y en alerta", async () => {
+  loadFunctions();
+  await seedProduct(REPRO_PRODUCT);
+  await seedShoppingItem({
+    id: "shop-mismo", name: "Queso Inventado de Prueba", quantity: 1,
+    unit: "kg", barcode: "7509999999999", householdId: "house-1", checked: false,
+  });
+  const result = await captured.cron();
+  assert.equal(result.suggestions, 0);
+  await captured.alert({
+    params: { productId: REPRO_PRODUCT.id },
+    data: { after: reproAfter(REPRO_PRODUCT) },
+  });
+  assert.equal((await listShopping()).length, 1);
+});
+
+test("regresión 3.11.0: equivalencia de nombre como la app (Nueces en despensa, Nuez en lista) -> 0 sugerencias", async () => {
+  // areItemsEquivalent de la app: "nueces" -> "nuez" (regla ces -> z).
+  // La normalización propia de las funciones daba "nuec" != "nuez" y
+  // duplicaba el artículo en la lista.
+  loadFunctions();
+  await seedProduct({
+    id: "prod-nueces", name: "Nueces Inventadas", quantity: 0.6, unit: "kg",
+    minStock: 1, idealStock: 3, barcode: "", householdId: "house-1",
+  });
+  await seedShoppingItem({
+    id: "shop-nuez", name: "Nuez Inventada", quantity: 1, unit: "kg",
+    barcode: "", householdId: "house-1", checked: false,
+  });
+  const result = await captured.cron();
+  assert.equal(result.suggestions, 0);
+  assert.equal((await listShopping()).length, 1);
+});
+
+test("regresión 3.11.0: producto sobre el mínimo (2,5 > 1) -> 0 sugerencias en cron y en alerta", async () => {
+  loadFunctions();
+  await seedProduct({ ...REPRO_PRODUCT, quantity: 2.5 });
+  const result = await captured.cron();
+  assert.equal(result.suggestions, 0);
+  await captured.alert({
+    params: { productId: REPRO_PRODUCT.id },
+    data: { after: reproAfter({ ...REPRO_PRODUCT, quantity: 2.5 }) },
+  });
+  assert.equal((await listShopping()).length, 0);
+});
+
 // --- EAN ------------------------------------------------------------------
 
 // Petición autenticada con el claim (AL-2): el resto de tests EAN la usan.

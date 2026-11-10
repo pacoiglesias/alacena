@@ -64,6 +64,7 @@ import {
 } from './utils/deduplication';
 import { sanitizeAllInventory, sanitizeCavaProduct } from './utils/cavaGuard';
 import { migrateProductsExpiry } from './utils/productExpiry';
+import { applyMovementToLots } from './utils/productLots';
 import {
   PRE_CLOUD_BACKUP_KEY,
   FIRST_CONNECT_DECISION_KEY,
@@ -541,7 +542,11 @@ export default function App() {
       householdId: activeHouse.id, householdName: activeHouse.name }, zones);
     const existing = products.find((p) => belongsToHouse(p, activeHouse.id) && (p.id === item.id || sameStockItem(p, item)));
     const consolidate = existing && existing.id !== item.id;
-    const saved = consolidate ? { ...existing, quantity: Math.round((Number(existing.quantity || 0) + item.quantity) * 1000) / 1000, updatedAt: new Date().toISOString() } : item;
+    // Si el existente tiene lotes FEFO, el ingreso consolidado también los
+    // alimenta (3.11.0); sin lotes, el guardado es el de siempre.
+    const consolidatedLots = consolidate ? applyMovementToLots(existing, Number(item.quantity)) : null;
+    const saved = consolidate ? { ...existing, quantity: Math.round((Number(existing.quantity || 0) + item.quantity) * 1000) / 1000, updatedAt: new Date().toISOString(),
+      ...(consolidatedLots ? { lots: consolidatedLots.lots, expiryDate: consolidatedLots.expiryDate } : {}) } : item;
     setProducts((previous) => existing ? previous.map((p) => p.id === existing.id ? saved : p) : [saved, ...previous]);
     saveProductToCloud(saved, consolidate ? { delta: item.quantity } : {});
     learnProduct(saved);
@@ -754,7 +759,7 @@ export default function App() {
             zone: purchased.targetZone || purchased.zone || zones[0]?.name || 'Alacena Principal',
             category: purchased.category || purchased.department || 'Abarrotes',
             quantity: purchased.quantity || 1,
-            unit: purchased.unit || 'kg',
+            unit: purchased.unit || 'piezas',
             minStock: 2,
             idealStock: 5,
             unitPriceMxn: purchased.realPrice || purchased.estimatedPriceMxn || 0,
@@ -776,15 +781,15 @@ export default function App() {
       setProducts(sanitizedList);
     }
 
-    // A receipt may satisfy only part of an outstanding quantity.
-    if (purchasePayload?.source === 'receipt') {
+    // Una compra puede satisfacer solo parte de lo pendiente (3.11.0: la
+    // confirmación permite corregir la cantidad real por línea, así que
+    // TODAS las vías reconcilian igual que la del ticket): lo comprado
+    // entero sale de la lista y el resto no comprado se queda pendiente
+    // y desmarcado, en vez de borrar la línea entera.
+    {
       const match = reconcileReceiptList(shoppingList, checkedItems, activeHouse.id);
       shoppingChanges = match;
       setShoppingList(match.remaining);
-    } else {
-      const checkedIds = new Set(checkedItems.map((i) => i.id));
-      shoppingChanges = { removedIds: checkedItems.map((i) => i.id), updated: [] };
-      setShoppingList((prev) => prev.filter((i) => !checkedIds.has(i.id)));
     }
 
     const finalRecordedTotal = realTotalPurchased !== null ? realTotalPurchased : totalEstimatedPurchasedMxn;
@@ -1444,7 +1449,7 @@ export default function App() {
           setIsQuickScanOpen(false);
           setQuickScanProduct(null);
         }}
-        product={quickScanProduct}
+        product={quickScanProduct ? (products.find((p) => p.id === quickScanProduct.id && belongsToHouse(p, activeHouse.id)) || quickScanProduct) : null}
         onUpdateQuantity={handleUpdateQuantity}
         onAddToShoppingList={handleAddToShoppingListFromScan}
         onOpenWineTasting={handleOpenWineTasting}

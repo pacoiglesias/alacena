@@ -6,7 +6,7 @@ import {
   ShoppingCart, AlertCircle, 
   Keyboard, Image as ImageIcon, RefreshCw, Check, Search,
   Flashlight, Receipt, FileText, Loader2, ArrowRight,
-  TrendingDown, TrendingUp, Award
+  TrendingDown, TrendingUp, Award, MapPin
 } from 'lucide-react';
 import TicketReview from '../shopping/TicketReview';
 import { audio } from '../../services/audioService';
@@ -84,7 +84,17 @@ export default function CameraScannerModal({
       // Sin almacenamiento local: el modo solo vive en esta sesión.
     }
   }, [scanDirectionMode]);
-  const [selectedTargetZone, setSelectedTargetZone] = useState('');
+  // Zona destino del alta en cadena (3.11.0): se recuerda en localStorage
+  // con la MISMA clave que usa el alta manual, así escanear zona por zona
+  // no obliga a re-elegirla en cada artículo ni en cada apertura.
+  const [selectedTargetZone, setSelectedTargetZone] = useState(() => {
+    try { return localStorage.getItem('alacena:scan_target_zone') || ''; } catch { return ''; }
+  });
+  useEffect(() => {
+    try {
+      if (selectedTargetZone) localStorage.setItem('alacena:scan_target_zone', selectedTargetZone);
+    } catch { /* sin almacenamiento local */ }
+  }, [selectedTargetZone]);
   const [lastBatchMessage, setLastBatchMessage] = useState(null);
   const [batchCount, setBatchCount] = useState(0);
 
@@ -159,9 +169,10 @@ export default function CameraScannerModal({
   const fileReceiptCameraRef = useRef(null);
   const fileReceiptUploadRef = useRef(null);
 
-  // Inicializar zona destino por defecto
+  // Inicializar zona destino por defecto: vale la recordada si la zona
+  // sigue existiendo; si no hay ninguna (o ya no existe), la despensa seca.
   useEffect(() => {
-    if (zones.length > 0 && !selectedTargetZone) {
+    if (zones.length > 0 && (!selectedTargetZone || !zones.some((z) => z.name === selectedTargetZone))) {
       const defaultPantry = zones.find(z => z.type === 'DRY_PANTRY') || zones[0];
       setSelectedTargetZone(defaultPantry.name);
     }
@@ -1099,8 +1110,8 @@ TOTAL MXN                    $2,303.00`;
                       }`}>
                         {scannedResult.isExisting ? '✓ En tu Despensa' : '✨ Nuevo Producto'}
                       </span>
-                      {!scannedResult.isExisting && <label className="block text-xs text-[var(--ink-secondary)] mt-3">Nombre del producto
-                        <input aria-label="Nombre del producto escaneado" value={scannedResult.product.name || ''} placeholder="Ej. Leche entera 1 litro" maxLength={300} onChange={(e) => setScannedResult((prev) => ({ ...prev, product: { ...prev.product, name: e.target.value } }))} className="block w-full p-3 mt-1 rounded-xl border border-white/20 text-white bg-black/20" />
+                      {!scannedResult.isExisting && <label className="block text-xs text-[var(--ink-secondary)] mt-3">Nombre del producto (código desconocido: escríbelo tú, no lo inventamos)
+                        <input autoFocus aria-label="Nombre del producto escaneado" value={scannedResult.product.name || ''} placeholder="Ej. Leche entera 1 litro" maxLength={300} onChange={(e) => setScannedResult((prev) => ({ ...prev, product: { ...prev.product, name: e.target.value } }))} className="block w-full p-3 mt-1 rounded-xl border border-white/20 text-white bg-black/20" />
                       </label>}
                       <p className="text-xs text-emerald-300 mt-2">{scannedResult.isExisting ? `En esta casa: ${scannedResult.product.quantity} ${scannedResult.product.unit}` : 'Confirma el nombre antes de registrarlo.'}</p>
                       <h4 className="text-base font-bold text-white mt-1">
@@ -1227,6 +1238,26 @@ TOTAL MXN                    $2,303.00`;
                   })}
                 </div>
                 )}
+              </div>
+
+              {/* Zona destino del alta en cadena (3.11.0): se mantiene
+                  entre escaneos y entre aperturas del escáner. */}
+              <div className="p-3 rounded-2xl bg-[var(--bg-sunken)] border border-[var(--border-soft)] flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
+                <label htmlFor="scan-target-zone" className="text-[10px] font-extrabold text-[var(--gold)] uppercase tracking-wider shrink-0">
+                  Zona de las altas
+                </label>
+                <select
+                  id="scan-target-zone"
+                  value={selectedTargetZone}
+                  onChange={(e) => { audio.click(); setSelectedTargetZone(e.target.value); }}
+                  className="flex-1 min-w-0 px-2.5 py-1.5 rounded-xl bg-[var(--bg-base)] border border-[var(--border-soft)] text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  {zones.map((z) => (
+                    <option key={z.id || z.name} value={z.name} className="bg-[var(--bg-elevated)] text-white">{z.name}</option>
+                  ))}
+                </select>
+                <span className="text-[10px] text-[var(--ink-tertiary)] shrink-0 hidden sm:block">Se queda fija al escanear en cadena</span>
               </div>
 
               {/* Mensaje de Confirmación Rápida */}
