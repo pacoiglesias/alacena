@@ -8,6 +8,14 @@ test('la redirección que vuelve vacía tiene un motivo claro y una salida (3.12
   assert.match(msg, /Reintentar conexión/);
 });
 
+test('el plan B tras la redirección vacía es la ventana de Google, también en el móvil (3.12.1)', () => {
+  // Este texto es el que la puerta (ConnectHouseGate) pinta en su
+  // propio panel cuando la redirección vuelve sin completar: tiene
+  // que ofrecer la ventana emergente como salida, no un callejón.
+  const msg = authErrorMessage('auth/redirect-returned-empty');
+  assert.match(msg, /ventana de Google/);
+});
+
 test('los códigos conocidos nunca caen en el aviso genérico', () => {
   const generic = 'No se pudo completar el acceso. Reintenta; tus datos siguen guardados en este dispositivo.';
   for (const code of ['auth/popup-closed-by-user', 'auth/popup-blocked', 'auth/network-request-failed', 'auth/timeout', 'auth/unauthorized-domain', 'auth/web-storage-unsupported', 'auth/operation-not-supported-in-this-environment', 'auth/internal-error']) {
