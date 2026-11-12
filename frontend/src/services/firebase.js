@@ -2,13 +2,18 @@ import { initializeApp } from 'firebase/app';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, connectFirestoreEmulator, memoryLocalCache } from 'firebase/firestore';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
+import { resolveAuthDomain } from '../utils/authDomain.js';
 
+// 3.12.0: el authDomain se deriva del dominio que sirve la app
+// (alacena.cobertores.com → su propio handler /__/auth/handler), para
+// que el acceso con redirección de Google sea de mismo sitio y no se
+// rompa con el almacenamiento particionado de los navegadores.
 const firebaseConfig = {
   projectId: "alacena-enterprise-prod",
   appId: "1:563016091019:web:0c5c9fee493e64de8edb8e",
   storageBucket: "alacena-enterprise-prod.firebasestorage.app",
   apiKey: "AIzaSyAP3PU-9GeICGzmWQSQ-JnRQuqwjiYcVKE",
-  authDomain: "alacena-enterprise-prod.firebaseapp.com",
+  authDomain: resolveAuthDomain(typeof window !== 'undefined' ? window.location.hostname : ''),
   messagingSenderId: "563016091019",
 };
 
