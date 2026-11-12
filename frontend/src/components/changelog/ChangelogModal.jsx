@@ -5,8 +5,8 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.12.1-Casa';
-export const RELEASE_DATE = '11 Noviembre 2026';
+export const SYSTEM_VERSION = 'v3.13.0-Casa';
+export const RELEASE_DATE = '12 Noviembre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState('changelog'); // 'changelog' | 'plan30'
@@ -186,36 +186,32 @@ export default function ChangelogModal({ isOpen, onClose }) {
               </ul>
             </div>
 
-            {/* Release v3.12.1-Casa */}
+            {/* Release v3.13.0-Casa */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
-                    v3.12.1-Casa
+                    v3.13.0-Casa
                   </span>
                   <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
                 </div>
-                <span className="text-xs text-gray-400">11 Noviembre 2026</span>
+                <span className="text-xs text-gray-400">12 Noviembre 2026</span>
               </div>
               <h4 className="text-base font-bold text-white mb-2 font-display">
-                El botón de Google, que mande al login: en el móvil te lleva a la página de Google
+                Acceso por credencial: el botón oficial de Google, sin páginas intermedias
               </h4>
               <ul className="space-y-1.5 text-xs text-gray-300">
                 <li className="flex items-start gap-2">
                   <span className="text-emerald-400 font-bold">✓</span>
-                  <span><strong>El fallo:</strong> al apretar «Entrar con Google» en el iPhone no se abría nada ni pasaba nada: la app intentaba primero la ventana emergente, que en el iPhone no se abre o queda colgada, y el aviso acababa lejos del botón, un minuto después.</span>
+                  <span><strong>Acceso nuevo de raíz:</strong> entrar con Google ya no pasa por la página intermediaria de Firebase, que en esta app fallaba al completar el acceso una y otra vez. Ahora verás el botón oficial de Google y la credencial entra directa: eliges tu cuenta y tu casa se conecta sola, como antes.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-emerald-400 font-bold">✓</span>
-                  <span><strong>Ahora, en el móvil te manda al login:</strong> en el teléfono o con la app instalada, «Entrar con Google» te lleva directamente a la página de acceso de Google en esta misma pestaña, como debe ser. En el ordenador se mantiene la ventana emergente de siempre.</span>
+                  <span><strong>El error, donde tocas:</strong> si el botón de Google no puede cargar (sin conexión o un bloqueador), el aviso sale en el mismo panel con su motivo y un botón de reintento, no en un rincón lejos de tu dedo.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-emerald-400 font-bold">✓</span>
-                  <span><strong>Respuesta en el mismo sitio del toque:</strong> el botón dice al instante «Abriendo el acceso de Google…» y, si algo falla, el motivo se lee en el mismo panel donde pulsaste, sin tener que buscarlo por la pantalla.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-emerald-400 font-bold">✓</span>
-                  <span><strong>Respaldo automático:</strong> si la ventana de Google se cierra, se cancela o no responde, el acceso continúa solo llevándote a la página de Google, con aviso. Y si alguna vez la vuelta en esta pestaña no completa, el propio panel te ofrece entrar con la ventana, sin callejones.</span>
+                  <span><strong>Lo demás no cambia:</strong> la puerta «Tu casa aún no está conectada», el sello de conexión de la cabecera, la etiqueta «Lista de este dispositivo (sin conectar)» y la conexión automática de tu casa al abrir siguen exactamente igual.</span>
                 </li>
               </ul>
             </div>

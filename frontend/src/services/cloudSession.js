@@ -1,32 +1,46 @@
-import { onAuthStateChanged, getIdTokenResult, getRedirectResult, signInWithPopup, signInWithRedirect, GoogleAuthProvider, signOut, signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, REVIEW_MODE } from './firebase';
+import { onAuthStateChanged, getIdTokenResult, GoogleAuthProvider, signInWithCredential, signOut, signInWithEmailAndPassword } from 'firebase/auth';
+import { auth, REVIEW_MODE, GOOGLE_WEB_CLIENT_ID } from './firebase';
+import { loadGoogleIdentityScript, initGoogleIdentity, renderGoogleSignInButton } from '../utils/googleIdentity.js';
+import { withAuthTimeout } from '../utils/authFeedback.js';
 export const getUserAccess = (user) => getIdTokenResult(user);
 
-// 3.12.0: marca del intento de acceso por redirección. Antes de saltar
-// al handler de Google dejamos constancia en sessionStorage; al
-// volver, si getRedirectResult no trae usuario ni error, sabemos que
-// la redirección se perdió por el camino (almacenamiento particionado
-// del navegador) y avisamos con un código propio para que la interfaz
-// ofrezca la ventana emergente con un motivo claro, en vez del aviso
-// muerto «No se pudo completar el acceso» sin salida.
-export const REDIRECT_ATTEMPT_KEY = 'alacena_redirect_attempt';
-const REDIRECT_ATTEMPT_TTL_MS = 10 * 60 * 1000;
-function markRedirectAttempt() {
-  try { sessionStorage.setItem(REDIRECT_ATTEMPT_KEY, String(Date.now())); } catch { /* sin sessionStorage el flujo sigue igual */ }
-}
-function consumeRedirectAttempt() {
-  try {
-    const marked = Number(sessionStorage.getItem(REDIRECT_ATTEMPT_KEY) || 0);
-    sessionStorage.removeItem(REDIRECT_ATTEMPT_KEY);
-    return marked > 0 && Date.now() - marked <= REDIRECT_ATTEMPT_TTL_MS;
-  } catch { return false; }
+// 3.13.0: el acceso con Google ya NO pasa por el handler de Firebase
+// (signInWithPopup/signInWithRedirect devolvían auth/internal-error
+// al completar, en el dominio propio y en el de Firebase, con el
+// proveedor y el cliente OAuth sanos). Ahora el botón oficial de
+// Google Identity Services entrega el id_token y la sesión se abre
+// con signInWithCredential, probado en vivo contra este proyecto.
+// Una vez existe la sesión, todo lo demás (claims households → la
+// casa conecta sola) sigue igual que en 3.12.0.
+export const signInWithGoogleIdToken = (idToken) =>
+  withAuthTimeout(() => signInWithCredential(auth, GoogleAuthProvider.credential(idToken)));
+
+const dispatchAuthError = (error) => window.dispatchEvent(new CustomEvent('alacena-auth-error', { detail: error?.code }));
+let gisInitialized = false;
+
+// Monta el botón oficial de Google en el elemento dado. La
+// inicialización de GIS es global y se hace una sola vez; cada
+// montaje pinta su propio botón. Los errores de carga se lanzan con
+// su código para que el panel que monta enseñe el motivo dentro de
+// sí mismo; los errores al canjear la credencial viajan por el bus
+// 'alacena-auth-error', como hasta ahora.
+export async function mountGoogleSignInButton(element) {
+  const googleObj = await loadGoogleIdentityScript();
+  if (!gisInitialized) {
+    const ready = initGoogleIdentity({
+      googleObj,
+      clientId: GOOGLE_WEB_CLIENT_ID,
+      onCredential: (idToken) => { signInWithGoogleIdToken(idToken).catch(dispatchAuthError); },
+      onError: dispatchAuthError,
+    });
+    if (!ready) throw Object.assign(new Error('El cliente de acceso de Google no está disponible.'), { code: 'auth/gis-unavailable' });
+    gisInitialized = true;
+  }
+  if (!renderGoogleSignInButton(googleObj, element)) {
+    throw Object.assign(new Error('No se pudo pintar el botón de Google.'), { code: 'auth/gis-unavailable' });
+  }
 }
 
-export const connectGoogle = (redirect = false) => {
-  if (!redirect) return signInWithPopup(auth, new GoogleAuthProvider());
-  markRedirectAttempt();
-  return signInWithRedirect(auth, new GoogleAuthProvider());
-};
 export const disconnectGoogle = () => signOut(auth);
 export function connectReviewUser() {
   if (!REVIEW_MODE || auth.app.options.projectId !== 'demo-alacena-review') throw new Error('Cuenta de prueba no disponible en producción.');
@@ -40,11 +54,8 @@ export function connectReviewUser() {
   return signInWithEmailAndPassword(auth, 'revision@alacena.test', password);
 }
 export function observeUser(callback) {
-  getRedirectResult(auth)
-    .then((result) => {
-      const attempted = consumeRedirectAttempt();
-      if (attempted && !result?.user) window.dispatchEvent(new CustomEvent('alacena-auth-error', { detail: 'auth/redirect-returned-empty' }));
-    })
-    .catch((error) => { consumeRedirectAttempt(); window.dispatchEvent(new CustomEvent('alacena-auth-error', { detail: error.code })); });
+  // 3.13.0: sin flujo de redirección ya no hay resultado que recoger
+  // al volver (getRedirectResult queda retirado); la suscripción a
+  // la sesión es la única fuente, como en el resto de la app.
   return onAuthStateChanged(auth, callback);
 }
