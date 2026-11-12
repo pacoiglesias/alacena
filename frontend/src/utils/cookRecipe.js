@@ -1,5 +1,6 @@
 import { belongsToHouse } from './householdShopping.js';
 import { areItemsEquivalent, normalizeItemName } from './deduplication.js';
+import { applyMovementToLots } from './productLots.js';
 const rounded = (n) => Math.round(n * 1000) / 1000;
 // Unidades de cocina caseras (volumen, en litros): sin ellas una receta
 // con «2 cucharadas de aceite» no casaba con un stock en litros/ml y el
@@ -36,7 +37,15 @@ export function planRecipe(products, recipe, householdId, portions = recipe.port
     if (!isEnough) missingIngredients.push({ name:ing.productName, required:requiredAmount, available:availableQty, deficit:rounded(requiredAmount - availableQty), unit:ing.unit, store:candidates[0]?.store || 'Supermercado', unitPriceMxn:candidates[0]?.unitPriceMxn || 0 });
     return { ...ing, requiredAmount, availableQty, isEnough, foundProduct:candidates[0] };
   });
-  const writes = [...used].map(([id, amount]) => ({ product:{ ...products.find((p) => p.id === id), quantity:remaining.get(id) }, delta:-amount }));
+  const writes = [...used].map(([id, amount]) => {
+    const original = products.find((p) => p.id === id);
+    // Lotes FEFO (3.12.0): cocinar descuenta de los lotes igual que el
+    // consumo por QR (inventoryMovement), empezando por el lote que
+    // antes vence, y la fecha visible pasa al siguiente lote vigente.
+    // Sin lotes, la escritura es la de siempre.
+    const lotMovement = applyMovementToLots(original, -amount);
+    return { product:{ ...original, quantity:remaining.get(id), ...(lotMovement ? { lots: lotMovement.lots, expiryDate: lotMovement.expiryDate } : {}) }, delta:-amount };
+  });
   const totalCostMxn = writes.reduce((s, w) => s - w.delta * (Number(w.product.unitPriceMxn) || 0), 0);
   return { canCook:missingIngredients.length === 0, currentPortions:count, evaluatedIngredients, missingIngredients, writes,
     matchPct:Math.round(evaluatedIngredients.filter((i) => i.isEnough).length / evaluatedIngredients.length * 100), totalCostMxn, costPerPortionMxn:totalCostMxn/count };

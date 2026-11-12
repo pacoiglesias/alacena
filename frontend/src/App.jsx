@@ -65,7 +65,7 @@ import {
 } from './utils/deduplication';
 import { sanitizeAllInventory, sanitizeCavaProduct } from './utils/cavaGuard';
 import { migrateProductsExpiry } from './utils/productExpiry';
-import { applyMovementToLots } from './utils/productLots';
+import { applyMovementToLots, addToLots, normalizeLots, nextVisibleExpiryDate } from './utils/productLots';
 import {
   PRE_CLOUD_BACKUP_KEY,
   FIRST_CONNECT_DECISION_KEY,
@@ -86,6 +86,20 @@ const localStorageAdapter = {
   get: (key) => readLocalState(key, null),
   set: (key, value) => writeLocalState(key, value),
   remove: (key) => { try { localStorage.removeItem(key); } catch { /* sin almacenamiento */ } },
+};
+
+// Recepción de compra sobre un producto CON lotes (3.12.0): lo que
+// entra también se lotea, con la misma regla que la consolidación de
+// altas — si la línea trae su propia caducidad, va a su lote; si no,
+// al lote de la fecha visible del producto. Sin lotes previos no se
+// inventa ninguno (null = el guardado plano de siempre).
+const receiveIntoLots = (existing, quantity, expiryDate) => {
+  if (!normalizeLots(existing).length) return null;
+  if (expiryDate) {
+    const lots = addToLots(existing.lots, quantity, expiryDate);
+    return { lots, expiryDate: nextVisibleExpiryDate(lots, existing.expiryDate ?? null) };
+  }
+  return applyMovementToLots(existing, quantity);
 };
 
 
@@ -538,9 +552,13 @@ export default function App() {
             `Descorchó 1 botella de ${p.name}. Stock restante: ${newQty} botellas.`,
             `Reseña: ${tastingData.rating}⭐ (${tastingData.sommelierPoints} pts). ${tastingData.tastingNotes}`
           );
+          // Lotes FEFO (3.12.0): el descorche también sale del lote
+          // que antes vence, como cualquier otro consumo.
+          const uncorkLots = newQty < (p.quantity || 1) ? applyMovementToLots(p, -1) : null;
           return {
             ...p,
             quantity: newQty,
+            ...(uncorkLots ? { lots: uncorkLots.lots, expiryDate: uncorkLots.expiryDate } : {}),
             rating: tastingData.rating,
             sommelierPoints: tastingData.sommelierPoints,
             tastingNotes: tastingData.tastingNotes,
@@ -729,7 +747,11 @@ export default function App() {
     if (!target || target.quantity < item.quantity) {
       notify('No hay suficiente existencia para devolver esta cantidad. Revisa si ya se consumió parte de la compra.'); return;
     }
-    const updated = { ...target, quantity: Math.round((target.quantity - item.quantity) * 1000) / 1000, updatedAt: new Date().toISOString() };
+    // Devolución con lotes (3.12.0): la salida descuenta FEFO, igual
+    // que cualquier otro consumo del producto.
+    const returnLots = applyMovementToLots(target, -Number(item.quantity));
+    const updated = { ...target, quantity: Math.round((target.quantity - item.quantity) * 1000) / 1000, updatedAt: new Date().toISOString(),
+      ...(returnLots ? { lots: returnLots.lots, expiryDate: returnLots.expiryDate } : {}) };
     const updatedReceipt = { ...receipt, items: receipt.items.map((i) => i.id === item.id && i.name === item.name ? { ...i, reversed: true } : i) };
     savePurchaseTransaction([{ product: updated, delta: -Number(item.quantity) }], { removedIds: [], updated: [] }, updatedReceipt);
     setProducts((prev) => prev.map((p) => p.id === target.id ? updated : p));
@@ -778,12 +800,16 @@ export default function App() {
           const existing = currentList[existingIdx];
           const newQty = parseFloat((Number(existing.quantity || 0) + Number(purchased.quantity || 1)).toFixed(3));
           const unitPrice = (purchased.realPrice || purchased.estimatedPriceMxn || 0) > 0 ? (purchased.realPrice || purchased.estimatedPriceMxn) : existing.unitPriceMxn;
+          // Recepción con lotes (3.12.0): si el producto ya se maneja
+          // por lotes, lo comprado entra loteado, no en plano.
+          const receivedLots = receiveIntoLots(existing, Number(purchased.quantity || 1), purchased.expiryDate);
           const merged = {
             ...existing,
             quantity: newQty,
             unitPriceMxn: unitPrice,
             lastLoggedBy: buyer,
             updatedAt: new Date().toISOString(),
+            ...(receivedLots ? { lots: receivedLots.lots, expiryDate: receivedLots.expiryDate } : {}),
           };
           currentList[existingIdx] = merged;
           productWrites.push({ product: merged, delta: Number(purchased.quantity || 1) });
@@ -895,12 +921,16 @@ export default function App() {
         if (existingIdx >= 0) {
           const existing = currentList[existingIdx];
           const newQty = parseFloat((Number(existing.quantity || 0) + itemQty).toFixed(3));
+          // Ingreso por ticket con lotes (3.12.0): misma regla que la
+          // recepción de la lista, lo entrante se lotea si hay lotes.
+          const receivedLots = receiveIntoLots(existing, itemQty, item.expiryDate);
           const merged = {
             ...existing,
             quantity: newQty,
             unitPriceMxn: itemPrice > 0 ? itemPrice : existing.unitPriceMxn,
             lastLoggedBy: buyer,
             updatedAt: new Date().toISOString(),
+            ...(receivedLots ? { lots: receivedLots.lots, expiryDate: receivedLots.expiryDate } : {}),
           };
           currentList[existingIdx] = merged;
           saveProductToCloud(merged, { delta:itemQty });
