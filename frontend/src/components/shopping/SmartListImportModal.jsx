@@ -13,6 +13,7 @@ import { parsePhotoList } from '../../services/photoListParser';
 import { extractShoppingListFromImage, extractTextFromFile } from '../../services/ocrService';
 import { isCavaZone, sanitizeCavaProduct } from '../../utils/cavaGuard';
 import { analyzeTicketPriceIntelligence, recordPricePoints } from '../../services/priceIntelligenceService';
+import { formatHouseMoney } from '../../utils/formatMoney';
 import { notify } from '../../services/notice';
 
 export default function SmartListImportModal({ 
@@ -876,7 +877,7 @@ TOTAL $ 2345.68`;
                     </span>
                     {priceIntelligence.totalCrossStoreSavingsPotential > 0 && (
                       <span className="text-emerald-300 font-mono text-xs">
-                        Ahorro potencial: ${priceIntelligence.totalCrossStoreSavingsPotential.toFixed(2)} MXN
+                        Ahorro potencial: {formatHouseMoney(activeHouse, priceIntelligence.totalCrossStoreSavingsPotential)}
                       </span>
                     )}
                   </div>
@@ -884,18 +885,18 @@ TOTAL $ 2345.68`;
                     {priceIntelligence.priceDropsCount > 0 && (
                       <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1">
                         <TrendingDown className="w-3.5 h-3.5" />
-                        <span>{priceIntelligence.priceDropsCount} bajaron de precio (-${priceIntelligence.totalSavedVsPrevious.toFixed(2)})</span>
+                        <span>{priceIntelligence.priceDropsCount} bajaron de precio (-{formatHouseMoney(activeHouse, priceIntelligence.totalSavedVsPrevious)})</span>
                       </span>
                     )}
                     {priceIntelligence.priceHikesCount > 0 && (
                       <span className="px-2 py-0.5 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/30 font-bold flex items-center gap-1">
                         <TrendingUp className="w-3.5 h-3.5" />
-                        <span>{priceIntelligence.priceHikesCount} subieron (+${priceIntelligence.totalInflationCost.toFixed(2)})</span>
+                        <span>{priceIntelligence.priceHikesCount} subieron (+{formatHouseMoney(activeHouse, priceIntelligence.totalInflationCost)})</span>
                       </span>
                     )}
                     {priceIntelligence.recommendations.length > 0 && (
                       <span className="px-2 py-0.5 rounded-lg bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/25 font-semibold">
-                        💡 En {priceIntelligence.recommendations[0]?.cheapestStore}: "{priceIntelligence.recommendations[0]?.productName}" cuesta ${priceIntelligence.recommendations[0]?.cheapestPrice.toFixed(2)} (-${priceIntelligence.recommendations[0]?.lineSavings.toFixed(2)})
+                        💡 En {priceIntelligence.recommendations[0]?.cheapestStore}: "{priceIntelligence.recommendations[0]?.productName}" cuesta {formatHouseMoney(activeHouse, priceIntelligence.recommendations[0]?.cheapestPrice)} (-{formatHouseMoney(activeHouse, priceIntelligence.recommendations[0]?.lineSavings)})
                       </span>
                     )}
                   </div>
@@ -960,7 +961,7 @@ TOTAL $ 2345.68`;
                           )}
                           {crossStore && !crossStore.isBestPrice && crossStore.savings > 0 && (
                             <span className="px-1.5 py-0.2 rounded bg-[var(--gold)]/15 text-[var(--gold)] border border-[var(--gold)]/25 text-[9px]">
-                              💡 Más barato en {crossStore.cheapestStore} (${crossStore.cheapestPrice.toFixed(2)})
+                              💡 Más barato en {crossStore.cheapestStore} ({formatHouseMoney(activeHouse, crossStore.cheapestPrice)})
                             </span>
                           )}
                           {crossStore?.isBestPrice && trend?.status !== 'first' && (
@@ -1001,7 +1002,7 @@ TOTAL $ 2345.68`;
                       {/* Precio Real de Ticket si fue detectado */}
                       {item.realPrice !== null && item.realPrice !== undefined && (
                         <div className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-mono font-bold shrink-0 flex items-center gap-1">
-                          <span>{item.store?.toLowerCase().includes('mercadona') || activeHouse?.currency === 'EUR' ? `${item.realPrice} €` : `$${item.realPrice}`}</span>
+                          <span>{formatHouseMoney(item.store?.toLowerCase().includes('mercadona') ? { currency: 'EUR' } : activeHouse, item.realPrice)}</span>
                         </div>
                       )}
 
@@ -1061,7 +1062,7 @@ TOTAL $ 2345.68`;
 
         </div>
 
-        {showTicketReview && <div className="p-4 overflow-y-auto"><TicketReview items={extractedItems} setItems={setExtractedItems} selectedIds={selectedItemIds} setSelectedIds={setSelectedItemIds} rawText={lastOcrRawText || rawText} store={detectedStore || ''} setStore={setDetectedStore} currency={activeHouse?.currency || 'MXN'} onSave={onImportDirectToPantry} onClose={onClose} /></div>}
+        {showTicketReview && <div className="p-4 overflow-y-auto"><TicketReview items={extractedItems} setItems={setExtractedItems} selectedIds={selectedItemIds} setSelectedIds={setSelectedItemIds} rawText={lastOcrRawText || rawText} store={detectedStore || ''} setStore={setDetectedStore} currency={activeHouse?.currency || 'MXN'} activeHouse={activeHouse} onSave={onImportDirectToPantry} onClose={onClose} /></div>}
         {/* Footer Actions */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-t border-[var(--border-soft)] bg-[var(--bg-elevated)] flex-wrap gap-3">
           <div className="flex items-center gap-3">
@@ -1070,7 +1071,7 @@ TOTAL $ 2345.68`;
             </span>
             {totalCost > 0 && (
               <span className="text-xs text-[var(--ink-secondary)] border-l border-[var(--border-strong)] pl-3">
-                Costo estimado: <strong className="text-[var(--gold)] font-mono">${totalCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</strong>
+                Costo estimado: <strong className="text-[var(--gold)] font-mono">{formatHouseMoney(activeHouse, totalCost)}</strong>
               </span>
             )}
           </div>

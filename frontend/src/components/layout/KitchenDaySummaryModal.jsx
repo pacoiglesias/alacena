@@ -4,7 +4,7 @@ import {
   Wine, CheckCircle2, Share2, Sparkles, X, ChevronRight, Utensils 
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
-import { getProductExpiryDate, daysUntilExpiry, formatExpiryDate } from '../../utils/productExpiry';
+import { getProductExpiryDate, formatExpiryDate, isExpiringSoon, EXPIRY_SOON_DAYS } from '../../utils/productExpiry';
 
 export default function KitchenDaySummaryModal({
   isOpen,
@@ -14,16 +14,14 @@ export default function KitchenDaySummaryModal({
   recipes = [],
   activeHouse,
   onAddMissingToShoppingList,
-  onCookRecipe,
 }) {
   // Hooks al inicio incondicionalmente
+  // 3.14.0: «por vencer» con la definición única de la app
+  // (isExpiringSoon: ≤15 días con existencia) — este resumen usaba
+  // 4 días y la cabecera 3, y el mismo producto urgía aquí y no allí.
   const expiringItems = useMemo(() => {
-    return products.filter((p) => {
-      const expiry = getProductExpiryDate(p);
-      const diffDays = daysUntilExpiry(expiry);
-      if (diffDays === null) return false;
-      return diffDays <= 4 && (p.quantity || 0) > 0;
-    }).sort((a, b) => new Date(getProductExpiryDate(a)) - new Date(getProductExpiryDate(b)));
+    return products.filter((p) => isExpiringSoon(p))
+      .sort((a, b) => new Date(getProductExpiryDate(a)) - new Date(getProductExpiryDate(b)));
   }, [products]);
 
   const lowStockItems = useMemo(() => {
@@ -55,7 +53,7 @@ export default function KitchenDaySummaryModal({
     text += `📍 *${activeHouse?.name?.toUpperCase() || 'RESIDENCIA'}* — ${new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}\n\n`;
 
     if (expiringItems.length > 0) {
-      text += `🚨 *URGE CONSUMIR HOY O MAÑANA (Caducidad Próxima):*\n`;
+      text += `🚨 *POR VENCER (PRÓXIMOS ${EXPIRY_SOON_DAYS} DÍAS):*\n`;
       expiringItems.forEach((it) => {
         text += `• ${it.name} (${it.quantity} ${it.unit}) — Vence: ${formatExpiryDate(getProductExpiryDate(it))}\n`;
       });
@@ -98,7 +96,7 @@ export default function KitchenDaySummaryModal({
             </div>
             <div>
               <h3 className="font-display text-xl font-bold text-white tracking-tight">
-                ☀️ Resumen Diario de Cocina & Hogar
+                Resumen Diario de Cocina & Hogar
               </h3>
               <p className="text-xs text-[var(--ink-secondary)] mt-0.5">
                 Estado matutino de caducidades, insumos críticos y sugerencias del chef
@@ -121,7 +119,7 @@ export default function KitchenDaySummaryModal({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-rose-400 font-bold text-xs uppercase tracking-wider">
                 <AlertCircle className="w-4 h-4" />
-                <span>Urge Consumir en Cocina (≤ 4 Días)</span>
+                <span>Por Vencer en Cocina (≤ {EXPIRY_SOON_DAYS} Días)</span>
               </div>
               <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold text-[10px]">
                 {expiringItems.length} insumos
@@ -144,7 +142,7 @@ export default function KitchenDaySummaryModal({
               </div>
             ) : (
               <p className="text-xs text-gray-400 italic">
-                ✓ No hay alimentos con fecha de caducidad crítica en los próximos 4 días.
+                ✓ No hay alimentos por vencer en los próximos {EXPIRY_SOON_DAYS} días.
               </p>
             )}
           </div>
@@ -162,16 +160,47 @@ export default function KitchenDaySummaryModal({
             </div>
 
             {lowStockItems.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {lowStockItems.slice(0, 6).map((item) => (
-                  <div key={item.id} className="text-xs bg-black/30 p-2.5 rounded-xl border border-amber-500/20 flex items-center justify-between">
-                    <span className="text-white font-medium truncate max-w-[140px]">{item.name}</span>
-                    <span className="text-amber-400 font-mono font-bold">
-                      {item.quantity}/{item.minStock} {item.unit}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {lowStockItems.slice(0, 6).map((item) => (
+                    <div key={item.id} className="text-xs bg-black/30 p-2.5 rounded-xl border border-amber-500/20 flex items-center justify-between">
+                      <span className="text-white font-medium truncate max-w-[140px]">{item.name}</span>
+                      <span className="text-amber-400 font-mono font-bold">
+                        {item.quantity}/{item.minStock} {item.unit}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {/* 3.14.0 (M-1): la lista enseña 6 y dice cuántos
+                    más hay — antes cortaba en silencio. */}
+                {lowStockItems.length > 6 && (
+                  <p className="text-[11px] text-gray-400">
+                    y {lowStockItems.length - 6} más bajo el mínimo.
+                  </p>
+                )}
+                {/* 3.14.0 (M-1): la prop dejó de ser fantasma — App
+                    pasa handleAddMissingToShoppingList y el botón
+                    añade los faltantes de verdad. */}
+                {onAddMissingToShoppingList && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      audio.click();
+                      onAddMissingToShoppingList(lowStockItems.map((item) => ({
+                        name: item.name,
+                        unit: item.unit,
+                        deficit: Math.max(0, (item.minStock || 0) - (item.quantity || 0)),
+                        unitPriceMxn: item.unitPriceMxn || 0,
+                      })));
+                      onClose();
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 transition-all shadow-md active:scale-95"
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    <span>Añadir faltantes a la lista</span>
+                  </button>
+                )}
+              </>
             ) : (
               <p className="text-xs text-gray-400 italic">
                 ✓ Todo el inventario se encuentra por encima del stock mínimo establecido.

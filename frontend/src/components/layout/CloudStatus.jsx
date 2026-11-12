@@ -3,7 +3,6 @@ import { Cloud, CloudOff, LogOut, LoaderCircle } from 'lucide-react';
 import { disconnectGoogle, getCloudUser, connectReviewUser } from '../../services/cloudGateway';
 import { authErrorMessage } from '../../utils/authFeedback';
 import { readLocalState, writeLocalState } from '../../services/localState';
-import GoogleSignInButton from './GoogleSignInButton';
 
 export default function CloudStatus({ state, isOnline, hasLocalData = false, onDownloadBackup }) {
   const [busy, setBusy] = useState(false);
@@ -26,10 +25,10 @@ export default function CloudStatus({ state, isOnline, hasLocalData = false, onD
     window.addEventListener('alacena-auth-error', failed);
     return () => window.removeEventListener('alacena-auth-error', failed);
   }, []);
-  // 3.13.0: sin sesión, el acceso es el botón oficial de Google
-  // (GoogleSignInButton) montado aquí mismo; ya no hay flujo propio
-  // de ventana emergente ni de redirección que coordinar. Con sesión,
-  // este botón solo cierra sesión.
+  // 3.14.0: el botón de Google vive SOLO en la puerta de conexión
+  // (ConnectHouseGate); esta barra ya no monta un segundo botón que
+  // competía con ella. Aquí quedan el estado, el respaldo y, con
+  // sesión, cerrar sesión.
   const disconnect = async () => {
     setBusy(true); setError('');
     try { await disconnectGoogle(); }
@@ -47,7 +46,6 @@ export default function CloudStatus({ state, isOnline, hasLocalData = false, onD
     </div>
     <div className="flex flex-wrap items-center gap-2 shrink-0">
       {hasLocalData && !user && <button type="button" onClick={onDownloadBackup}>Descargar respaldo (JSON)</button>}
-      {!user && isOnline && <GoogleSignInButton />}
       {user && <button type="button" onClick={disconnect} disabled={busy}>
         {busy ? <LoaderCircle size={15} className="animate-spin" /> : <LogOut size={15} />}
         {busy ? 'Cerrando…' : 'Cerrar sesión'}

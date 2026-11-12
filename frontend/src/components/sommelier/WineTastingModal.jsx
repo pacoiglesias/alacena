@@ -18,8 +18,11 @@ export default function WineTastingModal({
   onSaveRating,
   onUncorkBottle,
 }) {
-  const [rating, setRating] = useState(wine?.rating || 5);
-  const [sommelierPoints, setSommelierPoints] = useState(wine?.sommelierPoints || 92);
+  // 3.14.0 (C-3): la cata de un vino sin puntuar arranca SIN nota —
+  // antes pre-rellenaba 5 estrellas y 92 puntos inventados y se
+  // guardaban como si fueran reales al guardar la ficha.
+  const [rating, setRating] = useState(wine?.rating || 0);
+  const [sommelierPoints, setSommelierPoints] = useState(wine?.sommelierPoints ?? null);
   const [olfactiveNotes, setOlfactiveNotes] = useState(wine?.tastingNotes || 'Frutos rojos maduros, vainilla y roble tostado');
   const [gustativeNotes, setGustativeNotes] = useState('Taninos pulidos, cuerpo redondo, acidez equilibrada y final largo');
   const [reviewerName, setReviewerName] = useState('Sommelier de la Casa');
@@ -41,7 +44,7 @@ export default function WineTastingModal({
     onSaveRating(wine.id, {
       rating,
       sommelierPoints,
-      tastingNotes: `[${reviewerName} - ${rating}⭐ / ${sommelierPoints} pts] Nariz: ${olfactiveNotes}. Boca: ${gustativeNotes}. Recomprar: ${shouldRebuy === 'YES' ? 'Sí' : 'No'}.`,
+      tastingNotes: `[${reviewerName} - ${rating ? `${rating}⭐` : 'sin estrellas'} / ${sommelierPoints ? `${sommelierPoints} pts` : 'sin puntuar'}] Nariz: ${olfactiveNotes}. Boca: ${gustativeNotes}. Recomprar: ${shouldRebuy === 'YES' ? 'Sí' : 'No'}.`,
       foodPairing: pairingUsed,
     });
     onClose();
@@ -63,7 +66,7 @@ export default function WineTastingModal({
       rating,
       sommelierPoints,
       reviewerName,
-      tastingNotes: `[Descorche de Cata] ${reviewerName} calificó con ${rating}⭐ (${sommelierPoints} pts). ${olfactiveNotes} — ${gustativeNotes}.`,
+      tastingNotes: `[Descorche de Cata] ${reviewerName} calificó con ${rating ? `${rating}⭐` : 'sin estrellas'} (${sommelierPoints ? `${sommelierPoints} pts` : 'sin puntuar'}). ${olfactiveNotes} — ${gustativeNotes}.`,
       shouldRebuy: shouldRebuy === 'YES',
     });
     onClose();
@@ -180,7 +183,7 @@ export default function WineTastingModal({
                   Puntaje Sommelier
                 </span>
                 <div className="font-display text-4xl font-black text-[var(--gold)] font-mono-num mt-1">
-                  {sommelierPoints} <span className="text-sm font-sans text-[var(--ink-tertiary)]">/ 100</span>
+                  {sommelierPoints ?? '—'} <span className="text-sm font-sans text-[var(--ink-tertiary)]">/ 100{sommelierPoints === null ? ' · Sin puntuar' : ''}</span>
                 </div>
               </div>
             </div>
@@ -198,7 +201,7 @@ export default function WineTastingModal({
                 type="range"
                 min="80"
                 max="100"
-                value={sommelierPoints}
+                value={sommelierPoints ?? 80}
                 onChange={(e) => {
                   audio.click();
                   setSommelierPoints(parseInt(e.target.value, 10));

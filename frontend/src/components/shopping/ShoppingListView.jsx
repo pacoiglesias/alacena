@@ -21,6 +21,7 @@ const WeeklyStaplesModal = lazy(() => import('./WeeklyStaplesModal'));
 const PriceComparisonModal = lazy(() => import('./PriceComparisonModal'));
 import { getCatalogs } from '../../services/catalogsService';
 import { belongsToHouse, positiveQuantity, stepForUnit, roundQty3, inferShoppingUnit, pushRemovedItem } from '../../utils/householdShopping';
+import { formatHouseMoney, houseCurrencySymbol } from '../../utils/formatMoney';
 import { readLocalState, writeLocalState } from '../../services/localState';
 import { normalizeItemName, areItemsEquivalent, deduplicateShoppingItems } from '../../utils/deduplication';
 import { notify, confirmDialog } from '../../services/notice';
@@ -28,13 +29,13 @@ import { notify, confirmDialog } from '../../services/notice';
 // Departamentos estándar de supermercado físico
 export const SUPERMARKET_DEPARTMENTS = [
   { id: 'ALL', name: 'Todos los Pasillos', icon: ShoppingCart, color: 'emerald' },
-  { id: 'CARNES', name: '🥩 Carnicería & Pescados', icon: Beef, color: 'rose', keywords: ['ribeye', 'carne', 'salmon', 'salmón', 'pollo', 'res', 'cerdo', 'pescado', 'camaron', 'marisco', 'corte'] },
-  { id: 'LACTEOS', name: '🧀 Lácteos & Quesos', icon: Milk, color: 'amber', keywords: ['queso', 'leche', 'mantequilla', 'parmigiano', 'yogurt', 'crema', 'huevo'] },
-  { id: 'VERDURAS', name: '🥬 Frutas & Verduras', icon: Apple, color: 'emerald', keywords: ['manzana', 'limon', 'limón', 'cebolla', 'jitomate', 'tomate', 'aguacate', 'verdura', 'fruta', 'papas', 'papa', 'lechuga', 'ajo'] },
-  { id: 'ABARROTES', name: '🥫 Abarrotes & Despensa', icon: Package, color: 'blue', keywords: ['harina', 'arroz', 'frijol', 'aceite', 'pasta', 'azucar', 'azúcar', 'sal', 'especias', 'condimento', 'abarrotes', 'coca'] },
-  { id: 'VINOS', name: '🍷 Cava, Vinos & Licores', icon: Wine, color: 'purple', keywords: ['vino', 'cava', 'cerveza', 'tequila', 'whisky', 'licor', 'tinto', 'blanco', 'botella'] },
-  { id: 'PANADERIA', name: '☕ Café, Panadería & Desayuno', icon: Coffee, color: 'amber', keywords: ['cafe', 'café', 'pan', 'galleta', 'cereal', 'mermelada', 'te', 'té'] },
-  { id: 'LIMPIEZA', name: '🧼 Limpieza & Hogar', icon: Sparkles, color: 'cyan', keywords: ['jabon', 'jabón', 'detergente', 'cloro', 'papel', 'servilleta', 'limpieza', 'bolsa'] },
+  { id: 'CARNES', name: 'Carnicería & Pescados', icon: Beef, color: 'rose', keywords: ['ribeye', 'carne', 'salmon', 'salmón', 'pollo', 'res', 'cerdo', 'pescado', 'camaron', 'marisco', 'corte'] },
+  { id: 'LACTEOS', name: 'Lácteos & Quesos', icon: Milk, color: 'amber', keywords: ['queso', 'leche', 'mantequilla', 'parmigiano', 'yogurt', 'crema', 'huevo'] },
+  { id: 'VERDURAS', name: 'Frutas & Verduras', icon: Apple, color: 'emerald', keywords: ['manzana', 'limon', 'limón', 'cebolla', 'jitomate', 'tomate', 'aguacate', 'verdura', 'fruta', 'papas', 'papa', 'lechuga', 'ajo'] },
+  { id: 'ABARROTES', name: 'Abarrotes & Despensa', icon: Package, color: 'blue', keywords: ['harina', 'arroz', 'frijol', 'aceite', 'pasta', 'azucar', 'azúcar', 'sal', 'especias', 'condimento', 'abarrotes', 'coca'] },
+  { id: 'VINOS', name: 'Cava, Vinos & Licores', icon: Wine, color: 'purple', keywords: ['vino', 'cava', 'cerveza', 'tequila', 'whisky', 'licor', 'tinto', 'blanco', 'botella'] },
+  { id: 'PANADERIA', name: 'Café, Panadería & Desayuno', icon: Coffee, color: 'amber', keywords: ['cafe', 'café', 'pan', 'galleta', 'cereal', 'mermelada', 'te', 'té'] },
+  { id: 'LIMPIEZA', name: 'Limpieza & Hogar', icon: Sparkles, color: 'cyan', keywords: ['jabon', 'jabón', 'detergente', 'cloro', 'papel', 'servilleta', 'limpieza', 'bolsa'] },
 ];
 
 export function getDepartmentForItem(item) {
@@ -52,7 +53,7 @@ export function getDepartmentForItem(item) {
 
 // ─── Tarjeta de artículo memoizada: solo re-renderiza si cambian sus props ───
 const ShoppingItemCard = React.memo(function ShoppingItemCard({
-  item, onToggle, onUpdateQuantity, onRemove, onShowQr, money,
+  item, onToggle, onUpdateQuantity, onRemove, onShowQr, money, currencyCode,
 }) {
   // Q1: paso por unidad (0,1 kg/l) y 3 decimales para pesados.
   const step = stepForUnit(item.unit);
@@ -166,7 +167,7 @@ const ShoppingItemCard = React.memo(function ShoppingItemCard({
             <span className="text-emerald-300 font-bold block">
               {money((item.estimatedPriceMxn || 0) * (item.quantity || 1))}
             </span>
-            <span className="text-[10px] text-gray-500">MXN</span>
+            <span className="text-[10px] text-gray-500">{currencyCode}</span>
           </div>
         )}
 
@@ -235,6 +236,9 @@ export default function ShoppingListView({
   const [isPriceComparisonOpen, setIsPriceComparisonOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [hideChecked, setHideChecked] = useState(false);
+  // 3.14.0 (C-5): filtro «solo lo del carrito» que activa la tarjeta
+  // Carrito; es el espejo de hideChecked (solo faltantes).
+  const [onlyChecked, setOnlyChecked] = useState(false);
   const [search, setSearch] = useState('');
   const [quickName, setQuickName] = useState('');
   // Q7: pila de los últimos 3 borrados, cada uno con su Deshacer.
@@ -244,8 +248,16 @@ export default function ShoppingListView({
   const [budgets, setBudgets] = useState(() => readLocalState('alacena_budgets', {}));
   const budget = Number(budgets[budgetKey]) || 0;
   const currency = activeHouse?.currency || 'MXN';
-  const money = useCallback((value) => new Intl.NumberFormat(currency === 'EUR' ? 'es-ES' : 'es-MX', { style: 'currency', currency }).format(value), [currency]);
+  // 3.14.0 (C-4): el formato de dinero sale de la función única de la
+  // app (utils/formatMoney), con la moneda de la casa activa.
+  const money = useCallback((value) => formatHouseMoney(activeHouse, value), [activeHouse]);
   const removeItem = (item) => { setRemovedItems((prev) => pushRemovedItem(prev, item)); onRemoveItem(item.id); setNotice('Artículo eliminado.'); };
+  // 3.14.0 (C-5): las tarjetas de métricas llevan a su detalle.
+  const scrollToList = useCallback(() => {
+    requestAnimationFrame(() => {
+      document.getElementById('shopping-list-sections')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, []);
   // Callbacks estables para las tarjetas memoizadas
   const handleToggleItem = useCallback((id) => onToggleItem(id), [onToggleItem]);
   const handleUpdateItemQuantity = useCallback(
@@ -349,6 +361,8 @@ export default function ShoppingListView({
       if (selectedStore !== 'ALL' && (item.store || 'Supermercado') !== selectedStore) return;
       // Filtrar si el usuario activó 'Solo Pendientes'
       if (hideChecked && item.checked) return;
+      // Filtrar si la tarjeta Carrito activó 'Solo en el carrito'
+      if (onlyChecked && !item.checked) return;
       if (search && !normalizeItemName(item.name).includes(normalizeItemName(search))) return;
 
       const deptId = item.computedDept || 'ABARROTES';
@@ -357,7 +371,7 @@ export default function ShoppingListView({
     });
 
     return groups;
-  }, [enrichedList, selectedStore, hideChecked, search]);
+  }, [enrichedList, selectedStore, hideChecked, onlyChecked, search]);
 
   // Tiendas disponibles
   const stores = useMemo(() => {
@@ -376,7 +390,7 @@ export default function ShoppingListView({
 
     let text = `🛒 *LISTA DEL SÚPER POR DEPARTAMENTOS*\n`;
     text += `📍 *${activeHouse?.name?.toUpperCase() || 'RESIDENCIA'}*\n`;
-    text += `Total por comprar: ${pending.length} artículos (~${money(metrics.totalEstimatedMxn - metrics.cartTotalMxn)} ${currency})\n\n`;
+    text += `Total por comprar: ${pending.length} artículos (~${money(metrics.totalEstimatedMxn - metrics.cartTotalMxn)})\n\n`;
 
     SUPERMARKET_DEPARTMENTS.forEach((dept) => {
       if (dept.id === 'ALL') return;
@@ -448,30 +462,26 @@ export default function ShoppingListView({
 
   return (
     <div className="shopping-home space-y-5">
+      {/* 3.14.0 (A-4): héroe reducido a su trabajo — el alta rápida
+          y el límite de gasto. Fuera el titular editorial, el
+          párrafo y la pista: en móvil el primer artículo tiene
+          que verse en el primer pantallazo. Pendientes vive UNA
+          vez (tarjeta Por Comprar) y el estimado UNA vez (tarjeta
+          Presupuesto); el aviso de «lista de este dispositivo»
+          vive UNA vez (el banner ámbar de abajo), no tres. */}
       <section className="shopping-hero">
         <div className="shopping-hero-copy">
-          <span className="shopping-eyebrow"><span /> TU CASA, EN ORDEN</span>
-          <h1>Menos vueltas.<br /><em>Todo en tu lista.</em></h1>
-          <p>Anota lo que hace falta, marca lo que llevas y guarda tu compra en la despensa.</p>
           <form onSubmit={quickAdd} className="shopping-quick-add">
             <Plus size={20} aria-hidden="true" />
             <input aria-label="Qué hace falta en casa" placeholder="¿Qué hace falta en casa?" value={quickName} maxLength={300} onChange={(e) => setQuickName(e.target.value)} />
             <button type="submit" disabled={!quickName.trim()}>Agregar <ArrowUpRight size={17} /></button>
           </form>
-          <span className="shopping-hero-hint">Escribe un producto y presiona Enter. Puedes ajustar la cantidad después.</span>
         </div>
         <div className="shopping-plan">
-          <ShoppingBag size={28} strokeWidth={1.5} />
-          {/* 3.12.0: sin casa conectada, el contador es SOLO de este
-              dispositivo y se etiqueta como tal; nunca se presenta
-              como la lista real del hogar. */}
-          <span>{cloudConnected ? 'TU PRÓXIMA COMPRA' : 'LISTA DE ESTE DISPOSITIVO (SIN CONECTAR)'}</span>
-          <strong>{metrics.pendingCount}<small> pendientes</small></strong>
-          {!cloudConnected && <small>Sin conectar a tu casa: tu lista real está en la nube. Entra con Google arriba para verla.</small>}
-          {cloudConnected && cloudState === 'error' && <small role="alert">No pudimos confirmar esta lista con la nube; puede estar desactualizada.</small>}
-          <div className="shopping-plan-rule" />
-          <div className="flex justify-between gap-2"><span>Estimado de la lista</span><b>{money(metrics.totalEstimatedMxn)}</b></div>
-          <label htmlFor="shopping-budget">Mi límite de gasto ({currency})</label>
+          <label htmlFor="shopping-budget" className="flex items-center gap-2">
+            <ShoppingBag size={16} strokeWidth={1.8} aria-hidden="true" />
+            Mi límite de gasto ({currency})
+          </label>
           <input id="shopping-budget" type="number" inputMode="decimal" min="0" step="0.01" placeholder="Sin límite" value={budgets[budgetKey] || ''} onChange={(e) => {
             const next = { ...budgets, [budgetKey]: e.target.value }; setBudgets(next); writeLocalState('alacena_budgets', next);
           }} />
@@ -508,7 +518,7 @@ export default function ShoppingListView({
             className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 rounded-xl transition-all shadow-md shadow-amber-950/40 shrink-0"
           >
             <RefreshCw className="w-4 h-4" />
-            <span>⚡ Agregar Faltantes a la Lista (1 Toque)</span>
+            <span>Agregar Faltantes a la Lista (1 Toque)</span>
           </button>
         </div>
       )}
@@ -569,7 +579,6 @@ export default function ShoppingListView({
             }`}
             title="Activar vista táctil gigante para caminar en el supermercado"
           >
-            <span className="text-base leading-none">👟</span>
             <span>{isWalkingMode ? 'Salir del modo súper' : 'Modo Súper'}</span>
           </button>
 
@@ -599,7 +608,7 @@ export default function ShoppingListView({
             title="Fotografiar tu lista manuscrita y pasarla al Súper con OCR"
           >
             <Camera className="w-4 h-4 text-amber-100" />
-            <span>📸 Foto de lista</span>
+            <span>Foto de lista</span>
           </button>
 
           {/* 3. Agregar Artículo Manual Rápido */}
@@ -627,8 +636,8 @@ export default function ShoppingListView({
             title="Comparador multitienda y asesor de dónde comprar más barato"
           >
             <Award className="w-4 h-4 text-[var(--gold)]" />
-            <span className="hidden sm:inline">⚖️ Precios</span>
-            <span className="sm:hidden">⚖️</span>
+            <span className="hidden sm:inline">Precios</span>
+            <span className="sm:hidden">Precios</span>
           </button>
 
           {/* 5. Menú Desplegable: Más Herramientas */}
@@ -658,15 +667,9 @@ export default function ShoppingListView({
                   Herramientas del Súper
                 </div>
 
-                {/* Comparador Multitienda */}
-                <button
-                  type="button"
-                  onClick={() => setIsPriceComparisonOpen(true)}
-                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
-                >
-                  <Award className="w-4 h-4 text-[var(--gold)]" />
-                  <span>⚖️ Comparador Multitienda & Ahorro</span>
-                </button>
+                {/* 3.14.0 (B-3): el Comparador y la Foto de lista
+                    salen de este menú — ya tienen su botón en la
+                    barra; aquí quedaban duplicados. */}
 
                 {/* WhatsApp */}
                 <button
@@ -716,16 +719,6 @@ export default function ShoppingListView({
                 >
                   <FileText className="w-4 h-4 text-[var(--gold)]" />
                   <span>Importar Texto / WhatsApp</span>
-                </button>
-
-                {/* Foto de lista manuscrita */}
-                <button
-                  type="button"
-                  onClick={() => { setSmartImportInitial({ subTab: 'ocr', photoListMode: true }); setIsSmartImportOpen(true); }}
-                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
-                >
-                  <Camera className="w-4 h-4 text-emerald-300" />
-                  <span>📸 Foto de lista (manuscrita)</span>
                 </button>
 
                 {/* Librito QR de Despensa */}
@@ -801,17 +794,23 @@ export default function ShoppingListView({
       {/* 3. Métricas Visuales en Tiempo Real */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
         
-        {/* Por Comprar */}
-        <div className="glass-panel p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl flex items-center justify-between border border-white/10">
+        {/* Por Comprar — 3.14.0 (C-5): clicable, filtra a los
+            pendientes y baja a la lista. */}
+        <div
+          onClick={() => { audio.click(); setOnlyChecked(false); setHideChecked(true); scrollToList(); }}
+          role="button"
+          title="Ver solo los pendientes"
+          className="glass-panel p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl flex items-center justify-between border border-white/10 cursor-pointer hover:border-amber-500/40 transition-all"
+        >
           <div className="min-w-0">
             <span className="text-[10px] sm:text-[11px] font-bold text-amber-400 uppercase tracking-wider block truncate">
               Por Comprar
             </span>
             <div className="text-xl sm:text-3xl font-extrabold text-white mt-0.5 sm:mt-1 font-mono truncate">
-              {metrics.pendingCount} <span className="text-[10px] sm:text-xs text-gray-400 font-sans font-normal">arts</span>
+              {metrics.pendingCount} <span className="text-[10px] sm:text-xs text-gray-400 font-sans font-normal">artículos</span>
             </div>
             <span className="text-[10px] sm:text-xs text-gray-400 mt-0.5 block truncate">
-              Pendientes
+              {hideChecked && !onlyChecked ? '✓ Viendo pendientes' : 'Pendientes'}
             </span>
           </div>
           <div className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-amber-500/15 border border-amber-500/25 text-amber-400 shrink-0 ml-1">
@@ -819,8 +818,14 @@ export default function ShoppingListView({
           </div>
         </div>
 
-        {/* En el Carrito & Barra de Progreso */}
-        <div className="glass-panel p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-white/10 flex flex-col justify-between">
+        {/* En el Carrito & Barra de Progreso — 3.14.0 (C-5):
+            clicable, filtra a lo ya marcado y baja a la lista. */}
+        <div
+          onClick={() => { audio.click(); setHideChecked(false); setOnlyChecked(true); scrollToList(); }}
+          role="button"
+          title="Ver solo lo que ya va en el carrito"
+          className="glass-panel p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-white/10 flex flex-col justify-between cursor-pointer hover:border-emerald-500/40 transition-all"
+        >
           <div className="flex items-center justify-between">
             <div className="min-w-0">
               <span className="text-[10px] sm:text-[11px] font-bold text-emerald-400 uppercase tracking-wider block truncate">
@@ -843,21 +848,33 @@ export default function ShoppingListView({
           </div>
         </div>
 
-        {/* Presupuesto Estimado (Moneda Dinámica: EUR o MXN según el Hogar) */}
-        <div className="glass-panel p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl flex items-center justify-between border border-white/10 col-span-2 sm:col-span-1">
+        {/* Presupuesto Estimado (Moneda Dinámica: EUR o MXN según el Hogar) —
+            3.14.0 (C-5): clicable, baja al límite de gasto y lo enfoca. */}
+        <div
+          onClick={() => {
+            audio.click();
+            const budgetInput = document.getElementById('shopping-budget');
+            if (budgetInput) {
+              budgetInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              budgetInput.focus({ preventScroll: true });
+            }
+          }}
+          role="button"
+          title="Ir a mi límite de gasto"
+          className="glass-panel p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl flex items-center justify-between border border-white/10 col-span-2 sm:col-span-1 cursor-pointer hover:border-emerald-500/40 transition-all"
+        >
           <div className="min-w-0">
             <span className="text-[10px] sm:text-[11px] font-bold text-emerald-400 uppercase tracking-wider block truncate">
               Presupuesto ({activeHouse?.currency || 'MXN'})
             </span>
             <div className="text-xl sm:text-3xl font-extrabold text-white mt-0.5 sm:mt-1 font-mono truncate">
-              {activeHouse?.currency === 'EUR' ? '€' : '$'}
-              {metrics.totalEstimatedMxn.toLocaleString(activeHouse?.currency === 'EUR' ? 'es-ES' : 'es-MX', { minimumFractionDigits: 2 })}{' '}
+              {money(metrics.totalEstimatedMxn)}{' '}
               <span className="text-[10px] sm:text-xs text-emerald-400 font-sans font-bold">
                 {activeHouse?.currency || 'MXN'}
               </span>
             </div>
             <span className="text-[10px] sm:text-xs text-gray-400 mt-0.5 block truncate">
-              En carrito: {activeHouse?.currency === 'EUR' ? '€' : '$'}{metrics.cartTotalMxn.toFixed(2)}
+              En carrito: {money(metrics.cartTotalMxn)}
             </span>
           </div>
           <div className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 shrink-0 ml-1">
@@ -870,7 +887,7 @@ export default function ShoppingListView({
         <label className="shopping-search"><Search size={18} /><input aria-label="Buscar en la lista" placeholder="Buscar un producto…" value={search} onChange={(e) => setSearch(e.target.value)} /></label>
         <label className="shopping-store"><Store size={18} /><select aria-label="Filtrar por tienda" value={selectedStore} onChange={(e) => setSelectedStore(e.target.value)}>{stores.map((name) => <option key={name} value={name}>{name === 'ALL' ? 'Todas las tiendas' : name}</option>)}</select></label>
       </div>
-      {enrichedList.length > 0 && !Object.entries(groupedByDepartment).some(([id, rows]) => rows.length && (selectedDept === 'ALL' || selectedDept === id)) && <div className="shopping-empty"><Search size={28} /><h3>No hay productos con estos filtros</h3><button onClick={() => { setSearch(''); setSelectedStore('ALL'); setSelectedDept('ALL'); setHideChecked(false); }}>Mostrar toda mi lista</button></div>}
+      {enrichedList.length > 0 && !Object.entries(groupedByDepartment).some(([id, rows]) => rows.length && (selectedDept === 'ALL' || selectedDept === id)) && <div className="shopping-empty"><Search size={28} /><h3>No hay productos con estos filtros</h3><button onClick={() => { setSearch(''); setSelectedStore('ALL'); setSelectedDept('ALL'); setHideChecked(false); setOnlyChecked(false); }}>Mostrar toda mi lista</button></div>}
       {/* 4. Selector de Pasillos / Departamentos del Supermercado */}
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -885,7 +902,7 @@ export default function ShoppingListView({
               type="button"
               onClick={() => {
                 audio.click();
-                setHideChecked(!hideChecked);
+                setHideChecked(!hideChecked); setOnlyChecked(false);
               }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
                 hideChecked
@@ -894,7 +911,7 @@ export default function ShoppingListView({
               }`}
               title="Ocultar los productos que ya metiste al carrito para despejar la vista"
             >
-              <span>{hideChecked ? '👁️ Solo Faltantes' : '👁️ Ocultar en Carrito'}</span>
+              <span>{hideChecked ? 'Solo Faltantes' : 'Ver Todos'}</span>
               {metrics.inCartCount > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full bg-black/40 text-[10px] font-mono">
                   {metrics.inCartCount}
@@ -909,7 +926,7 @@ export default function ShoppingListView({
                 className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-950/50 flex items-center gap-1.5"
               >
                 <Warehouse className="w-4 h-4" />
-                <span>🏁 Guardar {metrics.inCartCount} en la Despensa</span>
+                <span>Guardar {metrics.inCartCount} en la Despensa</span>
               </button>
 
               {onClearChecked && (
@@ -970,7 +987,7 @@ export default function ShoppingListView({
             <ShoppingCart className="w-8 h-8" />
           </div>
           <h4 className="font-display text-xl sm:text-2xl font-bold text-[var(--ink-primary)]">
-            🛒 Tu carrito está limpio. Añade lo que falta en casa.
+            Tu carrito está limpio. Añade lo que falta en casa.
           </h4>
           <p className="text-xs text-[var(--ink-tertiary)] mt-2 max-w-md mx-auto">
             El personal de servicio puede agregar faltantes con 1 toque o el sistema detecta lo que está por agotarse en la alacena.
@@ -983,7 +1000,7 @@ export default function ShoppingListView({
               }}
               className="px-6 py-3 text-sm font-bold text-white bg-gradient-to-r from-[var(--terracotta)] to-[var(--ember)] hover:brightness-110 rounded-2xl transition-all shadow-lg shadow-[var(--terracotta)]/30 active:scale-95"
             >
-              📝 ¿Qué Falta en Casa?
+              ¿Qué Falta en Casa?
             </button>
             <button
               onClick={() => {
@@ -992,12 +1009,12 @@ export default function ShoppingListView({
               }}
               className="px-5 py-3 text-xs font-bold text-[var(--gold)] bg-[var(--gold)]/10 hover:bg-[var(--gold)]/20 border border-[var(--gold)]/30 rounded-2xl transition-all"
             >
-              ⚡ Auto-Detectar Faltantes de Casa
+              Auto-Detectar Faltantes de Casa
             </button>
           </div>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6" id="shopping-list-sections">
           {SUPERMARKET_DEPARTMENTS.filter(d => d.id !== 'ALL').map((dept) => {
             const items = groupedByDepartment[dept.id] || [];
             if (selectedDept !== 'ALL' && selectedDept !== dept.id) return null;
@@ -1034,6 +1051,7 @@ export default function ShoppingListView({
                       onRemove={handleRemoveItem}
                       onShowQr={handleShowQrItem}
                       money={money}
+                      currencyCode={currency}
                     />
                   ))}
                 </div>
@@ -1152,7 +1170,7 @@ export default function ShoppingListView({
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-300 uppercase mb-1">
-                    Precio Estimado ($ MXN)
+                    Precio Estimado ({houseCurrencySymbol(activeHouse)} {currency})
                   </label>
                   <input
                     type="number"
@@ -1273,6 +1291,7 @@ export default function ShoppingListView({
       {/* Modal: Reconciliación de Ticket y Costo Real de Compra */}
       {isReconciliationOpen && <Suspense fallback={<DialogLayer label="Abriendo confirmación de compra" onClose={() => setIsReconciliationOpen(false)}><p role="status">Abriendo confirmación de compra…</p></DialogLayer>}><ReceiptReconciliationModal
         currency={currency}
+        activeHouse={activeHouse}
         isOpen={isReconciliationOpen}
         onClose={() => setIsReconciliationOpen(false)}
         checkedItems={enrichedList.filter((i) => i.checked)}
@@ -1290,6 +1309,7 @@ export default function ShoppingListView({
         onClose={() => setIsWeeklyStaplesOpen(false)}
         shoppingList={shoppingList}
         products={products}
+        activeHouse={activeHouse}
         onAddStaples={(items) => {
           items.forEach((it) => onAddItem(it));
         }}
@@ -1302,6 +1322,7 @@ export default function ShoppingListView({
         onClose={() => setIsPriceComparisonOpen(false)}
         shoppingList={enrichedList}
         onAddShoppingItem={onAddItem}
+        activeHouse={activeHouse}
       />
       </Suspense>}
 
@@ -1320,7 +1341,6 @@ export default function ShoppingListView({
           className={`fixed right-6 z-30 flex items-center gap-2.5 px-5 py-3.5 rounded-full bg-gradient-to-r from-[var(--terracotta)] to-[var(--ember)] text-white font-bold text-sm shadow-xl shadow-[var(--terracotta)]/40 hover:scale-105 active:scale-95 transition-all border border-white/20 ${metrics.inCartCount > 0 ? 'bottom-44 md:bottom-28' : 'bottom-24 md:bottom-6'}`}
           title="Abrir modo táctil caminando por el súper"
         >
-          <span className="text-lg">👟</span>
           <span>Modo Súper</span>
         </button>
       )}
@@ -1339,12 +1359,12 @@ export default function ShoppingListView({
             </div>
             {!cloudConnected && (
               <p className="mb-3 px-3 py-2 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-200 text-xs sm:text-sm font-bold" role="status">
-                ⚠️ Sin conectar a tu casa: esta es solo la lista de este dispositivo. Tu lista real está en la nube.
+                Sin conectar a tu casa: esta es solo la lista de este dispositivo. Tu lista real está en la nube.
               </p>
             )}
             {cloudConnected && cloudState === 'error' && (
               <p className="mb-3 px-3 py-2 rounded-xl bg-rose-500/20 border border-rose-500/50 text-rose-200 text-xs sm:text-sm font-bold" role="alert">
-                ⚠️ No pudimos confirmar la lista con la nube: puede estar desactualizada, no vacía.
+                No pudimos confirmar la lista con la nube: puede estar desactualizada, no vacía.
               </p>
             )}
 
@@ -1354,7 +1374,7 @@ export default function ShoppingListView({
                   {metrics.inCartCount} de {metrics.totalItems}{metrics.totalItems > 0 && metrics.inCartCount === metrics.totalItems ? ' ✓' : ''}
                 </span>
                 <span className="font-mono-num text-xs sm:text-sm text-[var(--gold)] font-semibold">
-                  ${metrics.totalEstimatedMxn.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN estimado
+                  {money(metrics.totalEstimatedMxn)} estimado
                 </span>
               </div>
               
@@ -1364,7 +1384,7 @@ export default function ShoppingListView({
                   type="button"
                   onClick={() => {
                     audio.click();
-                    setHideChecked(!hideChecked);
+                    setHideChecked(!hideChecked); setOnlyChecked(false);
                   }}
                   className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1 border ${
                     hideChecked
@@ -1373,7 +1393,7 @@ export default function ShoppingListView({
                   }`}
                   title="Ocultar los artículos ya metidos al carrito"
                 >
-                  <span>{hideChecked ? '👁️ Solo Faltantes' : '👁️ Ver Todos'}</span>
+                  <span>{hideChecked ? 'Solo Faltantes' : 'Ver Todos'}</span>
                 </button>
 
                 {metrics.inCartCount > 0 && (
@@ -1464,7 +1484,7 @@ export default function ShoppingListView({
                               <>
                                 <span>•</span>
                                 <span className="font-mono-num text-[var(--gold)] font-bold">
-                                  ${((item.estimatedPriceMxn || 0) * (item.quantity || 1)).toFixed(2)} MXN
+                                  {money((item.estimatedPriceMxn || 0) * (item.quantity || 1))}
                                 </span>
                               </>
                             )}

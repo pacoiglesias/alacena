@@ -3,22 +3,26 @@ import {
   X, ShoppingCart, Plus, Minus, Check, 
   Sparkles, User, Store, AlertCircle 
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
 
+// 3.14.0 (C-3): el catálogo NO lleva precios. Llevaba precios escritos
+// en el código (Ribeye $680 y demás) que no eran de ningún ticket real;
+// aunque hoy no se enseñaban ni entraban en el estimado, un precio
+// inventado en el código es un dato inventado esperando un descuido.
+// Sin precio real, el artículo entra con estimado 0 y no suma.
 const FREQUENT_HOUSEHOLD_ITEMS = [
-  { name: 'Coca-Cola Original 600ml', department: 'ABARROTES', unit: 'piezas', store: 'OXXO / Super', price: 19.50, icon: '🥤' },
-  { name: 'Coca-Cola Sin Azúcar 600ml', department: 'ABARROTES', unit: 'piezas', store: 'Supermercado', price: 19.50, icon: '🥤' },
-  { name: 'Leche Entera Pasteurizada', department: 'LACTEOS', unit: 'litros', store: 'Supermercado', price: 29.50, icon: '🥛' },
-  { name: 'Huevo Blanco San Juan (30 pzas)', department: 'LACTEOS', unit: 'paquetes', store: 'Supermercado', price: 92.00, icon: '🥚' },
-  { name: 'Pechuga de Pollo Fresca', department: 'CARNES', unit: 'kg', store: 'Carnicería / Super', price: 145.00, icon: '🍗' },
-  { name: 'Corte Ribeye Prime', department: 'CARNES', unit: 'kg', store: 'Carnicería Boutique', price: 680.00, icon: '🥩' },
-  { name: 'Aceite de Oliva Extra Virgen', department: 'ABARROTES', unit: 'litros', store: 'City Market', price: 345.00, icon: '🫒' },
-  { name: 'Harina de Trigo Selecta', department: 'ABARROTES', unit: 'kg', store: 'Costco', price: 38.50, icon: '🌾' },
-  { name: 'Papel Higiénico (Paquete 12)', department: 'LIMPIEZA', unit: 'paquetes', store: 'Costco', price: 145.00, icon: '🧻' },
-  { name: 'Detergente Líquido para Ropa', department: 'LIMPIEZA', unit: 'piezas', store: 'Costco', price: 210.00, icon: '🧼' },
-  { name: 'Garrafón de Agua 20L', department: 'ABARROTES', unit: 'piezas', store: 'Repartidor / Tienda', price: 55.00, icon: '💧' },
-  { name: 'Café Grano Tostado', department: 'PANADERIA', unit: 'kg', store: 'Tostador Local', price: 390.00, icon: '☕' },
+  { name: 'Coca-Cola Original 600ml', department: 'ABARROTES', unit: 'piezas', store: 'OXXO / Super', icon: '🥤' },
+  { name: 'Coca-Cola Sin Azúcar 600ml', department: 'ABARROTES', unit: 'piezas', store: 'Supermercado', icon: '🥤' },
+  { name: 'Leche Entera Pasteurizada', department: 'LACTEOS', unit: 'litros', store: 'Supermercado', icon: '🥛' },
+  { name: 'Huevo Blanco San Juan (30 pzas)', department: 'LACTEOS', unit: 'paquetes', store: 'Supermercado', icon: '🥚' },
+  { name: 'Pechuga de Pollo Fresca', department: 'CARNES', unit: 'kg', store: 'Carnicería / Super', icon: '🍗' },
+  { name: 'Corte Ribeye Prime', department: 'CARNES', unit: 'kg', store: 'Carnicería Boutique', icon: '🥩' },
+  { name: 'Aceite de Oliva Extra Virgen', department: 'ABARROTES', unit: 'litros', store: 'City Market', icon: '🫒' },
+  { name: 'Harina de Trigo Selecta', department: 'ABARROTES', unit: 'kg', store: 'Costco', icon: '🌾' },
+  { name: 'Papel Higiénico (Paquete 12)', department: 'LIMPIEZA', unit: 'paquetes', store: 'Costco', icon: '🧻' },
+  { name: 'Detergente Líquido para Ropa', department: 'LIMPIEZA', unit: 'piezas', store: 'Costco', icon: '🧼' },
+  { name: 'Garrafón de Agua 20L', department: 'ABARROTES', unit: 'piezas', store: 'Repartidor / Tienda', icon: '💧' },
+  { name: 'Café Grano Tostado', department: 'PANADERIA', unit: 'kg', store: 'Tostador Local', icon: '☕' },
 ];
 
 export default function QuickStaffShoppingModal({
@@ -48,14 +52,9 @@ export default function QuickStaffShoppingModal({
     e.preventDefault();
     if (!productName.trim()) return;
 
+    // 3.14.0 (C-3): sin confeti al añadir — la lista no es una fiesta,
+    // es la compra de la casa; el aviso de «añadido» ya confirma.
     audio.success();
-    try {
-      confetti({
-        particleCount: 60,
-        spread: 60,
-        origin: { y: 0.65 },
-      });
-    } catch (_) {}
 
     onAddItem({
       id: `shop-${Date.now()}`,

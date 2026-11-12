@@ -65,6 +65,7 @@ import {
 } from './utils/deduplication';
 import { sanitizeAllInventory, sanitizeCavaProduct } from './utils/cavaGuard';
 import { migrateProductsExpiry } from './utils/productExpiry';
+import { formatHouseMoney } from './utils/formatMoney';
 import { applyMovementToLots, addToLots, normalizeLots, nextVisibleExpiryDate } from './utils/productLots';
 import {
   PRE_CLOUD_BACKUP_KEY,
@@ -205,6 +206,15 @@ export default function App() {
   const [isHouseModalOpen, setIsHouseModalOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [operationNotice, setOperationNotice] = useState('');
+  // 3.14.0 (C-9): último borrado con Deshacer (producto o receta).
+  // El borrado es inmediato, como en la Lista, y el aviso ofrece
+  // restaurarlo en su sitio durante unos segundos.
+  const [undoDelete, setUndoDelete] = useState(null);
+  useEffect(() => {
+    if (!undoDelete) return undefined;
+    const timer = setTimeout(() => setUndoDelete(null), 12000);
+    return () => clearTimeout(timer);
+  }, [undoDelete]);
   const [isMuted, setIsMuted] = useState(audio.isMuted());
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isWineTastingOpen, setIsWineTastingOpen] = useState(false);
@@ -525,7 +535,7 @@ export default function App() {
           addAuditEntry(
             ratingData.reviewerName || 'Sommelier CavaPro',
             'CALIFICACION_VINO',
-            `Calificó ${p.name} con ${ratingData.rating}⭐ (${ratingData.sommelierPoints} pts)`,
+            `Calificó ${p.name} con ${ratingData.rating ? `${ratingData.rating}⭐` : 'sin estrellas'} (${ratingData.sommelierPoints ? `${ratingData.sommelierPoints} pts` : 'sin puntuar'})`,
             ratingData.tastingNotes
           );
           return {
@@ -550,7 +560,7 @@ export default function App() {
             tastingData.reviewerName || 'Sommelier CavaPro',
             'DESCORCHE_VINO',
             `Descorchó 1 botella de ${p.name}. Stock restante: ${newQty} botellas.`,
-            `Reseña: ${tastingData.rating}⭐ (${tastingData.sommelierPoints} pts). ${tastingData.tastingNotes}`
+            `Reseña: ${tastingData.rating ? `${tastingData.rating}⭐` : 'sin estrellas'} (${tastingData.sommelierPoints ? `${tastingData.sommelierPoints} pts` : 'sin puntuar'}). ${tastingData.tastingNotes}`
           );
           // Lotes FEFO (3.12.0): el descorche también sale del lote
           // que antes vence, como cualquier otro consumo.
@@ -611,7 +621,8 @@ export default function App() {
   };
 
   const handleDeleteProduct = (productId) => {
-    const target = products.find((p) => p.id === productId);
+    const index = products.findIndex((p) => p.id === productId);
+    const target = index >= 0 ? products[index] : null;
     if (target) {
       addAuditEntry(
         'Administrador General',
@@ -621,6 +632,37 @@ export default function App() {
     }
     deleteProductFromCloud(productId);
     setProducts((prev) => prev.filter((p) => p.id !== productId));
+    if (target) {
+      setUndoDelete({ kind: 'product', item: target, index });
+      setOperationNotice(`«${target.name}» eliminado de la despensa.`);
+    }
+  };
+
+  // Deshacer del borrado: reinserta en su posición y vuelve a
+  // guardar en la nube, dejando el movimiento en la bitácora.
+  const handleUndoDelete = () => {
+    if (!undoDelete) return;
+    const { kind, item, index } = undoDelete;
+    if (kind === 'product') {
+      setProducts((prev) => {
+        const next = [...prev];
+        next.splice(Math.min(index, next.length), 0, item);
+        return next;
+      });
+      saveProductToCloud(item);
+      addAuditEntry('Administrador General', 'RESTAURACION_ARTICULO', `Deshizo la baja de ${item.name}: vuelve a la despensa`);
+      setOperationNotice(`«${item.name}» restaurado.`);
+    } else {
+      setRecipes((prev) => {
+        const next = [...prev];
+        next.splice(Math.min(index, next.length), 0, item);
+        return next;
+      });
+      saveRecipeToCloud(item);
+      addAuditEntry('Administrador General', 'RESTAURACION_RECETA', `Deshizo la baja de la receta "${item.name}": vuelve al recetario`);
+      setOperationNotice(`Receta «${item.name}» restaurada.`);
+    }
+    setUndoDelete(null);
   };
 
   const handleUpdateQuantity = (productId, newQuantity, reason = '') => {
@@ -712,6 +754,43 @@ export default function App() {
       saveShoppingItemToCloud(itemWithHouse);
       return deduplicateShoppingItems([itemWithHouse, ...prev]);
     });
+  };
+
+  // 3.14.0 (M-1): handler con nombre para «añadir faltantes a la
+  // lista», compartido por Recetas y por el Resumen Diario — antes
+  // vivía como inline de Recetas y el Resumen recibía la prop sin
+  // que nadie se la pasara (prop fantasma).
+  const handleAddMissingToShoppingList = (missingItems) => {
+    (missingItems || []).forEach((item) => {
+      // Departamento: el del producto equivalente en el
+      // inventario de esta casa (su categoría); si el
+      // ingrediente no está en la despensa, el departamento
+      // canónico de la lista es «Abarrotes» (antes todo iba a
+      // 'ABARROTES' en mayúsculas, que no casaba con ningún
+      // departamento real de la lista).
+      const match = products.find((p) => belongsToHouse(p, activeHouse.id) && areItemsEquivalent(p.name, item.name));
+      // Cantidad: el déficit real en la unidad del
+      // ingrediente (planRecipe ya lo trae calculado), sin
+      // forzar el mínimo de 1 de antes; solo se redondea al
+      // alza al paso mínimo de la unidad (stepForUnit: 0,1 en
+      // kg/l, 1 en el resto) cuando el déficit es positivo
+      // pero menor que ese paso, para no pedir 0,03 piezas.
+      const rawDeficit = Number.isFinite(item.deficit) ? item.deficit : (item.required || 0) - (item.available || 0);
+      const step = stepForUnit(item.unit || 'piezas');
+      const quantity = rawDeficit > 0 ? Math.max(step, roundQty3(rawDeficit)) : step;
+      handleAddShoppingItem({
+        id: `shop-${Date.now()}-${item.name}`,
+        name: item.name,
+        quantity,
+        unit: item.unit || 'piezas',
+        department: match?.category || 'Abarrotes',
+        store: item.store || match?.store || 'Supermercado',
+        estimatedPriceMxn: item.unitPriceMxn || 0,
+        targetZone: match?.zone || 'Alacena Principal',
+        checked: false,
+      });
+    });
+    setActiveTab('shopping');
   };
 
   const handleDeduplicateShoppingList = () => {
@@ -890,7 +969,7 @@ export default function App() {
       buyer,
       'INGRESO_COMPRA_SUPER',
       `Ingresó compra de ${checkedItems.length} artículos a la residencia por ${buyer}`,
-      `Importe cobrado en ticket: $${finalRecordedTotal.toFixed(2)} MXN (Estimado: $${totalEstimatedPurchasedMxn.toFixed(2)} MXN)${notes ? ` · Notas: ${notes}` : ''}`
+      `Importe cobrado en ticket: ${formatHouseMoney(activeHouse, finalRecordedTotal)} (Estimado: ${formatHouseMoney(activeHouse, totalEstimatedPurchasedMxn)})${notes ? ` · Notas: ${notes}` : ''}`
     );
 
     setOperationNotice(`Compra registrada: ${checkedItems.length} artículos ingresados. Revisa el estado de guardado para confirmar la nube.`);
@@ -974,7 +1053,7 @@ export default function App() {
       buyer,
       'INGRESO_TICKET_DESPENSA',
       `Ingresó ${itemsToAdd.length} artículos a la Despensa (${addedCount} nuevos, ${updatedCount} actualizados) desde ticket (${storeName})`,
-      `Total registrado en ticket: $${totalRecordedMxn.toFixed(2)} MXN`
+      `Total registrado en ticket: ${formatHouseMoney(activeHouse, totalRecordedMxn)}`
     );
 
     setActiveTab('inventory');
@@ -1175,7 +1254,8 @@ export default function App() {
     );
   };
   const handleDeleteRecipe = (recipeId) => {
-    const target = recipes.find((r) => r.id === recipeId);
+    const index = recipes.findIndex((r) => r.id === recipeId);
+    const target = index >= 0 ? recipes[index] : null;
     if (!target) return;
     setRecipes((prev) => prev.filter((r) => r.id !== recipeId));
     deleteRecipeFromCloud(recipeId);
@@ -1184,6 +1264,8 @@ export default function App() {
       'ELIMINACION_RECETA',
       `Eliminó la receta "${target.name}"`
     );
+    setUndoDelete({ kind: 'recipe', item: target, index });
+    setOperationNotice(`Receta «${target.name}» eliminada.`);
   };
 
   function getSnapshot() { return {products,shoppingList,zones,recipes,auditLogs,purchaseHistory,households,activeHouse}; }
@@ -1279,6 +1361,7 @@ export default function App() {
         products={products.filter((p) => belongsToHouse(p, activeHouse.id))}
         shoppingList={shoppingList.filter((i) => belongsToHouse(i, activeHouse.id))}
         recipes={recipes}
+        onAddMissingToShoppingList={handleAddMissingToShoppingList}
       />
 
       <CloudStatus state={cloudState} isOnline={isOnline} hasLocalData={Boolean(products.length || shoppingList.length || purchaseHistory.length || auditLogs.length)} onDownloadBackup={handleExportBackupJson} />
@@ -1288,7 +1371,7 @@ export default function App() {
       {localImportOffer && <section className="review-callout"><h2>Tu casa en la nube está vacía</h2><p>Conservamos tus datos en esta pantalla. No se subirán hasta que lo elijas.</p><div className="flex flex-wrap gap-2"><button disabled={!isOnline || uploadingLocal} onClick={uploadLocal}>{uploadingLocal ? 'Subiendo…' : 'Subir mis datos a la nube'}</button><button disabled={uploadingLocal} onClick={() => disconnectGoogle()}>Conservar copia local y cerrar sesión</button><button onClick={handleExportBackupJson}>Descargar respaldo (JSON)</button></div>{migrationError && <p role="alert">{migrationError}</p>}</section>}
       <OfflineStatus />
       {import.meta.env.VITE_REVIEW_MODE === 'true' && <div className="review-callout" role="status">Vista previa · datos de prueba independientes de tu casa real</div>}
-      {operationNotice && <div role="status" className="mx-auto w-full max-w-7xl px-4 pt-3 text-sm text-emerald-400 flex justify-between gap-3"><span>{operationNotice}</span><button onClick={() => setOperationNotice('')} aria-label="Cerrar aviso">×</button></div>}
+      {operationNotice && <div role="status" className="mx-auto w-full max-w-7xl px-4 pt-3 text-sm text-emerald-400 flex items-center justify-between gap-3"><span>{operationNotice}</span><span className="flex items-center gap-2 shrink-0">{undoDelete && <button onClick={handleUndoDelete} className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-bold hover:bg-emerald-500/25 transition-all">Deshacer</button>}<button onClick={() => { setOperationNotice(''); setUndoDelete(null); }} aria-label="Cerrar aviso">×</button></span></div>}
       {storageError && <div role="alert" className="mx-4 p-4 rounded-xl bg-rose-950 text-white">No se pudo guardar en este dispositivo. Descarga un respaldo desde Más antes de cerrar la página.</div>}
       <Suspense fallback={<div role="status" className="p-12 text-center">Preparando tu alacena…</div>}>
       {/* Main Body */}
@@ -1319,6 +1402,7 @@ export default function App() {
               setIsZoneModalOpen(true);
             }}
             onOpenShoppingTab={() => setActiveTab('shopping')}
+            onAutoGenerateShopping={handleAutoGenerateShoppingList}
             onOpenRecipesTab={() => setActiveTab('recipes')}
             onAddToShoppingList={handleAddShoppingItem}
             recipes={recipes}
@@ -1356,6 +1440,7 @@ export default function App() {
         {activeTab === 'recipes' && (
           <RecipesView
             householdId={activeHouse.id}
+            activeHouse={activeHouse}
             recipes={recipes.filter((r) => belongsToHouse(r, activeHouse.id))}
             products={products.filter((p) => belongsToHouse(p, activeHouse.id))}
             staffList={staffList}
@@ -1363,44 +1448,13 @@ export default function App() {
             onCreateRecipe={handleCreateRecipe}
             onUpdateRecipe={handleUpdateRecipe}
             onDeleteRecipe={handleDeleteRecipe}
-            onAddMissingToShoppingList={(missingItems) => {
-              missingItems.forEach((item) => {
-                // Departamento: el del producto equivalente en el
-                // inventario de esta casa (su categoría); si el
-                // ingrediente no está en la despensa, el departamento
-                // canónico de la lista es «Abarrotes» (antes todo iba a
-                // 'ABARROTES' en mayúsculas, que no casaba con ningún
-                // departamento real de la lista).
-                const match = products.find((p) => belongsToHouse(p, activeHouse.id) && areItemsEquivalent(p.name, item.name));
-                // Cantidad: el déficit real en la unidad del
-                // ingrediente (planRecipe ya lo trae calculado), sin
-                // forzar el mínimo de 1 de antes; solo se redondea al
-                // alza al paso mínimo de la unidad (stepForUnit: 0,1 en
-                // kg/l, 1 en el resto) cuando el déficit es positivo
-                // pero menor que ese paso, para no pedir 0,03 piezas.
-                const rawDeficit = Number.isFinite(item.deficit) ? item.deficit : (item.required || 0) - (item.available || 0);
-                const step = stepForUnit(item.unit || 'piezas');
-                const quantity = rawDeficit > 0 ? Math.max(step, roundQty3(rawDeficit)) : step;
-                handleAddShoppingItem({
-                  id: `shop-${Date.now()}-${item.name}`,
-                  name: item.name,
-                  quantity,
-                  unit: item.unit || 'piezas',
-                  department: match?.category || 'Abarrotes',
-                  store: item.store || match?.store || 'Supermercado',
-                  estimatedPriceMxn: item.unitPriceMxn || 0,
-                  targetZone: match?.zone || 'Alacena Principal',
-                  checked: false,
-                });
-              });
-              setActiveTab('shopping');
-            }}
+            onAddMissingToShoppingList={handleAddMissingToShoppingList}
           />
         )}
 
-        {/* Tab 4: Bitácora Forense */}
+        {/* Tab 4: Bitácora */}
         {activeTab === 'audit' && (
-          <AuditTrailView logs={auditLogs} />
+          <AuditTrailView logs={auditLogs.filter((r) => belongsToHouse(r, activeHouse.id))} />
         )}
       </main>
 
@@ -1422,6 +1476,7 @@ export default function App() {
         onClose={() => setIsAddWineOpen(false)}
         onSave={handleSaveProduct}
         zones={zones}
+        activeHouse={activeHouse}
       />
       )}
 
@@ -1454,8 +1509,6 @@ export default function App() {
         hasPreCloudBackup={isUsablePreCloudBackup(readLocalState(PRE_CLOUD_BACKUP_KEY, null))}
         preCloudBackupDate={readLocalState(PRE_CLOUD_BACKUP_KEY, null)?.savedAt || null}
         onOpenChangelog={() => setIsChangelogOpen(true)}
-        onToggleMute={handleToggleMute}
-        isMuted={isMuted}
         isCloudConnected={cloudAllowed}
         lowStockCount={products.filter((p) => (p.quantity || 0) <= (p.minStock || 0)).length}
       />
@@ -1481,6 +1534,7 @@ export default function App() {
         onConfirmReceipt={handleCompletePurchaseToPantry}
         shoppingList={shoppingList.filter((i) => belongsToHouse(i, activeHouse.id))}
         currency={activeHouse.currency || 'MXN'}
+        activeHouse={activeHouse}
         onSubtractStockDirect={handleSubtractStockDirect}
         onAddToShoppingList={handleAddShoppingItem}
         onOpenManualCaptureWithBarcode={handleOpenManualCaptureWithBarcode}
@@ -1560,6 +1614,7 @@ export default function App() {
       <BottomNavBar
         activeTab={activeTab === 'inventory' && inventoryTarget?.kind === 'cava' ? 'cava' : activeTab}
         setActiveTab={(tab) => {setInventoryTarget(null);setActiveTab(tab);}}
+        onNavigate={navigate}
 
         shoppingCount={shoppingList.filter((i) => !i.checked && belongsToHouse(i, activeHouse.id)).length}
         onOpenScanner={handleOpenScanner}

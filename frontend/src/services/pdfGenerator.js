@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { formatHouseMoney, houseCurrencyCode } from '../utils/formatMoney.js';
 
 /**
  * Generador Oficial de PDF de Lista de Compras de ALACENA Enterprise
@@ -78,7 +79,7 @@ export function generateShoppingListPdf({
     doc.text('Presupuesto:', boxX + 4, currentY + 10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(180, 83, 9); // Color ámbar elegante
-    doc.text(`$${totalEstimatedMxn.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN`, boxX + 32, currentY + 10);
+    doc.text(formatHouseMoney(activeHouse, totalEstimatedMxn), boxX + 32, currentY + 10);
   }
 
   currentY += 15;
@@ -139,7 +140,7 @@ export function generateShoppingListPdf({
     // Filas para autoTable
     const tableData = group.items.map((it) => {
       const priceStr = showPrices && it.estimatedPriceMxn
-        ? `$${((it.estimatedPriceMxn || 0) * (it.quantity || 1)).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        ? formatHouseMoney(activeHouse, (it.estimatedPriceMxn || 0) * (it.quantity || 1))
         : '-';
 
       const desc = it.notes ? `${it.name}\n(Nota: ${it.notes})` : it.name;
@@ -161,7 +162,7 @@ export function generateShoppingListPdf({
     ];
 
     if (showPrices) {
-      columns.push({ header: 'Total MXN', dataKey: 'price' });
+      columns.push({ header: `Total ${houseCurrencyCode(activeHouse)}`, dataKey: 'price' });
     }
 
     autoTable(doc, {

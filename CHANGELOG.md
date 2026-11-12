@@ -5,6 +5,79 @@ Fuente: `frontend/src/components/changelog/ChangelogModal.jsx`, el historial que
 la propia app muestra en pantalla. Este archivo es solo el espejo en la raíz
 del repo; la fuente canónica sigue siendo el modal.
 
+## 3.14.0 — 12 noviembre 2026 · Orden y diseño
+
+Ronda de orden y diseño por mandato directo de Paco («mejor operación,
+ser mejor visualmente, más ordenado, más práctico, más funcional
+todo»), ejecutando la auditoría de diseño pantalla a pantalla
+(`auditoria-diseno-3.14.0.md`). Cuatro bloques, sin tocar datos ni
+flujos de nube:
+
+- **Errores (S).** La Bitácora se monta filtrada por la casa activa
+  (C-1: mezclaba los movimientos de todas las casas). Moneda única
+  por casa (C-4): nueva `utils/formatMoney` (`formatHouseMoney`) y
+  fuera el «$ MXN» escrito a mano en Modo Súper, tabla de despensa,
+  recetas, alta de la lista y alta de vino — Casa España (EUR) ya no
+  ve pesos; el Valor Despensa deja de redondear a enteros y las
+  cabeceras del CSV llevan la moneda de la casa. Cero datos
+  inventados (C-3): vino sin puntuar → «Sin puntuar» (fuera 92 pts
+  y 5 estrellas por defecto; la cata arranca sin nota), receta sin
+  tiempo → sin insignia (fuera «30m»), comparador sin datos → «Sin
+  datos» (no corona a «Costco»), barra de stock sin máximo/ideal →
+  «Sin referencia de stock» (fuera la capacidad 6), y fuera los
+  precios escritos en el código del catálogo «¿Qué Falta en Casa?»
+  (eran datos muertos: no se enseñaban ni entraban en el estimado,
+  que ya entraba a 0) y su confeti al añadir.
+- **Limpieza (S).** Bitácora sin tecnicismos: etiquetas humanas por
+  acción (mapa + humanización, nunca el código crudo), fuera chip
+  de hash, «Ver delta JSON» y el banner de integridad
+  criptográfica; título «Bitácora»; actor sin registrar → «Sin
+  registrar». Textos veraces: «Exportar PDF» → «Imprimir» (era
+  `window.print()` con tooltip de «reporte firmado»); «Exportar
+  Excel» → «Exportar CSV». Novedades: fuera la pestaña «Plan
+  Maestro: 30 Mejoras» y el banco de prueba de audio. Cabecera:
+  fuera «Diagnóstico del escáner» del menú; chip «En línea»/«Sin
+  conexión» sin mono. Umbral único de «por vencer»: 15 días con
+  existencia (`EXPIRY_SOON_DAYS` + `isExpiringSoon` en
+  `utils/productExpiry`), usado por Despensa, cabecera (antes 3) y
+  Resumen Diario (antes 4; sus textos ya no dicen «URGE HOY O
+  MAÑANA»); la insignia de la cabecera cuenta elementos (M-12).
+  El botón de Google queda solo en la puerta (fuera el duplicado
+  de la barra de estado).
+- **Funcional (M).** Métricas clicables que filtran/navegan (C-5):
+  Lista (Por Comprar → pendientes; Carrito → marcados, nuevo
+  `onlyChecked`; Presupuesto → enfoca el límite) y Despensa (total
+  limpia filtros; Valor → tabla con desglose). Resumen Diario
+  (M-1): `handleAddMissingToShoppingList` extraído en App y
+  cableado App → Header → modal, con botón «Añadir faltantes a la
+  lista» y «y N más»; `onCookRecipe` podado en los tres sitios.
+  Centro de Mando sin retirarlo: «Salud del Sistema» → «Novedades»
+  (su destino real), «Modo Supermercado» → «Ir a la Lista del
+  Súper», título y pie sin marcas técnicas, rejilla de
+  Mantenimiento a 2 columnas (M-11), props muertas de silencio
+  podadas. «Generar Lista del Súper» genera (C-8). Deshacer en
+  borrado de producto y de receta (C-9), con restauración en
+  posición, reguardado en la nube y constancia en bitácora.
+  Buscador de recetas por nombre/ingrediente + «Puedo cocinarla
+  hoy» (C-11). Cantidad editable en la tarjeta de Despensa y
+  nombre que abre la ficha (C-7).
+- **Diseño/orden (M).** Héroe de la Lista reducido (A-4): alta
+  rápida + límite de gasto; pendientes y estimado una sola vez
+  por pantalla y el aviso de dispositivo una sola vez (banner).
+  Menú «…» sin duplicados (B-3). Toggle de marcados unificado
+  «Solo Faltantes»/«Ver Todos» (B-4). Emojis fuera de botones y
+  cabeceras en las vistas tocadas (el texto saliente de WhatsApp
+  los conserva: es contenido). Barra móvil construida desde
+  `DEFAULT_MENU_TABS` con las etiquetas del escritorio y la
+  Bitácora alcanzable; fuera el «Más» (B-2); la pestaña se llama
+  «Bitácora» también en escritorio.
+- **Tests:** node 118/118 (nuevos: `formatMoney` ×5 y la
+  definición única de «por vencer»), vitest 21/21 (honesty
+  reescrito al nuevo contrato de bitácora; acceso GIS apuntando
+  a la puerta + la barra ya no monta GIS; nuevos `round314`:
+  vino sin puntuar, cantidad tocable, buscador de recetas y
+  barra móvil), functions 18/18 sin cambios. Build OK.
+
 ## 3.13.0 — 12 noviembre 2026 · Acceso por credencial
 
 El acceso con Google deja de pasar por la página intermediaria de Firebase

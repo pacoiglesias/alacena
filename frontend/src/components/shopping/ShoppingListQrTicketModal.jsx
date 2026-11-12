@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import QRCode from 'qrcode';
 import { X, Printer, Share2, ShoppingCart, Store, CheckCircle2 } from 'lucide-react';
 import { audio } from '../../services/audioService';
+import { formatHouseMoney } from '../../utils/formatMoney';
 
 export default function ShoppingListQrTicketModal({ 
   isOpen, 
@@ -85,7 +86,7 @@ export default function ShoppingListQrTicketModal({
     <div class="instruct">Escanea con la app ALACENA para cargar la orden interactiva</div>
     <div class="summary">
       <div class="summary-row"><span>Total por Comprar:</span><strong>${pendingItems.length} artículos</strong></div>
-      <div class="summary-row"><span>Presupuesto Estimado:</span><strong>$${totalEstimatedMxn.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</strong></div>
+      <div class="summary-row"><span>Presupuesto Estimado:</span><strong>${formatHouseMoney(activeHouse, totalEstimatedMxn)}</strong></div>
     </div>
     <table>
       ${itemsRows}
@@ -224,7 +225,7 @@ export default function ShoppingListQrTicketModal({
             </div>
             <div className="flex justify-between font-bold text-emerald-800">
               <span>Presupuesto Estimado:</span>
-              <span className="font-mono">${totalEstimatedMxn.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</span>
+              <span className="font-mono">{formatHouseMoney(activeHouse, totalEstimatedMxn)}</span>
             </div>
           </div>
 

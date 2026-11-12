@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
-import { 
-  X, CheckCircle2, Sparkles, Volume2, VolumeX, ShieldCheck, 
-  Terminal, History, Zap, Utensils, MapPin, DollarSign, ListOrdered, Check 
+import {
+  X, Sparkles, Volume2, VolumeX, ShieldCheck
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.13.0-Casa';
+export const SYSTEM_VERSION = 'v3.14.0-Casa';
 export const RELEASE_DATE = '12 Noviembre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
-  const [activeTab, setActiveTab] = useState('changelog'); // 'changelog' | 'plan30'
   const [isMuted, setIsMuted] = useState(audio.isMuted());
 
   if (!isOpen) return null;
@@ -17,15 +15,6 @@ export default function ChangelogModal({ isOpen, onClose }) {
   const handleToggleMute = () => {
     const muted = audio.toggleMute();
     setIsMuted(muted);
-  };
-
-  const testAudio = (type) => {
-    if (type === 'click') audio.click();
-    if (type === 'success') audio.success();
-    if (type === 'warning') audio.warning();
-    if (type === 'cook') audio.cook();
-    if (type === 'delete') audio.delete();
-    if (type === 'super') audio.superCheck();
   };
 
   return (
@@ -75,89 +64,8 @@ export default function ChangelogModal({ isOpen, onClose }) {
           </div>
         </div>
 
-        {/* Navigation Tabs inside modal */}
-        <div className="flex items-center gap-2 px-6 pt-4 border-b border-[var(--border-soft)] bg-[var(--bg-elevated)]">
-          <button
-            onClick={() => {
-              audio.click();
-              setActiveTab('changelog');
-            }}
-            className={`pb-3 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 ${
-              activeTab === 'changelog'
-                ? 'border-amber-400 text-amber-300'
-                : 'border-transparent text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            <History className="w-4 h-4" />
-            <span>Historial de Versiones</span>
-          </button>
-          <button
-            onClick={() => {
-              audio.click();
-              setActiveTab('plan30');
-            }}
-            className={`pb-3 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 ${
-              activeTab === 'plan30'
-                ? 'border-amber-400 text-amber-300'
-                : 'border-transparent text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            <ListOrdered className="w-4 h-4" />
-            <span>Plan Maestro: 30 Mejoras por Etapas</span>
-          </button>
-        </div>
-
-        {/* Audio Test Bench (Always accessible) */}
-        <div className="p-3 mx-6 mt-4 rounded-2xl bg-[var(--bg-base)] border border-[var(--wine-bright)]/30">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 text-[11px] font-bold text-gray-300 tracking-wider">
-              <Terminal className="w-3.5 h-3.5 text-amber-400" />
-              <span>BANCO DE PRUEBA DE AUDIO Y HÁPTICOS SENSORIALES</span>
-            </div>
-            <span className="text-[10px] text-amber-400 font-medium">Síntesis Web Audio Zero-Latency + Haptic</span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
-            <button
-              onClick={() => testAudio('click')}
-              className="px-2 py-1.5 text-xs font-semibold text-gray-200 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 text-center"
-            >
-              🎯 Clic
-            </button>
-            <button
-              onClick={() => testAudio('super')}
-              className="px-2 py-1.5 text-xs font-semibold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl border border-amber-500/30 text-center"
-            >
-              👟 660Hz Súper
-            </button>
-            <button
-              onClick={() => testAudio('success')}
-              className="px-2 py-1.5 text-xs font-semibold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl border border-emerald-500/25 text-center"
-            >
-              ✨ Éxito
-            </button>
-            <button
-              onClick={() => testAudio('warning')}
-              className="px-2 py-1.5 text-xs font-semibold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl border border-amber-500/25 text-center"
-            >
-              ⚠️ Alerta
-            </button>
-            <button
-              onClick={() => testAudio('cook')}
-              className="px-2 py-1.5 text-xs font-semibold text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 rounded-xl border border-purple-500/25 text-center"
-            >
-              🍳 Cocina
-            </button>
-            <button
-              onClick={() => testAudio('delete')}
-              className="px-2 py-1.5 text-xs font-semibold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl border border-rose-500/25 text-center"
-            >
-              🗑️ Borrado
-            </button>
-          </div>
-        </div>
-
-        {/* Tab 1: Changelog */}
-        {activeTab === 'changelog' && (
+        {/* Historial de versiones — contenido único (3.14.0):
+            fuera la pestaña «Plan Maestro» y el banco de audio. */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
 
             {/* Funciones en la nube — 6 Noviembre 2026 */}
@@ -186,6 +94,48 @@ export default function ChangelogModal({ isOpen, onClose }) {
               </ul>
             </div>
 
+            {/* Release v3.14.0-Casa */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
+                    v3.14.0-Casa
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">12 Noviembre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2 font-display">
+                Orden y diseño: cada número con su moneda y cada botón con su trabajo
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>La moneda de tu casa, en todo:</strong> una sola función pone los precios y Casa España ya no ve «$ MXN» en el Modo Súper, la despensa ni las recetas. El valor de la despensa ya no se redondea a enteros.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Nada inventado:</strong> un vino sin puntuar dice «Sin puntuar» (antes salían 92 puntos y 5 estrellas de fábrica), una receta sin tiempo no enseña «30m», el comparador sin datos no corona a ninguna tienda y la barra de stock sin referencia no inventa capacidad.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Bitácora de tu casa y en humano:</strong> solo enseña los movimientos de la casa que estás viendo, con las acciones por su nombre («Baja de artículo», sin códigos ni tecnicismos), y su botón es «Imprimir», que es lo que hace.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>«Por vencer» significa lo mismo en todas partes:</strong> caduca en 15 días o menos y aún queda — cabecera, Resumen Diario y Despensa cuentan igual, y la insignia de alertas cuenta productos, no conceptos.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Botones que hacen lo que dicen:</strong> las tarjetas de la Lista y la Despensa llevan a su detalle; «Generar Lista del Súper» genera la lista; el Resumen Diario añade los faltantes de verdad; y borrar un producto o una receta ahora tiene Deshacer. En Despensa, la cantidad se corrige tocándola en la tarjeta, como en la Lista.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Orden visual:</strong> héroe de la Lista reducido para que el primer artículo se vea antes en el móvil; pendientes y estimado una sola vez por pantalla; fuera los duplicados del menú «…»; emojis fuera de los botones; y la barra móvil con las mismas pestañas del escritorio, Bitácora incluida. El botón de Google vive solo en la puerta de conexión.</span>
+                </li>
+              </ul>
+            </div>
+
             {/* Release v3.13.0-Casa */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
               <div className="flex items-center justify-between mb-3">
@@ -193,7 +143,6 @@ export default function ChangelogModal({ isOpen, onClose }) {
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
                     v3.13.0-Casa
                   </span>
-                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
                 </div>
                 <span className="text-xs text-gray-400">12 Noviembre 2026</span>
               </div>
@@ -964,101 +913,12 @@ export default function ChangelogModal({ isOpen, onClose }) {
             </div>
 
           </div>
-        )}
-
-        {/* Tab 2: Plan Maestro de 30 Mejoras por Etapas */}
-        {activeTab === 'plan30' && (
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs text-gray-300">
-            
-            {/* Etapa 1 */}
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
-              <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-emerald-500/20 text-emerald-300 rounded">
-                ETAPA 1 • SEMANA 1 (EN CURSO)
-              </span>
-              <h4 className="text-sm font-bold text-white mt-1.5 mb-2">
-                Practicidad Inmediata, Compras por WhatsApp y Atajos
-              </h4>
-              <ul className="space-y-1.5 text-[11px]">
-                <li>• <strong>14.</strong> Generador de Lista de Compras basado en Stock Ideal vs Real.</li>
-                <li>• <strong>15.</strong> Envío de Lista de Compras formateada directamente por WhatsApp al chofer/comprador.</li>
-                <li>• <strong>23.</strong> Atajos de teclado profesionales (`/` buscar, `N` nuevo producto, `C` cocinar).</li>
-                <li>• <strong>27.</strong> Botón de Auto-Reabastecimiento con 1 clic ("Reponer al Stock Ideal").</li>
-                <li>• <strong>29.</strong> Respaldo y descarga de backup en JSON con 1 clic.</li>
-              </ul>
-            </div>
-
-            {/* Etapa 2 */}
-            <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25">
-              <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-blue-500/20 text-blue-300 rounded">
-                ETAPA 2 • SEMANA 2
-              </span>
-              <h4 className="text-sm font-bold text-white mt-1.5 mb-2">
-                Visualización Financiera, Gráficas y Control de Caducidades
-              </h4>
-              <ul className="space-y-1.5 text-[11px]">
-                <li>• <strong>1.</strong> Dashboard con Gráficas de Dona y Barras por categoría en $ MXN.</li>
-                <li>• <strong>2.</strong> Semáforo de Caducidades con cuenta regresiva ("Vence en 48 hrs").</li>
-                <li>• <strong>3.</strong> Modo Galería Visual con Fotos HD de botellas y carnes.</li>
-                <li>• <strong>5.</strong> Medidores de temperatura y humedad para Cava y Cuarto Frío.</li>
-                <li>• <strong>8.</strong> Indicador de Rotación de Inventario ABC (alta rotación vs estancado).</li>
-              </ul>
-            </div>
-
-            {/* Etapa 3 */}
-            <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/25">
-              <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-purple-500/20 text-purple-300 rounded">
-                ETAPA 3 • SEMANA 3
-              </span>
-              <h4 className="text-sm font-bold text-white mt-1.5 mb-2">
-                Hardware, Escáner en Vivo e Impresión de Etiquetas QR
-              </h4>
-              <ul className="space-y-1.5 text-[11px]">
-                <li>• <strong>21.</strong> Escáner de Códigos de Barras y QR con cámara web y móvil.</li>
-                <li>• <strong>22.</strong> Generador de Etiquetas QR para recipientes de cuarto frío.</li>
-                <li>• <strong>24.</strong> Exportación Ejecutiva a Excel (.xlsx) y PDF foliado.</li>
-                <li>• <strong>25.</strong> Importación masiva desde archivo Excel / CSV en 20 segundos.</li>
-              </ul>
-            </div>
-
-            {/* Etapa 4 */}
-            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25">
-              <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-amber-500/20 text-amber-300 rounded">
-                ETAPA 4 • SEMANA 4
-              </span>
-              <h4 className="text-sm font-bold text-white mt-1.5 mb-2">
-                Seguridad, PIN de Cocina, Mermas y Desperdicio
-              </h4>
-              <ul className="space-y-1.5 text-[11px]">
-                <li>• <strong>11.</strong> Módulo de Mermas y Desperdicio con impacto financiero en $ MXN.</li>
-                <li>• <strong>17.</strong> Toma de Inventario Físico a Ciegas para reconciliación.</li>
-                <li>• <strong>18.</strong> Acceso Rápido por PIN de 4 dígitos para tablet de cocina.</li>
-                <li>• <strong>20.</strong> Comparativa de Precios entre Proveedores (Costco vs City Market).</li>
-              </ul>
-            </div>
-
-            {/* Etapa 5 */}
-            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25">
-              <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-rose-500/20 text-rose-300 rounded">
-                ETAPA 5 • SEMANA 5
-              </span>
-              <h4 className="text-sm font-bold text-white mt-1.5 mb-2">
-                Inteligencia Artificial y Modo Pantalla Completa PWA
-              </h4>
-              <ul className="space-y-1.5 text-[11px]">
-                <li>• <strong>26.</strong> Chef Asistente con IA: Sugerencias según insumos disponibles.</li>
-                <li>• <strong>16.</strong> Sub-recetas y fondos base conservados en cámara fría.</li>
-                <li>• <strong>28.</strong> PWA instalable para iPad, iPhone y Android sin App Store.</li>
-              </ul>
-            </div>
-
-          </div>
-        )}
 
         {/* Footer */}
         <div className="p-4 border-t border-white/10 bg-[var(--bg-elevated)] flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>Documentado en AUDITORIA_Y_PLAN_30_MEJORAS.md</span>
+            <span>Alacena · Novedades de la app</span>
           </div>
           <button
             onClick={() => {

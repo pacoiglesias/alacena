@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { areItemsEquivalent } from '../../utils/deduplication';
+import { formatHouseMoney } from '../../utils/formatMoney';
 import { notify } from '../../services/notice';
 
 export const RECURRING_HOUSEHOLD_STAPLES = [
@@ -28,6 +29,7 @@ export default function WeeklyStaplesModal({
   shoppingList = [],
   products = [],
   onAddStaples,
+  activeHouse,
 }) {
   // Todos los hooks al inicio incondicionalmente
   const [selectedIds, setSelectedIds] = useState(() => {
@@ -182,7 +184,7 @@ export default function WeeklyStaplesModal({
                       )}
                     </div>
                     <span className="text-[11px] text-[var(--ink-secondary)] block mt-0.5">
-                      {staple.quantity} {staple.unit} · {staple.store} · ~${staple.estimatedPriceMxn.toFixed(2)} MXN
+                      {staple.quantity} {staple.unit} · {staple.store} · ~{formatHouseMoney(activeHouse, staple.estimatedPriceMxn)}
                     </span>
                   </div>
                 </div>
