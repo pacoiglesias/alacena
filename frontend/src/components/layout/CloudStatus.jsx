@@ -30,9 +30,29 @@ export default function CloudStatus({ state, isOnline, hasLocalData = false, onD
     const id = ++attempt.current;
     setBusy(true); setError('');
     try { await withAuthTimeout(() => user ? disconnectGoogle() : connectGoogle(redirect)); }
-    catch (err) { if (id === attempt.current) setError(authErrorMessage(err.code)); }
+    catch (err) {
+      if (id !== attempt.current) return;
+      // 3.12.0: si la ventana emergente no puede abrirse (bloqueada o
+      // no admitida en este navegador), el acceso continúa solo por
+      // redirección en esta pestaña: ningún botón se queda «sin abrir
+      // nada» ni ningún aviso sin salida.
+      if (!user && !redirect && ['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment'].includes(err.code)) {
+        try { await connectGoogle(true); return; }
+        catch (err2) { if (id === attempt.current) setError(authErrorMessage(err2.code)); return; }
+      }
+      setError(authErrorMessage(err.code));
+    }
     finally { if (id === attempt.current) setBusy(false); }
   };
+  // La puerta de conexión (ConnectHouseGate) pide el acceso con este
+  // evento para reutilizar este mismo flujo, con su estado y errores.
+  const connectRef = useRef(null);
+  connectRef.current = connect;
+  useEffect(() => {
+    const requested = () => { if (!getCloudUser()) connectRef.current?.(); };
+    window.addEventListener('alacena-request-connect', requested);
+    return () => window.removeEventListener('alacena-request-connect', requested);
+  }, []);
   return <aside className="cloud-status" aria-label="Estado de guardado">
     <div className="min-w-0 space-y-1">
       <div role="status" className="flex items-center gap-2 flex-wrap">

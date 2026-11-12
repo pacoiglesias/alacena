@@ -1,11 +1,12 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useDismissablePopover } from '../../hooks/useDismissablePopover';
-import { 
-  Volume2, VolumeX, 
-  ChevronDown, Utensils, History, Layers, RefreshCw, 
+import {
+  Volume2, VolumeX,
+  ChevronDown, Utensils, History, Layers, RefreshCw,
   ShoppingCart, Camera, Wine, User, Shield, Check, Sliders,
-  BookOpen, Palette, Store, Sun, QrCode, Settings, Terminal
+  BookOpen, Palette, Store, Sun, QrCode, Settings, Terminal,
+  Cloud, CloudOff, LoaderCircle
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { notify } from '../../services/notice';
@@ -39,6 +40,7 @@ export default function Header({
   isMuted,
   onToggleMute,
   isOnline = true,
+  cloudBadge = null,
   onFilterWines,
   onSelectZoneFilter,
   zones = [],
@@ -215,15 +217,38 @@ export default function Header({
           {/* Right Action Icons & Controls */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             
-            {/* Status Online / Offline */}
+            {/* Status Online / Offline: esto es la RED, no la casa */}
             <div className={`hidden md:flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-mono font-bold border ${
-              isOnline 
-                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+              isOnline
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                 : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-            }`}>
+            }`} title={isOnline ? 'Hay conexión a internet' : 'Sin conexión a internet'}>
               <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400 animate-ping'}`} />
               <span>{isOnline ? 'ONLINE' : 'OFFLINE'}</span>
             </div>
+
+            {/* Conexión a la casa (3.12.0): siempre visible y con nombre
+                propio, separada del ONLINE de red para que nadie lea
+                «todo vacío» como «todo conectado». */}
+            {cloudBadge && (
+              <div
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-mono font-bold border ${
+                  cloudBadge.tone === 'ok'
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                    : cloudBadge.tone === 'error'
+                      ? 'bg-rose-500/10 border-rose-500/25 text-rose-400'
+                      : cloudBadge.tone === 'busy'
+                        ? 'bg-sky-500/10 border-sky-500/20 text-sky-400'
+                        : 'bg-amber-500/10 border-amber-500/25 text-amber-400'
+                }`}
+                title={cloudBadge.title}
+                role="status"
+                aria-label={cloudBadge.title}
+              >
+                {cloudBadge.tone === 'ok' ? <Cloud className="w-3 h-3" /> : cloudBadge.tone === 'busy' ? <LoaderCircle className="w-3 h-3 animate-spin" /> : <CloudOff className="w-3 h-3" />}
+                <span className="hidden sm:inline">{cloudBadge.label}</span>
+              </div>
+            )}
 
             {/* Selector de Rol Doméstico */}
             <div className="relative" ref={roleMenuRef}>

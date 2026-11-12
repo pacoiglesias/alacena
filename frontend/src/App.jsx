@@ -7,6 +7,7 @@ import { reconcileReceiptList } from './utils/receiptReview';
 import { inventoryMovement } from './utils/inventoryMovement';
 import OfflineStatus from './components/layout/OfflineStatus';
 import CloudStatus from './components/layout/CloudStatus';
+import ConnectHouseGate from './components/layout/ConnectHouseGate';
 import { observeCloudUser, getUserAccess, getCloudUser, disconnectGoogle, setCloudWritesPaused, fetchPurchaseHistoryPage, seedCloudIfEmpty, restoreCloudSnapshot } from './services/cloudGateway';
 import Header from './components/layout/Header';
 import BottomNavBar from './components/layout/BottomNavBar';
@@ -68,11 +69,13 @@ import { applyMovementToLots } from './utils/productLots';
 import {
   PRE_CLOUD_BACKUP_KEY,
   FIRST_CONNECT_DECISION_KEY,
+  LOCAL_ONLY_CHOICE_KEY,
   shouldIgnoreSnapshot,
   isUsablePreCloudBackup,
   ensurePreCloudBackup,
   consumePreCloudBackup,
   needsFirstConnectChoice,
+  pickClaimsHouse,
 } from './utils/cloudSyncGuard';
 import CloudFirstConnectModal from './components/layout/CloudFirstConnectModal';
 
@@ -84,6 +87,7 @@ const localStorageAdapter = {
   set: (key, value) => writeLocalState(key, value),
   remove: (key) => { try { localStorage.removeItem(key); } catch { /* sin almacenamiento */ } },
 };
+
 
 // Initial shopping list generated from low stock items
 const INITIAL_SHOPPING_LIST = [
@@ -311,6 +315,17 @@ export default function App() {
 
   const [cloudAllowed, setCloudAllowed] = useState(false);
   const [cloudState, setCloudState] = useState('local');
+  // 3.12.0: la conexión se deriva de la CUENTA, no del aparato. Se
+  // guarda el usuario de la sesión y las casas autorizadas de sus
+  // claims (`households`) para re-derivar la casa activa en cada
+  // arranque; lo guardado en el dispositivo es solo una caché.
+  const [cloudUser, setCloudUser] = useState(null);
+  const [cloudUserResolved, setCloudUserResolved] = useState(false);
+  const [cloudHouseIds, setCloudHouseIds] = useState(null);
+  // Elección explícita de «solo en este dispositivo» (3.12.0): sin
+  // sesión y sin esta decisión, la primera pantalla es la puerta de
+  // conexión, no el modo local silencioso.
+  const [localOnlyChoice, setLocalOnlyChoice] = useState(() => Boolean(readLocalState(LOCAL_ONLY_CHOICE_KEY, null)?.choice));
   // Primera conexión a la nube (E1): mientras no haya decisión guardada y
   // haya datos locales, los snapshots de la nube se retienen aquí y se pide
   // elegir subir/descargar; nunca se pisa lo local en silencio.
@@ -361,6 +376,9 @@ export default function App() {
     let currentUser;
     const unsubscribe = observeCloudUser(async (user) => {
       currentUser = user;
+      setCloudUser(user);
+      setCloudUserResolved(true);
+      setCloudHouseIds(null);
       setCloudAllowed(false);
       setCloudWritesPaused(Boolean(user));
       setLocalImportOffer(false);
@@ -370,10 +388,14 @@ export default function App() {
         const token = await getUserAccess(user);
         if (currentUser !== user) return;
         const allowed = token.claims.alacenaAccess === true && token.claims.email_verified === true;
-        writeLocalState('alacena_cloud_access', { uid: user.uid, allowed });
+        // Casas autorizadas de la cuenta (claims): la casa activa se
+        // re-deriva de aquí en cada arranque (efecto pickClaimsHouse).
+        const houses = Array.isArray(token.claims.households) ? token.claims.households.filter((h) => typeof h === 'string' && h) : null;
+        writeLocalState('alacena_cloud_access', { uid: user.uid, allowed, households: houses });
+        setCloudHouseIds(houses);
         setCloudAllowed(allowed);
         setCloudState(allowed ? 'connecting' : 'unauthorized');
-      } catch { if (currentUser === user) { const cached = readLocalState('alacena_cloud_access', {}); if (cached.uid === user.uid && cached.allowed) { setCloudAllowed(true); setCloudState('cached'); } else setCloudState('error'); } }
+      } catch { if (currentUser === user) { const cached = readLocalState('alacena_cloud_access', {}); if (cached.uid === user.uid && cached.allowed) { setCloudAllowed(true); setCloudHouseIds(Array.isArray(cached.households) ? cached.households : null); setCloudState('cached'); } else setCloudState('error'); } }
     });
     const onStorageError = () => setStorageError(true);
     window.addEventListener('alacena-storage-error', onStorageError);
@@ -383,6 +405,20 @@ export default function App() {
     window.addEventListener('alacena-sync-pending', pending); window.addEventListener('alacena-sync-complete', complete);
     return () => { window.removeEventListener('alacena-sync-pending', pending); window.removeEventListener('alacena-sync-complete', complete); currentUser = null; unsubscribe(); window.removeEventListener('alacena-sync-error', onSyncError); window.removeEventListener('alacena-storage-error', onStorageError); };
   }, []);
+
+  // Conexión siempre viva (3.12.0): con sesión, si la casa activa de
+  // este dispositivo no está entre las casas autorizadas de la cuenta,
+  // se conecta automáticamente la principal de la cuenta, sin pedir
+  // que nadie pulse «Conectar mi casa» ni elija casa a mano. La lista
+  // de casas conocidas combina la guardada en el dispositivo con la
+  // de fábrica, para recuperar también casas que este aparato aún no
+  // conoce.
+  useEffect(() => {
+    if (!cloudHouseIds?.length) return;
+    const known = [...households, ...INITIAL_HOUSEHOLDS.filter((h) => !households.some((x) => x.id === h.id))];
+    const target = pickClaimsHouse(cloudHouseIds, known, activeHouse.id);
+    if (target) setActiveHouse(known.find((h) => h.id === target.id) || target);
+  }, [cloudHouseIds, activeHouse.id, households]);
 
   useEffect(() => {
     if (!cloudAllowed) return;
@@ -1173,6 +1209,22 @@ export default function App() {
     }
   };
 
+  // Indicador permanente de conexión (3.12.0): la casa está conectada
+  // solo con sesión Y acceso confirmado; el resto de estados se nombran
+  // como lo que son, nunca como un «ONLINE» ambiguo.
+  const houseConnected = Boolean(cloudUser) && cloudAllowed;
+  const cloudBadge = !cloudUserResolved
+    ? { tone: 'busy', label: 'Conectando…', title: 'Comprobando la sesión de tu casa…' }
+    : !cloudUser
+    ? { tone: 'off', label: 'Sin conectar', title: 'Sin conectar a tu casa: lo que ves es solo la copia de este dispositivo. Entra con Google para conectar tu casa.' }
+    : cloudState === 'unauthorized'
+      ? { tone: 'error', label: 'Sin acceso a la casa', title: 'Esta cuenta aún no tiene acceso a la casa. Tus cambios siguen en este dispositivo.' }
+      : cloudState === 'error'
+        ? { tone: 'error', label: 'Error de conexión', title: 'No se pudo sincronizar con tu casa. Revisa la conexión y tu cuenta.' }
+        : cloudState === 'connecting' || cloudState === 'local'
+          ? { tone: 'busy', label: 'Conectando…', title: 'Conectando con tu casa…' }
+          : { tone: 'ok', label: 'Casa conectada', title: `Casa conectada: ${activeHouse.name}. Los cambios se confirman en la nube.` };
+
   return (
     <div className="min-h-screen bg-[var(--bg-base,#090B0E)] text-[var(--ink-primary,#F8FAFC)] flex flex-col font-body selection:bg-emerald-500/30 selection:text-white transition-colors duration-200">
 
@@ -1192,6 +1244,7 @@ export default function App() {
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
         isOnline={isOnline}
+        cloudBadge={cloudBadge}
         zones={zones}
         products={products.filter((p) => belongsToHouse(p, activeHouse.id))}
         shoppingList={shoppingList.filter((i) => belongsToHouse(i, activeHouse.id))}
@@ -1199,6 +1252,9 @@ export default function App() {
       />
 
       <CloudStatus state={cloudState} isOnline={isOnline} hasLocalData={Boolean(products.length || shoppingList.length || purchaseHistory.length || auditLogs.length)} onDownloadBackup={handleExportBackupJson} />
+      {cloudUserResolved && !cloudUser && !localOnlyChoice && (
+        <ConnectHouseGate onUseLocalOnly={() => { writeLocalState(LOCAL_ONLY_CHOICE_KEY, { choice: 'local-only', decidedAt: new Date().toISOString() }); setLocalOnlyChoice(true); }} />
+      )}
       {localImportOffer && <section className="review-callout"><h2>Tu casa en la nube está vacía</h2><p>Conservamos tus datos en esta pantalla. No se subirán hasta que lo elijas.</p><div className="flex flex-wrap gap-2"><button disabled={!isOnline || uploadingLocal} onClick={uploadLocal}>{uploadingLocal ? 'Subiendo…' : 'Subir mis datos a la nube'}</button><button disabled={uploadingLocal} onClick={() => disconnectGoogle()}>Conservar copia local y cerrar sesión</button><button onClick={handleExportBackupJson}>Descargar respaldo (JSON)</button></div>{migrationError && <p role="alert">{migrationError}</p>}</section>}
       <OfflineStatus />
       {import.meta.env.VITE_REVIEW_MODE === 'true' && <div className="review-callout" role="status">Vista previa · datos de prueba independientes de tu casa real</div>}
@@ -1261,6 +1317,8 @@ export default function App() {
             onClearAll={handleClearAllShoppingItems}
             onOpenPurchaseHistory={() => setIsPurchaseHistoryOpen(true)}
             purchaseHistoryCount={purchaseHistory.filter((r) => belongsToHouse(r, activeHouse.id)).length}
+            cloudConnected={houseConnected}
+            cloudState={cloudState}
           />
         )}
 
