@@ -7,6 +7,8 @@
 .connect-house-gate-icon { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 14px; flex-shrink: 0; background: rgb(245 158 11 / .15); color: #f59e0b; border: 1px solid rgb(245 158 11 / .35); }
 .connect-house-gate-primary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 11px 16px; border-radius: 11px; border: 1px solid #059669; background: #059669; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
 .connect-house-gate-primary:hover { background: #047857; }
+.connect-house-gate-primary:disabled { opacity: .75; cursor: wait; }
+.connect-house-gate-error { color: #fca5a5 !important; font-weight: 600; }
 .connect-house-gate-secondary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 11px 14px; border-radius: 11px; border: 1px solid var(--border-soft); background: transparent; color: var(--ink-secondary); font-size: 12px; font-weight: 600; cursor: pointer; }
 .shopping-home { --home-sage: #d5e5b1; padding-bottom: 170px; /* aire para que el último contenido nunca quede bajo la barra de navegación inferior ni los botones flotantes */ }
 .shopping-hero { display: grid; grid-template-columns: 1fr 290px; border-radius: 26px; background: #f5f3eb; color: #25352d; overflow: hidden; border: 1px solid #dce0cf; }

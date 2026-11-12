@@ -5,6 +5,39 @@ Fuente: `frontend/src/components/changelog/ChangelogModal.jsx`, el historial que
 la propia app muestra en pantalla. Este archivo es solo el espejo en la raíz
 del repo; la fuente canónica sigue siendo el modal.
 
+## 3.12.1 — 11 noviembre 2026 · El botón de Google, que mande al login
+
+Corrección urgente sobre la 3.12.0, reportada por Paco desde su iPhone:
+«Al apretar Entrar con Google no abre nada ni hace nada; debía de
+mandarme a un login».
+
+- **Causa:** la puerta y el bloque de conexión intentaban SIEMPRE
+  primero la ventana emergente (`signInWithPopup`). En el iPhone
+  (Safari o la app instalada en pantalla de inicio) la emergente no
+  se abre o queda colgada; la promesa no se resolvía hasta el corte
+  de 60 s y el error se pintaba solo en el bloque «Alacena & QR»,
+  lejos del botón pulsado. Para el usuario: un minuto de «no hace
+  nada».
+- **Flujo según dispositivo (`utils/authFlow.js`, puro y con
+  tests):** en entorno móvil/táctil (UA de iOS/Android o
+  `pointer: coarse`) o instalado/standalone, la primera vía es la
+  REDIRECCIÓN en esta pestaña, que manda a la página de login de
+  Google (viable como vía principal desde que la 3.12.0 fijó el
+  `authDomain` al dominio propio). En escritorio se mantiene la
+  emergente primero.
+- **La puerta responde en su sitio:** `ConnectHouseGate` muestra su
+  propio estado al pulsar («Abriendo el acceso de Google…») y pinta
+  el error dentro de su panel, escuchando `alacena-auth-error`
+  (CloudStatus ahora también anuncia sus fallos terminales con ese
+  evento). Si la redirección volvió vacía, el botón de la puerta
+  ofrece la ventana de Google como plan B en el mismo sitio.
+- **Respaldo automático ampliado:** si la emergente falla con
+  `auth/popup-closed-by-user`, `auth/cancelled-popup-request` o
+  `auth/timeout` (además de bloqueada o no admitida), el acceso
+  continúa solo por redirección avisando «Te llevo a la página de
+  Google…». Sin regresiones: escritorio, sello de conexión,
+  reconexión por claims y REVIEW_MODE quedan como estaban.
+
 ## 3.12.0 — 11 noviembre 2026 · Conexión siempre viva
 
 Ronda pedida por Paco tras el incidente del súper (la app se abría «toda vacía»
