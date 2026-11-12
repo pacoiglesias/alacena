@@ -209,6 +209,8 @@ export default function ShoppingListView({
   onClearAll,
   onOpenPurchaseHistory,
   purchaseHistoryCount = 0,
+  cloudConnected = false,
+  cloudState = 'local',
 }) {
   const [selectedDept, setSelectedDept] = useState('ALL');
   const [selectedStore, setSelectedStore] = useState('ALL');
@@ -460,8 +462,13 @@ export default function ShoppingListView({
         </div>
         <div className="shopping-plan">
           <ShoppingBag size={28} strokeWidth={1.5} />
-          <span>TU PRÓXIMA COMPRA</span>
+          {/* 3.12.0: sin casa conectada, el contador es SOLO de este
+              dispositivo y se etiqueta como tal; nunca se presenta
+              como la lista real del hogar. */}
+          <span>{cloudConnected ? 'TU PRÓXIMA COMPRA' : 'LISTA DE ESTE DISPOSITIVO (SIN CONECTAR)'}</span>
           <strong>{metrics.pendingCount}<small> pendientes</small></strong>
+          {!cloudConnected && <small>Sin conectar a tu casa: tu lista real está en la nube. Entra con Google arriba para verla.</small>}
+          {cloudConnected && cloudState === 'error' && <small role="alert">No pudimos confirmar esta lista con la nube; puede estar desactualizada.</small>}
           <div className="shopping-plan-rule" />
           <div className="flex justify-between gap-2"><span>Estimado de la lista</span><b>{money(metrics.totalEstimatedMxn)}</b></div>
           <label htmlFor="shopping-budget">Mi límite de gasto ({currency})</label>
@@ -503,6 +510,27 @@ export default function ShoppingListView({
             <RefreshCw className="w-4 h-4" />
             <span>⚡ Agregar Faltantes a la Lista (1 Toque)</span>
           </button>
+        </div>
+      )}
+
+      {/* 3.12.0: estado de conexión de la lista, imposible de ignorar */}
+      {!cloudConnected && (
+        <div className="p-4 rounded-3xl bg-amber-500/15 border border-amber-500/40 flex items-start gap-3" role="status">
+          <AlertCircle className="w-5 h-5 text-amber-300 shrink-0 mt-0.5" />
+          <p className="text-xs sm:text-sm text-amber-100 font-medium">
+            <strong>Sin conectar a tu casa.</strong> Esta es solo la lista guardada en este dispositivo;
+            puede estar vacía o desactualizada aunque en tu casa falten cosas. Entra con Google en la
+            parte superior para ver tu lista real.
+          </p>
+        </div>
+      )}
+      {cloudConnected && cloudState === 'error' && (
+        <div className="p-4 rounded-3xl bg-rose-500/15 border border-rose-500/40 flex items-start gap-3" role="alert">
+          <AlertCircle className="w-5 h-5 text-rose-300 shrink-0 mt-0.5" />
+          <p className="text-xs sm:text-sm text-rose-100 font-medium">
+            <strong>No pudimos leer tu casa de la nube.</strong> Lo que ves es la última copia conocida y
+            puede no estar al día; no es que tu lista esté vacía. Revisa la conexión y vuelve a intentarlo.
+          </p>
         </div>
       )}
 
@@ -1304,12 +1332,22 @@ export default function ShoppingListView({
           <div className="sticky top-0 z-20 bg-[var(--bg-base)]/95 backdrop-blur-md -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 px-4 py-3 sm:px-6 border-b border-[var(--border-soft)] shadow-xl">
             {/* Barra de progreso full-width 6px --accent-super */}
             <div className="w-full bg-[var(--bg-elevated)] h-1.5 rounded-full overflow-hidden mb-3">
-              <div 
+              <div
                 className="bg-[var(--ember)] h-full transition-all duration-300"
                 style={{ width: `${metrics.progressPercent}%` }}
               />
             </div>
-            
+            {!cloudConnected && (
+              <p className="mb-3 px-3 py-2 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-200 text-xs sm:text-sm font-bold" role="status">
+                ⚠️ Sin conectar a tu casa: esta es solo la lista de este dispositivo. Tu lista real está en la nube.
+              </p>
+            )}
+            {cloudConnected && cloudState === 'error' && (
+              <p className="mb-3 px-3 py-2 rounded-xl bg-rose-500/20 border border-rose-500/50 text-rose-200 text-xs sm:text-sm font-bold" role="alert">
+                ⚠️ No pudimos confirmar la lista con la nube: puede estar desactualizada, no vacía.
+              </p>
+            )}
+
             <div className="flex items-center justify-between gap-2">
               <div>
                 <span className="font-display text-xl sm:text-2xl font-bold text-white block">
