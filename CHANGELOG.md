@@ -5,38 +5,43 @@ Fuente: `frontend/src/components/changelog/ChangelogModal.jsx`, el historial que
 la propia app muestra en pantalla. Este archivo es solo el espejo en la raíz
 del repo; la fuente canónica sigue siendo el modal.
 
-## 3.12.1 — 11 noviembre 2026 · El botón de Google, que mande al login
+## 3.13.0 — 12 noviembre 2026 · Acceso por credencial
 
-Corrección urgente sobre la 3.12.0, reportada por Paco desde su iPhone:
-«Al apretar Entrar con Google no abre nada ni hace nada; debía de
-mandarme a un login».
+El acceso con Google deja de pasar por la página intermediaria de Firebase
+y usa el botón oficial de Google con credencial directa:
 
-- **Causa:** la puerta y el bloque de conexión intentaban SIEMPRE
-  primero la ventana emergente (`signInWithPopup`). En el iPhone
-  (Safari o la app instalada en pantalla de inicio) la emergente no
-  se abre o queda colgada; la promesa no se resolvía hasta el corte
-  de 60 s y el error se pintaba solo en el bloque «Alacena & QR»,
-  lejos del botón pulsado. Para el usuario: un minuto de «no hace
-  nada».
-- **Flujo según dispositivo (`utils/authFlow.js`, puro y con
-  tests):** en entorno móvil/táctil (UA de iOS/Android o
-  `pointer: coarse`) o instalado/standalone, la primera vía es la
-  REDIRECCIÓN en esta pestaña, que manda a la página de login de
-  Google (viable como vía principal desde que la 3.12.0 fijó el
-  `authDomain` al dominio propio). En escritorio se mantiene la
-  emergente primero.
-- **La puerta responde en su sitio:** `ConnectHouseGate` muestra su
-  propio estado al pulsar («Abriendo el acceso de Google…») y pinta
-  el error dentro de su panel, escuchando `alacena-auth-error`
-  (CloudStatus ahora también anuncia sus fallos terminales con ese
-  evento). Si la redirección volvió vacía, el botón de la puerta
-  ofrece la ventana de Google como plan B en el mismo sitio.
-- **Respaldo automático ampliado:** si la emergente falla con
-  `auth/popup-closed-by-user`, `auth/cancelled-popup-request` o
-  `auth/timeout` (además de bloqueada o no admitida), el acceso
-  continúa solo por redirección avisando «Te llevo a la página de
-  Google…». Sin regresiones: escritorio, sello de conexión,
-  reconexión por claims y REVIEW_MODE quedan como estaban.
+- **Motivo:** el flujo anterior (`signInWithPopup`/`signInWithRedirect`
+  contra el handler `/__/auth/handler`) fallaba al 100 % al completar en
+  este proyecto — `auth/internal-error` en el dominio propio y en el de
+  Firebase, en emergente y en redirección, con el proveedor Google y el
+  cliente OAuth verificados sanos (URI registrados, secreto renovado y
+  sincronizado). En cambio, `signInWithCredential` con el id_token de
+  Google Identity Services quedó probado en vivo contra este mismo
+  proyecto (sesión abierta, usuario y uid correctos).
+- **Nuevo flujo:** `utils/googleIdentity.js` carga el script de GIS una
+  sola vez, inicializa `google.accounts.id` con el ID del cliente web y
+  pinta el botón oficial (`renderButton`); el callback entrega el
+  id_token y `cloudSession.signInWithGoogleIdToken` lo canjea con
+  `GoogleAuthProvider.credential` + `signInWithCredential` (con el
+  timeout y el mapeo de errores de siempre). Con la sesión abierta, la
+  conexión de la casa por claims (`households`) funciona como en 3.12.0.
+- **Retirado:** `signInWithPopup`, `signInWithRedirect`,
+  `getRedirectResult`, la marca de intento de redirección y el código
+  `auth/redirect-returned-empty`, junto con sus mensajes. Nuevos códigos
+  propios: `auth/gis-load-failed`, `auth/gis-no-credential` y
+  `auth/gis-unavailable`, con mensajes veraces.
+- **UI:** la puerta de conexión y la barra de estado montan el mismo
+  componente `GoogleSignInButton` (botón oficial de Google con su texto
+  y tema; estados y error dentro del propio panel). Desaparecen el
+  botón «Acceder en esta pestaña» y el evento `alacena-request-connect`.
+- **CSP (firebase.json):** permitido lo mínimo para GIS —
+  `https://accounts.google.com` en script-src, frame-src y connect-src,
+  y `https://www.gstatic.com` en script-src.
+- **Tests:** node — módulo GIS con el objeto `google` simulado (carga
+  única del script, fallo con código propio y reintento, inicialización
+  con el ID de cliente, callback → credencial, renderButton) y mensajes
+  actualizados; vitest — adaptador credencial → `signInWithCredential`
+  con `firebase/auth` simulado, y `access.spec` reescrita al flujo GIS.
 
 ## 3.12.0 — 11 noviembre 2026 · Conexión siempre viva
 

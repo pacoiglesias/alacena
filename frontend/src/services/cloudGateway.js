@@ -18,7 +18,8 @@ export const observeCloudUser = (callback) => {
 };
 export const getCloudUser = () => currentUser;
 export const getUserAccess = (...args) => session().then((m) => m.getUserAccess(...args));
-export const connectGoogle = (...args) => session().then((m) => m.connectGoogle(...args));
+export const mountGoogleSignInButton = (...args) => session().then((m) => m.mountGoogleSignInButton(...args));
+export const signInWithGoogleIdToken = (...args) => session().then((m) => m.signInWithGoogleIdToken(...args));
 export const disconnectGoogle = () => session().then((m) => m.disconnectGoogle());
 export const connectReviewUser = () => session().then((m) => m.connectReviewUser());
 export const subscribeToProducts = subscribe(cloud, 'subscribeToProducts');

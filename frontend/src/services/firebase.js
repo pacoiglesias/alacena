@@ -17,6 +17,12 @@ const firebaseConfig = {
   messagingSenderId: "563016091019",
 };
 
+// 3.13.0: ID del cliente web OAuth del proyecto («Web client (auto
+// created by Google Service)»). Es un identificador público — va en
+// cada URL de autorización de Google — y lo usa Google Identity
+// Services para entregar el id_token que luego canjea Firebase.
+export const GOOGLE_WEB_CLIENT_ID = '563016091019-2mv9qfe5nugggt64u383cunlc27tf4nr.apps.googleusercontent.com';
+
 export const REVIEW_MODE = import.meta.env.VITE_REVIEW_MODE === 'true';
 const app = initializeApp(REVIEW_MODE ? { ...firebaseConfig, projectId:'demo-alacena-review', apiKey:'review-only', authDomain:'localhost', storageBucket:'demo-alacena-review.appspot.com' } : firebaseConfig);
 
