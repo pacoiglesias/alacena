@@ -7,6 +7,7 @@ import { reconcileReceiptList } from './utils/receiptReview';
 import { inventoryMovement } from './utils/inventoryMovement';
 import OfflineStatus from './components/layout/OfflineStatus';
 import CloudStatus from './components/layout/CloudStatus';
+import ConnectHouseGate from './components/layout/ConnectHouseGate';
 import { observeCloudUser, getUserAccess, getCloudUser, disconnectGoogle, setCloudWritesPaused, fetchPurchaseHistoryPage, seedCloudIfEmpty, restoreCloudSnapshot } from './services/cloudGateway';
 import Header from './components/layout/Header';
 import BottomNavBar from './components/layout/BottomNavBar';
@@ -64,15 +65,17 @@ import {
 } from './utils/deduplication';
 import { sanitizeAllInventory, sanitizeCavaProduct } from './utils/cavaGuard';
 import { migrateProductsExpiry } from './utils/productExpiry';
-import { applyMovementToLots } from './utils/productLots';
+import { applyMovementToLots, addToLots, normalizeLots, nextVisibleExpiryDate } from './utils/productLots';
 import {
   PRE_CLOUD_BACKUP_KEY,
   FIRST_CONNECT_DECISION_KEY,
+  LOCAL_ONLY_CHOICE_KEY,
   shouldIgnoreSnapshot,
   isUsablePreCloudBackup,
   ensurePreCloudBackup,
   consumePreCloudBackup,
   needsFirstConnectChoice,
+  pickClaimsHouse,
 } from './utils/cloudSyncGuard';
 import CloudFirstConnectModal from './components/layout/CloudFirstConnectModal';
 
@@ -84,6 +87,21 @@ const localStorageAdapter = {
   set: (key, value) => writeLocalState(key, value),
   remove: (key) => { try { localStorage.removeItem(key); } catch { /* sin almacenamiento */ } },
 };
+
+// Recepción de compra sobre un producto CON lotes (3.12.0): lo que
+// entra también se lotea, con la misma regla que la consolidación de
+// altas — si la línea trae su propia caducidad, va a su lote; si no,
+// al lote de la fecha visible del producto. Sin lotes previos no se
+// inventa ninguno (null = el guardado plano de siempre).
+const receiveIntoLots = (existing, quantity, expiryDate) => {
+  if (!normalizeLots(existing).length) return null;
+  if (expiryDate) {
+    const lots = addToLots(existing.lots, quantity, expiryDate);
+    return { lots, expiryDate: nextVisibleExpiryDate(lots, existing.expiryDate ?? null) };
+  }
+  return applyMovementToLots(existing, quantity);
+};
+
 
 // Initial shopping list generated from low stock items
 const INITIAL_SHOPPING_LIST = [
@@ -311,6 +329,17 @@ export default function App() {
 
   const [cloudAllowed, setCloudAllowed] = useState(false);
   const [cloudState, setCloudState] = useState('local');
+  // 3.12.0: la conexión se deriva de la CUENTA, no del aparato. Se
+  // guarda el usuario de la sesión y las casas autorizadas de sus
+  // claims (`households`) para re-derivar la casa activa en cada
+  // arranque; lo guardado en el dispositivo es solo una caché.
+  const [cloudUser, setCloudUser] = useState(null);
+  const [cloudUserResolved, setCloudUserResolved] = useState(false);
+  const [cloudHouseIds, setCloudHouseIds] = useState(null);
+  // Elección explícita de «solo en este dispositivo» (3.12.0): sin
+  // sesión y sin esta decisión, la primera pantalla es la puerta de
+  // conexión, no el modo local silencioso.
+  const [localOnlyChoice, setLocalOnlyChoice] = useState(() => Boolean(readLocalState(LOCAL_ONLY_CHOICE_KEY, null)?.choice));
   // Primera conexión a la nube (E1): mientras no haya decisión guardada y
   // haya datos locales, los snapshots de la nube se retienen aquí y se pide
   // elegir subir/descargar; nunca se pisa lo local en silencio.
@@ -361,6 +390,9 @@ export default function App() {
     let currentUser;
     const unsubscribe = observeCloudUser(async (user) => {
       currentUser = user;
+      setCloudUser(user);
+      setCloudUserResolved(true);
+      setCloudHouseIds(null);
       setCloudAllowed(false);
       setCloudWritesPaused(Boolean(user));
       setLocalImportOffer(false);
@@ -370,10 +402,14 @@ export default function App() {
         const token = await getUserAccess(user);
         if (currentUser !== user) return;
         const allowed = token.claims.alacenaAccess === true && token.claims.email_verified === true;
-        writeLocalState('alacena_cloud_access', { uid: user.uid, allowed });
+        // Casas autorizadas de la cuenta (claims): la casa activa se
+        // re-deriva de aquí en cada arranque (efecto pickClaimsHouse).
+        const houses = Array.isArray(token.claims.households) ? token.claims.households.filter((h) => typeof h === 'string' && h) : null;
+        writeLocalState('alacena_cloud_access', { uid: user.uid, allowed, households: houses });
+        setCloudHouseIds(houses);
         setCloudAllowed(allowed);
         setCloudState(allowed ? 'connecting' : 'unauthorized');
-      } catch { if (currentUser === user) { const cached = readLocalState('alacena_cloud_access', {}); if (cached.uid === user.uid && cached.allowed) { setCloudAllowed(true); setCloudState('cached'); } else setCloudState('error'); } }
+      } catch { if (currentUser === user) { const cached = readLocalState('alacena_cloud_access', {}); if (cached.uid === user.uid && cached.allowed) { setCloudAllowed(true); setCloudHouseIds(Array.isArray(cached.households) ? cached.households : null); setCloudState('cached'); } else setCloudState('error'); } }
     });
     const onStorageError = () => setStorageError(true);
     window.addEventListener('alacena-storage-error', onStorageError);
@@ -383,6 +419,20 @@ export default function App() {
     window.addEventListener('alacena-sync-pending', pending); window.addEventListener('alacena-sync-complete', complete);
     return () => { window.removeEventListener('alacena-sync-pending', pending); window.removeEventListener('alacena-sync-complete', complete); currentUser = null; unsubscribe(); window.removeEventListener('alacena-sync-error', onSyncError); window.removeEventListener('alacena-storage-error', onStorageError); };
   }, []);
+
+  // Conexión siempre viva (3.12.0): con sesión, si la casa activa de
+  // este dispositivo no está entre las casas autorizadas de la cuenta,
+  // se conecta automáticamente la principal de la cuenta, sin pedir
+  // que nadie pulse «Conectar mi casa» ni elija casa a mano. La lista
+  // de casas conocidas combina la guardada en el dispositivo con la
+  // de fábrica, para recuperar también casas que este aparato aún no
+  // conoce.
+  useEffect(() => {
+    if (!cloudHouseIds?.length) return;
+    const known = [...households, ...INITIAL_HOUSEHOLDS.filter((h) => !households.some((x) => x.id === h.id))];
+    const target = pickClaimsHouse(cloudHouseIds, known, activeHouse.id);
+    if (target) setActiveHouse(known.find((h) => h.id === target.id) || target);
+  }, [cloudHouseIds, activeHouse.id, households]);
 
   useEffect(() => {
     if (!cloudAllowed) return;
@@ -502,9 +552,13 @@ export default function App() {
             `Descorchó 1 botella de ${p.name}. Stock restante: ${newQty} botellas.`,
             `Reseña: ${tastingData.rating}⭐ (${tastingData.sommelierPoints} pts). ${tastingData.tastingNotes}`
           );
+          // Lotes FEFO (3.12.0): el descorche también sale del lote
+          // que antes vence, como cualquier otro consumo.
+          const uncorkLots = newQty < (p.quantity || 1) ? applyMovementToLots(p, -1) : null;
           return {
             ...p,
             quantity: newQty,
+            ...(uncorkLots ? { lots: uncorkLots.lots, expiryDate: uncorkLots.expiryDate } : {}),
             rating: tastingData.rating,
             sommelierPoints: tastingData.sommelierPoints,
             tastingNotes: tastingData.tastingNotes,
@@ -693,7 +747,11 @@ export default function App() {
     if (!target || target.quantity < item.quantity) {
       notify('No hay suficiente existencia para devolver esta cantidad. Revisa si ya se consumió parte de la compra.'); return;
     }
-    const updated = { ...target, quantity: Math.round((target.quantity - item.quantity) * 1000) / 1000, updatedAt: new Date().toISOString() };
+    // Devolución con lotes (3.12.0): la salida descuenta FEFO, igual
+    // que cualquier otro consumo del producto.
+    const returnLots = applyMovementToLots(target, -Number(item.quantity));
+    const updated = { ...target, quantity: Math.round((target.quantity - item.quantity) * 1000) / 1000, updatedAt: new Date().toISOString(),
+      ...(returnLots ? { lots: returnLots.lots, expiryDate: returnLots.expiryDate } : {}) };
     const updatedReceipt = { ...receipt, items: receipt.items.map((i) => i.id === item.id && i.name === item.name ? { ...i, reversed: true } : i) };
     savePurchaseTransaction([{ product: updated, delta: -Number(item.quantity) }], { removedIds: [], updated: [] }, updatedReceipt);
     setProducts((prev) => prev.map((p) => p.id === target.id ? updated : p));
@@ -742,12 +800,16 @@ export default function App() {
           const existing = currentList[existingIdx];
           const newQty = parseFloat((Number(existing.quantity || 0) + Number(purchased.quantity || 1)).toFixed(3));
           const unitPrice = (purchased.realPrice || purchased.estimatedPriceMxn || 0) > 0 ? (purchased.realPrice || purchased.estimatedPriceMxn) : existing.unitPriceMxn;
+          // Recepción con lotes (3.12.0): si el producto ya se maneja
+          // por lotes, lo comprado entra loteado, no en plano.
+          const receivedLots = receiveIntoLots(existing, Number(purchased.quantity || 1), purchased.expiryDate);
           const merged = {
             ...existing,
             quantity: newQty,
             unitPriceMxn: unitPrice,
             lastLoggedBy: buyer,
             updatedAt: new Date().toISOString(),
+            ...(receivedLots ? { lots: receivedLots.lots, expiryDate: receivedLots.expiryDate } : {}),
           };
           currentList[existingIdx] = merged;
           productWrites.push({ product: merged, delta: Number(purchased.quantity || 1) });
@@ -859,12 +921,16 @@ export default function App() {
         if (existingIdx >= 0) {
           const existing = currentList[existingIdx];
           const newQty = parseFloat((Number(existing.quantity || 0) + itemQty).toFixed(3));
+          // Ingreso por ticket con lotes (3.12.0): misma regla que la
+          // recepción de la lista, lo entrante se lotea si hay lotes.
+          const receivedLots = receiveIntoLots(existing, itemQty, item.expiryDate);
           const merged = {
             ...existing,
             quantity: newQty,
             unitPriceMxn: itemPrice > 0 ? itemPrice : existing.unitPriceMxn,
             lastLoggedBy: buyer,
             updatedAt: new Date().toISOString(),
+            ...(receivedLots ? { lots: receivedLots.lots, expiryDate: receivedLots.expiryDate } : {}),
           };
           currentList[existingIdx] = merged;
           saveProductToCloud(merged, { delta:itemQty });
@@ -1173,6 +1239,22 @@ export default function App() {
     }
   };
 
+  // Indicador permanente de conexión (3.12.0): la casa está conectada
+  // solo con sesión Y acceso confirmado; el resto de estados se nombran
+  // como lo que son, nunca como un «ONLINE» ambiguo.
+  const houseConnected = Boolean(cloudUser) && cloudAllowed;
+  const cloudBadge = !cloudUserResolved
+    ? { tone: 'busy', label: 'Conectando…', title: 'Comprobando la sesión de tu casa…' }
+    : !cloudUser
+    ? { tone: 'off', label: 'Sin conectar', title: 'Sin conectar a tu casa: lo que ves es solo la copia de este dispositivo. Entra con Google para conectar tu casa.' }
+    : cloudState === 'unauthorized'
+      ? { tone: 'error', label: 'Sin acceso a la casa', title: 'Esta cuenta aún no tiene acceso a la casa. Tus cambios siguen en este dispositivo.' }
+      : cloudState === 'error'
+        ? { tone: 'error', label: 'Error de conexión', title: 'No se pudo sincronizar con tu casa. Revisa la conexión y tu cuenta.' }
+        : cloudState === 'connecting' || cloudState === 'local'
+          ? { tone: 'busy', label: 'Conectando…', title: 'Conectando con tu casa…' }
+          : { tone: 'ok', label: 'Casa conectada', title: `Casa conectada: ${activeHouse.name}. Los cambios se confirman en la nube.` };
+
   return (
     <div className="min-h-screen bg-[var(--bg-base,#090B0E)] text-[var(--ink-primary,#F8FAFC)] flex flex-col font-body selection:bg-emerald-500/30 selection:text-white transition-colors duration-200">
 
@@ -1192,6 +1274,7 @@ export default function App() {
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
         isOnline={isOnline}
+        cloudBadge={cloudBadge}
         zones={zones}
         products={products.filter((p) => belongsToHouse(p, activeHouse.id))}
         shoppingList={shoppingList.filter((i) => belongsToHouse(i, activeHouse.id))}
@@ -1199,6 +1282,9 @@ export default function App() {
       />
 
       <CloudStatus state={cloudState} isOnline={isOnline} hasLocalData={Boolean(products.length || shoppingList.length || purchaseHistory.length || auditLogs.length)} onDownloadBackup={handleExportBackupJson} />
+      {cloudUserResolved && !cloudUser && !localOnlyChoice && (
+        <ConnectHouseGate onUseLocalOnly={() => { writeLocalState(LOCAL_ONLY_CHOICE_KEY, { choice: 'local-only', decidedAt: new Date().toISOString() }); setLocalOnlyChoice(true); }} />
+      )}
       {localImportOffer && <section className="review-callout"><h2>Tu casa en la nube está vacía</h2><p>Conservamos tus datos en esta pantalla. No se subirán hasta que lo elijas.</p><div className="flex flex-wrap gap-2"><button disabled={!isOnline || uploadingLocal} onClick={uploadLocal}>{uploadingLocal ? 'Subiendo…' : 'Subir mis datos a la nube'}</button><button disabled={uploadingLocal} onClick={() => disconnectGoogle()}>Conservar copia local y cerrar sesión</button><button onClick={handleExportBackupJson}>Descargar respaldo (JSON)</button></div>{migrationError && <p role="alert">{migrationError}</p>}</section>}
       <OfflineStatus />
       {import.meta.env.VITE_REVIEW_MODE === 'true' && <div className="review-callout" role="status">Vista previa · datos de prueba independientes de tu casa real</div>}
@@ -1261,6 +1347,8 @@ export default function App() {
             onClearAll={handleClearAllShoppingItems}
             onOpenPurchaseHistory={() => setIsPurchaseHistoryOpen(true)}
             purchaseHistoryCount={purchaseHistory.filter((r) => belongsToHouse(r, activeHouse.id)).length}
+            cloudConnected={houseConnected}
+            cloudState={cloudState}
           />
         )}
 

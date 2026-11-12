@@ -55,3 +55,21 @@ export function consumePreCloudBackup(storage) {
 export function needsFirstConnectChoice({ localCount, decided }) {
   return !decided && localCount > 0;
 }
+
+// Elección explícita de «usar solo en este dispositivo» (3.12.0): sin
+// esta decisión guardada, una app sin sesión muestra la puerta de
+// conexión a la casa en vez de arrancar en modo local silencioso.
+export const LOCAL_ONLY_CHOICE_KEY = 'alacena_local_only_choice';
+
+// Conexión derivada de la CUENTA (3.12.0): con sesión, la casa activa
+// se re-deriva de las casas autorizadas en los claims del token
+// (`households`), no del aparato. Si la casa activa ya está entre las
+// autorizadas, no hay nada que cambiar (null). Si no, se elige la casa
+// principal conocida entre las autorizadas; en su defecto, la primera
+// conocida; y si ninguna es conocida, la primera autorizada tal cual.
+export function pickClaimsHouse(claimHouseIds, knownHouses, activeHouseId) {
+  if (!Array.isArray(claimHouseIds) || !claimHouseIds.length) return null;
+  if (claimHouseIds.includes(activeHouseId)) return null;
+  const known = Array.isArray(knownHouses) ? knownHouses.filter((h) => h && claimHouseIds.includes(h.id)) : [];
+  return known.find((h) => h.isPrimary) || known[0] || { id: claimHouseIds[0] };
+}

@@ -5,6 +5,40 @@ Fuente: `frontend/src/components/changelog/ChangelogModal.jsx`, el historial que
 la propia app muestra en pantalla. Este archivo es solo el espejo en la raíz
 del repo; la fuente canónica sigue siendo el modal.
 
+## 3.12.0 — 11 noviembre 2026 · Conexión siempre viva
+
+Ronda pedida por Paco tras el incidente del súper (la app se abría «toda vacía»
+sin pedir usuario, con la lista real en la nube):
+
+- **Causa raíz del acceso roto:** la app se sirve en alacena.cobertores.com pero
+  el `authDomain` quedaba fijo en `alacena-enterprise-prod.firebaseapp.com`; con
+  el almacenamiento particionado de los navegadores actuales, `signInWithRedirect`
+  volvía sin resultado y la sesión nunca se completaba. Ahora el `authDomain` se
+  deriva del dominio que sirve la app (`utils/authDomain.js`, con test), y el
+  handler `/__/auth/handler` responde en el propio dominio.
+- **La conexión se deriva de la cuenta:** al arrancar con sesión, si la casa
+  activa del dispositivo no está entre las casas autorizadas de los claims
+  (`households`), la app conecta sola la principal de la cuenta
+  (`pickClaimsHouse`, con tests). Lo guardado en el aparato es solo caché.
+- **Nada de vacíos silenciosos:** sin sesión y sin elección expresa, la primera
+  pantalla es la puerta «Tu casa aún no está conectada en este dispositivo» con
+  el acceso de Google delante; «Usar solo en este dispositivo» es una elección
+  explícita y secundaria. Sin conectar, la lista se etiqueta «Lista de este
+  dispositivo (sin conectar)» en la tarjeta de próxima compra y con un aviso en
+  la lista y en el Modo Súper; con casa conectada pero lectura fallida, se
+  muestra un estado de ERROR distinto del vacío real.
+- **Acceso resiliente:** si la ventana emergente no puede abrirse, el acceso
+  continúa automáticamente por redirección; si la redirección vuelve sin
+  usuario, la app lo detecta (marca de intento) y explica el motivo ofreciendo
+  la ventana emergente. Ningún botón se queda sin abrir nada ni sin explicación.
+- **Indicador permanente en cabecera:** sello «Casa conectada / Conectando… /
+  Sin conectar / Error de conexión» junto al ONLINE (que es solo la red), con
+  el nombre real de la casa en el título.
+- **Lotes FEFO en todas las vías (P1):** cocinar (`planRecipe`, con test),
+  descorchar, devolver una compra y recibir la compra (lista y ticket) ya
+  descuentan o alimentan los lotes por caducidad igual que el QR; la recepción
+  usa la caducidad de la línea si la trae.
+
 ## 3.11.0 — 10 noviembre 2026 · Inventario y QR
 
 Ronda pedida por Paco («arregla todo y mejora todo») SIN tocar recetas ni cocinar:

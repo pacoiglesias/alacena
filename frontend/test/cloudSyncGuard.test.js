@@ -78,3 +78,41 @@ test('hay que preguntar si hay datos locales y no hay decisión guardada', () =>
   assert.equal(needsFirstConnectChoice({ localCount: 0, decided: false }), false);
   assert.equal(needsFirstConnectChoice({ localCount: 2, decided: true }), false);
 });
+
+// 3.12.0: la casa activa se deriva de los claims de la cuenta.
+import { pickClaimsHouse, LOCAL_ONLY_CHOICE_KEY } from '../src/utils/cloudSyncGuard.js';
+
+const knownHouses = [
+  { id: 'house-1', name: 'Casa México', isPrimary: true },
+  { id: 'house-spain', name: 'Casa España', isPrimary: false },
+  { id: 'house-2', name: 'Casa Valle', isPrimary: false },
+];
+
+test('sin claims de casas no se toca la casa activa', () => {
+  assert.equal(pickClaimsHouse(null, knownHouses, 'house-2'), null);
+  assert.equal(pickClaimsHouse([], knownHouses, 'house-2'), null);
+  assert.equal(pickClaimsHouse(undefined, knownHouses, 'house-2'), null);
+});
+
+test('si la casa activa ya está autorizada, no se cambia', () => {
+  assert.equal(pickClaimsHouse(['house-1', 'house-2'], knownHouses, 'house-2'), null);
+});
+
+test('casa activa fuera de los claims: se conecta la principal autorizada', () => {
+  const target = pickClaimsHouse(['house-1', 'house-spain'], knownHouses, 'casa-ajena');
+  assert.equal(target.id, 'house-1');
+  assert.equal(target.isPrimary, true);
+});
+
+test('sin principal conocida entre las autorizadas, va la primera conocida', () => {
+  const target = pickClaimsHouse(['house-2', 'house-spain'], knownHouses, 'casa-ajena');
+  assert.equal(target.id, 'house-spain'); // orden de la lista conocida, no de los claims
+});
+
+test('ninguna casa conocida: se devuelve la primera autorizada por id', () => {
+  assert.deepEqual(pickClaimsHouse(['house-x'], knownHouses, 'casa-ajena'), { id: 'house-x' });
+});
+
+test('la clave de elección local existe y es estable', () => {
+  assert.equal(LOCAL_ONLY_CHOICE_KEY, 'alacena_local_only_choice');
+});

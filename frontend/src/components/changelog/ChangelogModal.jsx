@@ -5,8 +5,8 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
-export const SYSTEM_VERSION = 'v3.11.0-Casa';
-export const RELEASE_DATE = '5 Noviembre 2026';
+export const SYSTEM_VERSION = 'v3.12.0-Casa';
+export const RELEASE_DATE = '11 Noviembre 2026';
 
 export default function ChangelogModal({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState('changelog'); // 'changelog' | 'plan30'
@@ -186,6 +186,48 @@ export default function ChangelogModal({ isOpen, onClose }) {
               </ul>
             </div>
 
+            {/* Release v3.12.0-Casa */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
+                    v3.12.0-Casa
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
+                </div>
+                <span className="text-xs text-gray-400">11 Noviembre 2026</span>
+              </div>
+              <h4 className="text-base font-bold text-white mb-2 font-display">
+                Conexión siempre viva: tu casa se conecta sola y la app ya nunca se finge vacía
+              </h4>
+              <ul className="space-y-1.5 text-xs text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Acceso reparado de raíz:</strong> el acceso de Google ahora se completa en el mismo dominio de la app (alacena.cobertores.com); antes saltaba a otro dominio y los navegadores actuales lo rompían en silencio, dejando la app «vacía» en pleno súper.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Tu casa se conecta sola:</strong> con tu sesión iniciada, la app conecta automáticamente la casa principal de tu cuenta en cada arranque y en cualquier dispositivo; ya no hay que buscar «Conectar mi casa».</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Nada de vacíos silenciosos:</strong> sin conectar, la primera pantalla lo dice con claridad («Tu casa aún no está conectada en este dispositivo»), la lista se etiqueta «Lista de este dispositivo (sin conectar)» y el Modo Súper avisa en grande. El modo sin conexión pasa a ser una elección tuya, no el arranque por defecto.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Acceso con respaldo:</strong> si la ventana de Google no puede abrirse, el acceso sigue solo en esta pestaña; y si la redirección vuelve sin completar, la app explica el motivo y ofrece la ventana, sin avisos muertos.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Indicador de casa en la cabecera:</strong> junto al ONLINE de red verás siempre «Casa conectada», «Conectando…» o «Sin conectar», con el nombre de tu casa; y si la nube no responde, la lista muestra un error claro en vez de un falso vacío.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span><strong>Lotes FEFO en todo:</strong> cocinar, descorchar una botella, devolver una compra y recibir la compra ya descuentan o alimentan los lotes por caducidad con la misma regla que el QR: primero vence, primero sale.</span>
+                </li>
+              </ul>
+            </div>
+
             {/* Release v3.11.0-Casa */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-base)] border border-emerald-500 shadow-xl">
               <div className="flex items-center justify-between mb-3">
@@ -193,7 +235,6 @@ export default function ChangelogModal({ isOpen, onClose }) {
                   <span className="px-2.5 py-0.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 rounded-lg font-mono">
                     v3.11.0-Casa
                   </span>
-                  <span className="text-xs font-semibold text-emerald-400">ACTUAL · PRODUCCIÓN</span>
                 </div>
                 <span className="text-xs text-gray-400">10 Noviembre 2026</span>
               </div>

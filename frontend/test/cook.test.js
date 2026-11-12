@@ -42,3 +42,28 @@ test('kitchen volume units (cucharada, cucharadita, taza) match stock in litres 
   assert.equal(r.canCook, false);
   assert.equal(r.missingIngredients[0].deficit, 0.917);
 });
+
+test('cocinar descuenta de los lotes en orden FEFO, como el QR (3.12.0)', () => {
+  const milk = [{
+    id: 'l', name: 'Leche', quantity: 3, unit: 'litros', householdId: 'house-1',
+    expiryDate: '2026-11-20',
+    lots: [
+      { expiryDate: '2026-12-20', quantity: 2 },
+      { expiryDate: '2026-11-20', quantity: 1 },
+    ],
+  }];
+  const p = planRecipe(milk, { portions: 1, ingredients: [{ productName: 'leche', amount: 1.5, unit: 'litros' }] }, 'house-1');
+  assert.equal(p.canCook, true);
+  assert.equal(p.writes[0].product.quantity, 1.5);
+  // Se agota el lote del 20-nov (1) y se toman 0,5 del del 20-dic.
+  assert.deepEqual(p.writes[0].product.lots, [{ expiryDate: '2026-12-20', quantity: 1.5 }]);
+  assert.equal(p.writes[0].product.expiryDate, '2026-12-20');
+});
+
+test('cocinar un producto sin lotes no inventa lotes', () => {
+  const rice = [{ id: 'r', name: 'Arroz', quantity: 2, unit: 'kg', householdId: 'house-1', expiryDate: '2027-01-01' }];
+  const p = planRecipe(rice, { portions: 1, ingredients: [{ productName: 'arroz', amount: 0.5, unit: 'kg' }] }, 'house-1');
+  assert.equal(p.canCook, true);
+  assert.equal(p.writes[0].product.lots, undefined);
+  assert.equal(p.writes[0].product.expiryDate, '2027-01-01');
+});
