@@ -4,6 +4,7 @@ import {
   Sparkles, Thermometer, Star, ShieldCheck, Compass 
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
+import { houseCurrencyCode, houseCurrencySymbol } from '../../utils/formatMoney';
 
 export const WINE_COUNTRIES = [
   { code: 'MX', name: 'México', flag: '🇲🇽', regions: ['Valle de Guadalupe, B.C.', 'Parras, Coahuila', 'Querétaro', 'Aguascalientes', 'San Miguel de Allende'] },
@@ -42,7 +43,7 @@ export const GRAPES = [
   'Blend / Ensamble Reserva',
 ];
 
-export default function AddWineModal({ isOpen, onClose, onSave, zones }) {
+export default function AddWineModal({ isOpen, onClose, onSave, zones, activeHouse }) {
   const [wineName, setWineName] = useState('');
   const [winery, setWinery] = useState('');
   const [vintage, setVintage] = useState(new Date().getFullYear() - 3);
@@ -300,10 +301,10 @@ export default function AddWineModal({ isOpen, onClose, onSave, zones }) {
 
             <div>
               <label className="block text-xs font-bold text-gray-300 uppercase mb-1">
-                Precio / Botella ($ MXN) *
+                Precio / Botella ({houseCurrencySymbol(activeHouse)} {houseCurrencyCode(activeHouse)}) *
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-2 text-gray-400 font-bold">$</span>
+                <span className="absolute left-3 top-2 text-gray-400 font-bold">{houseCurrencySymbol(activeHouse)}</span>
                 <input
                   type="number"
                   step="any"

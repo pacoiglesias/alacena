@@ -16,6 +16,7 @@ import { isCavaZone, isAlcoholicOrBeverage, sanitizeCavaProduct } from '../../ut
 import { extractShoppingListFromImage, extractTextFromFile } from '../../services/ocrService';
 import { parseRawShoppingText } from '../../services/smartListParser';
 import { analyzeTicketPriceIntelligence, recordPricePoints } from '../../services/priceIntelligenceService';
+import { formatHouseMoney } from '../../utils/formatMoney';
 import { notify } from '../../services/notice';
 
 export default function CameraScannerModal({ 
@@ -28,12 +29,16 @@ export default function CameraScannerModal({
   onConfirmReceipt,
   shoppingList = [],
   currency = 'MXN',
+  activeHouse,
   onSubtractStockDirect,
   onAddToShoppingList, 
   onOpenManualCaptureWithBarcode,
   onEditZone,
   onAddZone,
 }) {
+  // 3.14.0: los importes del escáner salen de la función única de dinero
+  // con la casa activa (App la pasa; sin ella, la moneda recibida).
+  const moneyHouse = activeHouse || { currency };
   // Pestañas principales del Escáner: 'BARCODE' | 'RECEIPT' | 'MANUAL'
   const [activeTab, setActiveTab] = useState('BARCODE');
 
@@ -1550,7 +1555,7 @@ TOTAL MXN                    $2,303.00`;
                         </span>
                         {priceIntelligence.totalCrossStoreSavingsPotential > 0 && (
                           <span className="text-emerald-300 font-mono">
-                            Ahorro potencial: ${priceIntelligence.totalCrossStoreSavingsPotential.toFixed(2)} MXN
+                            Ahorro potencial: {formatHouseMoney(moneyHouse, priceIntelligence.totalCrossStoreSavingsPotential)}
                           </span>
                         )}
                       </div>
@@ -1558,18 +1563,18 @@ TOTAL MXN                    $2,303.00`;
                         {priceIntelligence.priceDropsCount > 0 && (
                           <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1">
                             <TrendingDown className="w-3 h-3" />
-                            <span>{priceIntelligence.priceDropsCount} bajaron (-${priceIntelligence.totalSavedVsPrevious.toFixed(2)})</span>
+                            <span>{priceIntelligence.priceDropsCount} bajaron (-{formatHouseMoney(moneyHouse, priceIntelligence.totalSavedVsPrevious)})</span>
                           </span>
                         )}
                         {priceIntelligence.priceHikesCount > 0 && (
                           <span className="px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30 font-bold flex items-center gap-1">
                             <TrendingUp className="w-3 h-3" />
-                            <span>{priceIntelligence.priceHikesCount} subieron (+${priceIntelligence.totalInflationCost.toFixed(2)})</span>
+                            <span>{priceIntelligence.priceHikesCount} subieron (+{formatHouseMoney(moneyHouse, priceIntelligence.totalInflationCost)})</span>
                           </span>
                         )}
                         {priceIntelligence.recommendations.length > 0 && (
                           <span className="px-1.5 py-0.5 rounded bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/25 font-semibold">
-                            💡 En {priceIntelligence.recommendations[0]?.cheapestStore}: "{priceIntelligence.recommendations[0]?.productName}" a ${priceIntelligence.recommendations[0]?.cheapestPrice.toFixed(2)} (-${priceIntelligence.recommendations[0]?.lineSavings.toFixed(2)})
+                            💡 En {priceIntelligence.recommendations[0]?.cheapestStore}: "{priceIntelligence.recommendations[0]?.productName}" a {formatHouseMoney(moneyHouse, priceIntelligence.recommendations[0]?.cheapestPrice)} (-{formatHouseMoney(moneyHouse, priceIntelligence.recommendations[0]?.lineSavings)})
                           </span>
                         )}
                       </div>
@@ -1578,7 +1583,7 @@ TOTAL MXN                    $2,303.00`;
 
                   <TicketReview key={receiptRawText} items={extractedReceiptItems} setItems={setExtractedReceiptItems}
                     selectedIds={selectedReceiptItemIds} setSelectedIds={setSelectedReceiptItemIds} rawText={receiptRawText}
-                    store={receiptStoreName} setStore={setReceiptStoreName} currency={currency} shoppingList={shoppingList}
+                    store={receiptStoreName} setStore={setReceiptStoreName} currency={currency} activeHouse={moneyHouse} shoppingList={shoppingList}
                     onSave={onConfirmReceipt || ((payload) => onBatchAddToInventory?.(payload.checkedItems, receiptStoreName))} onClose={onClose} />
 
                 </div>

@@ -10,12 +10,14 @@ import {
   recordPricePoints 
 } from '../../services/priceIntelligenceService';
 import { notify } from '../../services/notice';
+import { formatHouseMoney } from '../../utils/formatMoney';
 
 export default function PriceComparisonModal({
   isOpen,
   onClose,
   shoppingList = [],
   onAddShoppingItem,
+  activeHouse,
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStoreFilter, setSelectedStoreFilter] = useState('ALL');
@@ -118,7 +120,7 @@ export default function PriceComparisonModal({
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
             <span className="text-[11px] font-semibold text-emerald-400 block">Mayor Ahorro Cruzado</span>
             <div className="text-xl font-bold font-mono text-emerald-300 mt-0.5">
-              ${stats.maxSavingsProduct?.maxDifference?.toFixed(2) || '0.00'} MXN
+              {formatHouseMoney(activeHouse, stats.maxSavingsProduct?.maxDifference || 0)}
             </div>
             <span className="text-[10px] text-emerald-400/80 truncate block">
               en {stats.maxSavingsProduct?.displayName || 'Insumos'}
@@ -127,12 +129,27 @@ export default function PriceComparisonModal({
 
           <div className="p-3 rounded-2xl bg-[var(--gold)]/10 border border-[var(--gold)]/20">
             <span className="text-[11px] font-semibold text-[var(--gold)] block">Líder en Precios Bajos</span>
-            <div className="text-xl font-bold font-mono text-[var(--gold)] mt-0.5 truncate">
-              {Object.entries(stats.storeWins).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Costco'}
-            </div>
-            <span className="text-[10px] text-[var(--gold)]/80">
-              con {Object.entries(stats.storeWins).sort((a, b) => b[1] - a[1])[0]?.[1] || 0} artículos más baratos
-            </span>
+            {/* 3.14.0 (C-3): sin historial multitienda NO se corona a
+                ninguna tienda (antes salía «Costco» inventado). */}
+            {Object.keys(stats.storeWins).length > 0 ? (
+              <>
+                <div className="text-xl font-bold font-mono text-[var(--gold)] mt-0.5 truncate">
+                  {Object.entries(stats.storeWins).sort((a, b) => b[1] - a[1])[0][0]}
+                </div>
+                <span className="text-[10px] text-[var(--gold)]/80">
+                  con {Object.entries(stats.storeWins).sort((a, b) => b[1] - a[1])[0][1]} artículos más baratos
+                </span>
+              </>
+            ) : (
+              <>
+                <div className="text-xl font-bold font-mono text-[var(--gold)] mt-0.5 truncate">
+                  Sin datos
+                </div>
+                <span className="text-[10px] text-[var(--gold)]/80">
+                  Aún no hay precios comparados entre tiendas
+                </span>
+              </>
+            )}
           </div>
 
           <div className="p-3 rounded-2xl bg-[var(--ember)]/10 border border-[var(--ember)]/20">
@@ -221,7 +238,7 @@ export default function PriceComparisonModal({
                     <div className="flex items-center gap-2 self-start sm:self-auto">
                       <div className="px-3 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center gap-1.5">
                         <TrendingDown className="w-3.5 h-3.5" />
-                        <span>Ahorras hasta ${item.maxDifference.toFixed(2)} ({item.maxDiffPct}%)</span>
+                        <span>Ahorras hasta {formatHouseMoney(activeHouse, item.maxDifference)} ({item.maxDiffPct}%)</span>
                       </div>
                     </div>
                   )}
@@ -256,7 +273,7 @@ export default function PriceComparisonModal({
 
                         <div className="text-right shrink-0">
                           <div className="font-mono font-bold text-sm">
-                            ${sp.price.toFixed(2)}
+                            {formatHouseMoney(activeHouse, sp.price)}
                           </div>
                           {isCheapest ? (
                             <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 text-[9px] font-bold uppercase tracking-wider">
@@ -264,7 +281,7 @@ export default function PriceComparisonModal({
                             </span>
                           ) : (
                             <span className="text-[10px] text-gray-400">
-                              +${(sp.price - item.cheapestPrice).toFixed(2)}
+                              +{formatHouseMoney(activeHouse, sp.price - item.cheapestPrice)}
                             </span>
                           )}
                         </div>
@@ -278,7 +295,7 @@ export default function PriceComparisonModal({
                   <div className="flex items-center gap-2 text-[var(--gold)]">
                     <Sparkles className="w-4 h-4 shrink-0" />
                     <span>
-                      <strong>Recomendación:</strong> Compra en <strong>{item.cheapestStore}</strong> a <strong>${item.cheapestPrice.toFixed(2)}</strong> para obtener el mejor rendimiento.
+                      <strong>Recomendación:</strong> Compra en <strong>{item.cheapestStore}</strong> a <strong>{formatHouseMoney(activeHouse, item.cheapestPrice)}</strong> para obtener el mejor rendimiento.
                     </span>
                   </div>
 
@@ -293,7 +310,7 @@ export default function PriceComparisonModal({
                           store: item.cheapestStore,
                           estimatedPriceMxn: item.cheapestPrice,
                         });
-                        notify(`✅ "${item.displayName}" agregado a la lista de compras asignado a ${item.cheapestStore} ($${item.cheapestPrice.toFixed(2)})`);
+                        notify(`✅ "${item.displayName}" agregado a la lista de compras asignado a ${item.cheapestStore} (${formatHouseMoney(activeHouse, item.cheapestPrice)})`);
                       }}
                       className="px-3 py-1 rounded-lg bg-[var(--gold)]/15 hover:bg-[var(--gold)]/25 text-[var(--gold)] border border-[var(--gold)]/30 font-bold text-[11px] transition-all flex items-center gap-1"
                     >

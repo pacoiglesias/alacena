@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { parseReceiptTotal, receiptFingerprint } from '../../utils/receiptReview';
+import { formatHouseMoney, houseCurrencyCode } from '../../utils/formatMoney';
 
-export default function TicketReview({ items, setItems, selectedIds, setSelectedIds, rawText, store, setStore, onSave, onClose, currency = 'MXN', shoppingList = [] }) {
+export default function TicketReview({ items, setItems, selectedIds, setSelectedIds, rawText, store, setStore, onSave, onClose, currency = 'MXN', activeHouse, shoppingList = [] }) {
+  // 3.14.0: el dinero sale de la función única, con la casa activa.
+  const moneyHouse = activeHouse || { currency };
   const [paid, setPaid] = useState(() => parseReceiptTotal(rawText) ?? '');
   const [reviewed, setReviewed] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -12,12 +15,12 @@ export default function TicketReview({ items, setItems, selectedIds, setSelected
   const difference = total - sum;
   const valid = selected.length && selected.every((i) => i.name?.trim() && Number(i.quantity) > 0 && Number.isFinite(Number(i.quantity)) && Number(i.realPrice ?? i.estimatedPriceMxn) >= 0) && Number.isFinite(total) && total >= 0;
   const patch = (id, field, value) => { setReviewed(false); setItems((previous) => previous.map((i) => i.id === id ? { ...i, [field]: value } : i)); };
-  const money = (value) => new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(value);
+  const money = (value) => formatHouseMoney(moneyHouse, value);
   const save = async () => {
     if (!valid || (Math.abs(difference) > 0.05 && !reviewed) || saving) return;
     setSaving(true);
     try {
-      const result = await onSave({ checkedItems: selected.map((i) => ({ ...i, quantity: Number(i.quantity), realPrice: Number(i.realPrice ?? i.estimatedPriceMxn ?? 0), store: store || 'Supermercado' })), realTotalMxn: total, source: 'receipt', receiptFingerprint: receiptFingerprint(rawText, store, selected), ticketNotes: Math.abs(difference) > 0.05 ? `Diferencia revisada: ${difference.toFixed(2)} ${currency}` : 'Ticket revisado' });
+      const result = await onSave({ checkedItems: selected.map((i) => ({ ...i, quantity: Number(i.quantity), realPrice: Number(i.realPrice ?? i.estimatedPriceMxn ?? 0), store: store || 'Supermercado' })), realTotalMxn: total, source: 'receipt', receiptFingerprint: receiptFingerprint(rawText, store, selected), ticketNotes: Math.abs(difference) > 0.05 ? `Diferencia revisada: ${formatHouseMoney(moneyHouse, difference)}` : 'Ticket revisado' });
       if (result !== false) onClose(); else setMessage('Este ticket ya estaba registrado o no se pudo guardar. Revisa el historial de compras.');
     } catch (error) { setMessage(error.message || 'No se pudo guardar el ticket.'); }
     finally { setSaving(false); }
@@ -38,7 +41,7 @@ export default function TicketReview({ items, setItems, selectedIds, setSelected
       </div>)}
     </div>
     <div className="flex justify-between"><span>Suma de productos seleccionados</span><b>{money(sum)}</b></div>
-    <label className="block text-xs">Total pagado del ticket ({currency})<input aria-label="Total pagado del ticket" type="number" min="0" step="0.01" value={paid} placeholder={sum.toFixed(2)} onChange={(e) => { setPaid(e.target.value); setReviewed(false); }} className="block mt-1 w-full p-2 bg-black/30 rounded-lg border border-white/20" /></label>
+    <label className="block text-xs">Total pagado del ticket ({houseCurrencyCode(moneyHouse)})<input aria-label="Total pagado del ticket" type="number" min="0" step="0.01" value={paid} placeholder={sum.toFixed(2)} onChange={(e) => { setPaid(e.target.value); setReviewed(false); }} className="block mt-1 w-full p-2 bg-black/30 rounded-lg border border-white/20" /></label>
     {Math.abs(difference) > 0.05 && <label className="flex gap-2 p-3 rounded-xl bg-amber-500/10 text-amber-200 text-xs"><input type="checkbox" checked={reviewed} onChange={(e) => setReviewed(e.target.checked)} />Revisé la diferencia de {money(difference)}. Puede corresponder a descuentos, cargos o artículos no seleccionados.</label>}
     <p className="text-xs text-gray-400">Al guardar, se ingresan los artículos a la despensa y se descuentan de tu lista las cantidades compradas. Los pendientes parciales se conservan.</p>
     {message && <p role="alert" className="text-amber-300">{message}</p>}

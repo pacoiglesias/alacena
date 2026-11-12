@@ -23,8 +23,6 @@ export default function CavaProCommandCenterModal({
   hasPreCloudBackup,
   preCloudBackupDate,
   onOpenChangelog,
-  onToggleMute,
-  isMuted,
   isCloudConnected,
   lowStockCount,
 }) {
@@ -49,15 +47,12 @@ export default function CavaProCommandCenterModal({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold tracking-tight text-white font-mono">
-                  CAVAPRO • MENÚ MAESTRO
-                </h2>
-                <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-300 bg-amber-500/20 border border-amber-500/30 rounded-full">
+                <h2 className="text-xl font-bold tracking-tight text-white">
                   Centro de Mando
-                </span>
+                </h2>
               </div>
               <p className="text-xs text-gray-400 mt-0.5">
-                Acceso directo a todas las operaciones de Alacena, Cava, Supermercado y Auditoría.
+                Todo lo de tu casa en un solo sitio: alacena, cava, súper y cocina.
               </p>
             </div>
           </div>
@@ -78,7 +73,7 @@ export default function CavaProCommandCenterModal({
           {/* Sección 1: Añadir Nuevo */}
           <div>
             <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2.5">
-              <span>➕ Añadir Nuevo...</span>
+              <span>Añadir Nuevo</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <button
@@ -90,7 +85,7 @@ export default function CavaProCommandCenterModal({
                     <Warehouse className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-white block">🛒 Producto a la Alacena</span>
+                    <span className="text-xs font-bold text-white block">Producto a la Alacena</span>
                     <span className="text-[11px] text-gray-400">Captura manual sin código</span>
                   </div>
                 </div>
@@ -106,7 +101,7 @@ export default function CavaProCommandCenterModal({
                     <Wine className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-white block">🍷 Vino a la Cava (Sommelier)</span>
+                    <span className="text-xs font-bold text-white block">Vino a la Cava</span>
                     <span className="text-[11px] text-gray-400">Añadas, uvas y maridaje</span>
                   </div>
                 </div>
@@ -118,7 +113,7 @@ export default function CavaProCommandCenterModal({
           {/* Sección 2: Gestión Rápida de Stock & Escáner */}
           <div>
             <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider mb-2.5">
-              <span>📦 Gestión Rápida de Stock & Escáner</span>
+              <span>Gestión Rápida de Stock & Escáner</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <button
@@ -130,7 +125,7 @@ export default function CavaProCommandCenterModal({
                     <Camera className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-white block">📷 Abrir Escáner de Cámara</span>
+                    <span className="text-xs font-bold text-white block">Abrir Escáner de Cámara</span>
                     <span className="text-[11px] text-emerald-300">Códigos de barras y QRs</span>
                   </div>
                 </div>
@@ -146,7 +141,7 @@ export default function CavaProCommandCenterModal({
                     <Layers className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-white block">➕ / ➖ Entrada y Salida Rápida</span>
+                    <span className="text-xs font-bold text-white block">Entrada y Salida Rápida</span>
                     <span className="text-[11px] text-gray-400">Ajustes directos con botones + y -</span>
                   </div>
                 </div>
@@ -158,7 +153,7 @@ export default function CavaProCommandCenterModal({
           {/* Sección 3: Lista de Compras */}
           <div>
             <div className="flex items-center gap-2 text-xs font-bold text-purple-400 uppercase tracking-wider mb-2.5">
-              <span>🛒 Lista de Compras & Súper</span>
+              <span>Lista de Compras & Súper</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <button
@@ -175,7 +170,7 @@ export default function CavaProCommandCenterModal({
                     <RefreshCw className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-white block">💡 Generar Lista Automática</span>
+                    <span className="text-xs font-bold text-white block">Generar Lista Automática</span>
                     <span className="text-[11px] text-gray-400">Calcula lo que falta en casa</span>
                   </div>
                 </div>
@@ -191,7 +186,7 @@ export default function CavaProCommandCenterModal({
                     <ShoppingCart className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-white block">🛒 Modo Supermercado</span>
+                    <span className="text-xs font-bold text-white block">Ir a la Lista del Súper</span>
                     <span className="text-[11px] text-gray-400">Checklist, QR y WhatsApp</span>
                   </div>
                 </div>
@@ -203,7 +198,7 @@ export default function CavaProCommandCenterModal({
           {/* Sección 4: Reportes, Recetas y Auditoría */}
           <div>
             <div className="flex items-center gap-2 text-xs font-bold text-blue-400 uppercase tracking-wider mb-2.5">
-              <span>📊 Control de Cocina, Reportes & Kardex</span>
+              <span>Control de Cocina y Reportes</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <button
@@ -215,8 +210,8 @@ export default function CavaProCommandCenterModal({
                     <Sparkles className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-white block">🍳 Recetas de Cocina & Costeo</span>
-                    <span className="text-[11px] text-gray-400">Deducción y cálculo en $ MXN</span>
+                    <span className="text-xs font-bold text-white block">Recetas de Cocina & Costeo</span>
+                    <span className="text-[11px] text-gray-400">Deducción y cálculo en la moneda de tu casa</span>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-purple-400" />
@@ -231,7 +226,7 @@ export default function CavaProCommandCenterModal({
                     <History className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-white block">📋 Bitácora Forense (Audit Log)</span>
+                    <span className="text-xs font-bold text-white block">Bitácora</span>
                     <span className="text-[11px] text-gray-400">Quién consumió qué y cuándo</span>
                   </div>
                 </div>
@@ -243,9 +238,9 @@ export default function CavaProCommandCenterModal({
           {/* Sección 5: Mantenimiento y Respaldos */}
           <div>
             <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">
-              <span>⚙️ Mantenimiento & Copia de Seguridad</span>
+              <span>Mantenimiento & Copia de Seguridad</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <button
                 onClick={() => {
                   audio.success();
@@ -254,7 +249,7 @@ export default function CavaProCommandCenterModal({
                 className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all"
               >
                 <Download className="w-4 h-4 text-emerald-400 mb-1" />
-                <span className="text-xs font-bold text-white block">💾 Descargar Backup</span>
+                <span className="text-xs font-bold text-white block">Descargar Respaldo</span>
                 <span className="text-[10px] text-gray-400">Archivo JSON local</span>
               </button>
 
@@ -263,8 +258,8 @@ export default function CavaProCommandCenterModal({
                 className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all"
               >
                 <ShieldCheck className="w-4 h-4 text-purple-400 mb-1" />
-                <span className="text-xs font-bold text-white block">🩺 Salud del Sistema</span>
-                <span className="text-[10px] text-gray-400">Ver versión y audio</span>
+                <span className="text-xs font-bold text-white block">Novedades</span>
+                <span className="text-[10px] text-gray-400">Versión actual y mejoras de la app</span>
               </button>
             </div>
 
@@ -274,7 +269,7 @@ export default function CavaProCommandCenterModal({
               className="w-full mt-2.5 p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all disabled:opacity-40"
             >
               <History className="w-4 h-4 text-sky-400 mb-1" />
-              <span className="text-xs font-bold text-white block">↩️ Restaurar copia previa a la nube</span>
+              <span className="text-xs font-bold text-white block">Restaurar copia previa a la nube</span>
               <span className="text-[10px] text-gray-400">
                 {hasPreCloudBackup && preCloudBackupDate
                   ? `Despensa y lista guardadas el ${new Date(preCloudBackupDate).toLocaleDateString('es-MX')}`
@@ -288,7 +283,7 @@ export default function CavaProCommandCenterModal({
               y deshabilitados mientras haya una casa conectada a la nube. */}
           <div>
             <div className="flex items-center gap-2 text-xs font-bold text-rose-400 uppercase tracking-wider mb-2.5">
-              <span>⚠️ Zona de peligro</span>
+              <span>Zona de peligro</span>
             </div>
             <button
               onClick={() => handleAction(onResetDemoData)}
@@ -296,7 +291,7 @@ export default function CavaProCommandCenterModal({
               className="w-full p-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/40 text-left transition-all disabled:opacity-40 disabled:hover:bg-rose-500/10"
             >
               <RefreshCw className="w-4 h-4 text-rose-400 mb-1" />
-              <span className="text-xs font-bold text-white block">🗑️ Borrar todo y poner datos de ejemplo</span>
+              <span className="text-xs font-bold text-white block">Borrar todo y poner datos de ejemplo</span>
               <span className="text-[10px] text-gray-400">
                 {isCloudConnected
                   ? 'No disponible con una casa conectada a la nube: desconéctala primero.'
@@ -311,7 +306,7 @@ export default function CavaProCommandCenterModal({
         <div className="p-4 border-t border-white/10 bg-[var(--bg-elevated)] flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span>ALACENA Enterprise (CavaPro Engine)</span>
+            <span>Alacena</span>
           </div>
           <button
             onClick={() => {

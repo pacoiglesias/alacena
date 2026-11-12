@@ -7,6 +7,7 @@ import confetti from 'canvas-confetti';
 import { audio } from '../../services/audioService';
 import { getCatalogs } from '../../services/catalogsService';
 import { applyReceivedQuantities, stepForUnit } from '../../utils/householdShopping';
+import { formatHouseMoney, houseCurrencyCode, houseCurrencySymbol } from '../../utils/formatMoney';
 import DialogLayer from '../layout/DialogLayer';
 
 export default function ReceiptReconciliationModal({
@@ -15,7 +16,10 @@ export default function ReceiptReconciliationModal({
   checkedItems = [],
   onConfirmPurchase,
   currency = 'MXN',
+  activeHouse,
 }) {
+  // 3.14.0: el dinero sale de la función única, con la casa activa.
+  const moneyHouse = activeHouse || { currency };
   // Todos los hooks al inicio incondicionalmente
   const catalogs = useMemo(() => getCatalogs(), []);
 
@@ -133,7 +137,7 @@ export default function ReceiptReconciliationModal({
           <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
             <div className="flex items-center justify-between text-xs font-semibold text-[var(--ink-secondary)] mb-2">
               <span>Artículos a ingresar ({receivedItems.length} de {checkedItems.length}) · cantidad real comprada</span>
-              <span>Total Estimado: ${totalEstimatedMxn.toFixed(2)} {currency}</span>
+              <span>Total Estimado: {formatHouseMoney(moneyHouse, totalEstimatedMxn)}</span>
             </div>
             <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1 no-scrollbar">
               {checkedItems.map((item, idx) => {
@@ -162,7 +166,7 @@ export default function ReceiptReconciliationModal({
                       {bought ? 'No comprado' : 'Deshacer'}
                     </button>
                     <span className="text-emerald-400 font-mono w-16 text-right">
-                      ${(((Number(qtyValue) > 0 ? Number(qtyValue) : 0)) * (item.estimatedPriceMxn || 0)).toFixed(2)}
+                      {formatHouseMoney(moneyHouse, (Number(qtyValue) > 0 ? Number(qtyValue) : 0) * (item.estimatedPriceMxn || 0))}
                     </span>
                   </span>
                 </div>
@@ -178,7 +182,7 @@ export default function ReceiptReconciliationModal({
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
               <span className="text-[11px] font-semibold text-[var(--ink-tertiary)] block">Estimado en Lista</span>
               <div className="text-xl font-display font-bold text-gray-300 mt-1 font-mono">
-                ${totalEstimatedMxn.toFixed(2)}
+                {formatHouseMoney(moneyHouse, totalEstimatedMxn)}
               </div>
               <span className="text-[10px] text-gray-400">Precios promedio de catálogo</span>
             </div>
@@ -189,7 +193,7 @@ export default function ReceiptReconciliationModal({
                 Total Real Cobrado en Ticket *
               </label>
               <div className="relative mt-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400 font-bold">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400 font-bold">{houseCurrencySymbol(moneyHouse)}</span>
                 <input
                   aria-label="Total pagado" type="number"
                   step="0.01"
@@ -201,7 +205,7 @@ export default function ReceiptReconciliationModal({
                   autoFocus
                 />
               </div>
-              <span className="text-[10px] text-emerald-300/80 mt-1 block">Importe final de caja en $ {currency}</span>
+              <span className="text-[10px] text-emerald-300/80 mt-1 block">Importe final de caja en {houseCurrencyCode(moneyHouse)}</span>
             </div>
 
           </div>
@@ -227,7 +231,7 @@ export default function ReceiptReconciliationModal({
               </span>
             </div>
             <span className="font-mono font-bold text-sm">
-              {varianceMxn >= 0 ? `+$${varianceMxn.toFixed(2)}` : `-$${Math.abs(varianceMxn).toFixed(2)}`} {currency} ({variancePct >= 0 ? `+${variancePct.toFixed(1)}%` : `${variancePct.toFixed(1)}%`})
+              {varianceMxn >= 0 ? '+' : '-'}{formatHouseMoney(moneyHouse, Math.abs(varianceMxn))} ({variancePct >= 0 ? `+${variancePct.toFixed(1)}%` : `${variancePct.toFixed(1)}%`})
             </span>
           </div>
 

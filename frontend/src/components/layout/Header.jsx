@@ -5,12 +5,12 @@ import {
   Volume2, VolumeX,
   ChevronDown, Utensils, History, Layers, RefreshCw,
   ShoppingCart, Camera, Wine, User, Shield, Check, Sliders,
-  BookOpen, Palette, Store, Sun, QrCode, Settings, Terminal,
+  BookOpen, Palette, Store, Sun, QrCode, Settings,
   Cloud, CloudOff, LoaderCircle
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { notify } from '../../services/notice';
-import { getProductExpiryDate, daysUntilExpiry } from '../../utils/productExpiry';
+import { isExpiringSoon } from '../../utils/productExpiry';
 import { APP_VERSION } from '../../version';
 import { DEFAULT_MENU_TABS, ICON_MAP } from './menuConfig';
 const CustomTabNamesModal = lazy(() => import('./CustomTabNamesModal'));
@@ -18,7 +18,6 @@ const SystemManualModal = lazy(() => import('../manual/SystemManualModal'));
 const CatalogsConfigModal = lazy(() => import('../catalogs/CatalogsConfigModal'));
 const ThemeCustomizerModal = lazy(() => import('../theme/ThemeCustomizerModal'));
 const KitchenDaySummaryModal = lazy(() => import('./KitchenDaySummaryModal'));
-const ScannerDiagnosticsModal = lazy(() => import('../scanner/ScannerDiagnosticsModal'));
 
 export const SYSTEM_ROLES = [
   { id: 'admin', name: 'Paco I.', label: 'Patrón / Admin', icon: Shield, color: 'text-amber-400 bg-amber-500/20' },
@@ -48,7 +47,6 @@ export default function Header({
   shoppingList = [],
   recipes = [],
   onAddMissingToShoppingList,
-  onCookRecipe,
 }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeRole, setActiveRole] = useState(() => {
@@ -66,18 +64,16 @@ export default function Header({
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isCatalogsModalOpen, setIsCatalogsModalOpen] = useState(false);
   const [isKitchenDayModalOpen, setIsKitchenDayModalOpen] = useState(false);
-  const [isDiagnosticsModalOpen, setIsDiagnosticsModalOpen] = useState(false);
 
-  // Alertas críticas del día
+  // Alertas del día — 3.14.0 (M-12): la insignia cuenta ELEMENTOS
+  // (productos por vencer + productos con stock bajo), no conceptos:
+  // antes sumaba «+1 si hay stock bajo» aunque faltaran veinte.
+  // «Por vencer» usa la definición única de la app (isExpiringSoon,
+  // 15 días con existencia), la misma de Despensa y del Resumen.
   const criticalAlertCount = React.useMemo(() => {
-    const expiring = products.filter((p) => {
-      const expiry = getProductExpiryDate(p);
-      const diffDays = daysUntilExpiry(expiry);
-      if (diffDays === null) return false;
-      return diffDays <= 3 && (p.quantity || 0) > 0;
-    }).length;
+    const expiring = products.filter((p) => isExpiringSoon(p)).length;
     const lowStock = products.filter((p) => (p.quantity || 0) <= (p.minStock || 0)).length;
-    return expiring + (lowStock > 0 ? 1 : 0);
+    return expiring + lowStock;
   }, [products]);
   
   // Menú dinámico configurable (renombrar, ocultar, y agregar pestañas)
@@ -217,14 +213,15 @@ export default function Header({
           {/* Right Action Icons & Controls */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             
-            {/* Status Online / Offline: esto es la RED, no la casa */}
-            <div className={`hidden md:flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-mono font-bold border ${
+            {/* Estado de la red — 3.14.0: en español y sin mono:
+                «En línea» / «Sin conexión», como lo lee cualquiera. */}
+            <div className={`hidden md:flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold border ${
               isOnline
                 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                 : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
             }`} title={isOnline ? 'Hay conexión a internet' : 'Sin conexión a internet'}>
               <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400 animate-ping'}`} />
-              <span>{isOnline ? 'ONLINE' : 'OFFLINE'}</span>
+              <span>{isOnline ? 'En línea' : 'Sin conexión'}</span>
             </div>
 
             {/* Conexión a la casa (3.12.0): siempre visible y con nombre
@@ -319,7 +316,7 @@ export default function Header({
               title="Abrir Escáner de Códigos de Barra y Lector de Tickets de Compra (OCR)" data-home-scan
             >
               <Camera className="w-4 h-4 text-emerald-100" />
-              <span>📷 Escanear</span>
+              <span>Escanear</span>
             </button>
 
             {/* Menú Desplegable: Ajustes, Herramientas & Hogar */}
@@ -449,15 +446,10 @@ export default function Header({
                   </button>
                   )}
 
-                  {/* Diagnóstico del escáner (3.9.5): registro técnico de la cámara */}
-                  <button
-                    type="button"
-                    onClick={() => setIsDiagnosticsModalOpen(true)}
-                    className="w-full flex items-center gap-2 p-2 rounded-xl text-[var(--ink-secondary)] hover:text-white hover:bg-white/5 transition-all text-left font-medium"
-                  >
-                    <Terminal className="w-4 h-4 text-teal-400" />
-                    <span>Diagnóstico del escáner</span>
-                  </button>
+                  {/* 3.14.0: fuera «Diagnóstico del escáner» del menú
+                      de usuario — es una herramienta técnica, no una
+                      acción de la casa. El modal sigue existiendo
+                      para soporte, pero ya no se ofrece aquí. */}
 
                   {/* Silenciar / Activar Sonido */}
                   <div className="pt-1 border-t border-[var(--border-soft)]">
@@ -562,13 +554,6 @@ export default function Header({
           recipes={recipes}
           activeHouse={activeHouse}
           onAddMissingToShoppingList={onAddMissingToShoppingList}
-          onCookRecipe={onCookRecipe}
-        />}
-
-        {/* Modal: Diagnóstico del escáner (registro técnico de cámara) */}
-        {isDiagnosticsModalOpen && <ScannerDiagnosticsModal
-          isOpen={isDiagnosticsModalOpen}
-          onClose={() => setIsDiagnosticsModalOpen(false)}
         />}
 
         </Suspense>, document.body)}

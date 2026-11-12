@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 import { confirmDialog } from '../../services/notice';
+import { formatHouseMoney } from '../../utils/formatMoney';
 
 export default function PurchaseHistoryModal({ 
   isOpen, 
@@ -70,7 +71,7 @@ export default function PurchaseHistoryModal({
                     <span>{new Date(receipt.date).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                   </div>
                   <span className="font-mono-num font-bold text-white">
-                    Total: {new Intl.NumberFormat('es-MX', { style: 'currency', currency: receipt.currency || 'MXN' }).format(receipt.totalMxn || 0)} {receipt.currency || 'MXN'}
+                    Total: {formatHouseMoney({ currency: receipt.currency || 'MXN' }, receipt.totalMxn || 0)}
                   </span>
                 </div>
 

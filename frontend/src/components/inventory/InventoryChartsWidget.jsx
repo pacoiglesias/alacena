@@ -4,6 +4,7 @@ import {
   Clock, ShieldCheck, ChevronDown, ChevronUp, Warehouse, Wine, Sparkles
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
+import { formatHouseMoney } from '../../utils/formatMoney';
 import { getExpiryStatus } from './InventoryView';
 
 export default function InventoryChartsWidget({
@@ -16,8 +17,7 @@ export default function InventoryChartsWidget({
   onSelectStatusFilter,
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const currencySymbol = activeHouse?.currency === 'EUR' ? '€' : '$';
-  const currencyCode = activeHouse?.currency || 'MXN';
+  // 3.14.0: el dinero sale de la función única (utils/formatMoney).
 
   // 1. Análisis de Caducidad FEFO
   const expiryStats = useMemo(() => {
@@ -239,7 +239,7 @@ export default function InventoryChartsWidget({
                 Inversión por Zona del Hogar
               </span>
               <span className="text-[11px] font-mono text-[var(--ink-secondary)]">
-                Total: {currencySymbol}{Math.round(zoneStats.grandTotalValuation).toLocaleString('es-MX')} {currencyCode}
+                Total: {formatHouseMoney(activeHouse, zoneStats.grandTotalValuation)}
               </span>
             </div>
 
@@ -272,7 +272,7 @@ export default function InventoryChartsWidget({
                       <div className="flex items-center gap-2 font-mono text-[11px] shrink-0 ml-2">
                         <span className="text-[var(--ink-secondary)]">{pct}%</span>
                         <span className="font-bold text-emerald-400">
-                          {currencySymbol}{Math.round(z.valuation).toLocaleString('es-MX')}
+                          {formatHouseMoney(activeHouse, z.valuation)}
                         </span>
                       </div>
                     </div>

@@ -1,6 +1,9 @@
 // Servicio de Inteligencia de Precios, Inflación y Recomendaciones Multitienda
 // Compara variaciones de precios (Subió vs. Bajó) y asesora dónde comprar más barato
 // entre supermercados (La Comer, Costco, Walmart, Chedraui, Mercadona, etc.)
+// Los importes de sus textos salen de la función única de dinero con la
+// moneda del registro comparado (3.14.0): nada de «$» fijo.
+import { formatHouseMoney } from '../utils/formatMoney.js';
 
 const STORAGE_KEY = 'alacena_price_records_verified_v2';
 
@@ -140,7 +143,7 @@ export function analyzeItemPriceTrend(productName, currentUnitPrice, currentStor
   if (diff < 0) {
     return {
       status: 'down',
-      text: `Bajó $${Math.abs(diff).toFixed(2)} (${Math.abs(percent)}%)`,
+      text: `Bajó ${formatHouseMoney({ currency }, Math.abs(diff))} (${Math.abs(percent)}%)`,
       diff: Math.abs(diff),
       percent: Math.abs(percent),
       previousPrice: prevPrice,
@@ -151,7 +154,7 @@ export function analyzeItemPriceTrend(productName, currentUnitPrice, currentStor
   } else {
     return {
       status: 'up',
-      text: `Subió +$${diff.toFixed(2)} (+${percent}%)`,
+      text: `Subió +${formatHouseMoney({ currency }, diff)} (+${percent}%)`,
       diff,
       percent,
       previousPrice: prevPrice,
@@ -200,7 +203,7 @@ export function getCrossStoreRecommendation(productName, currentUnitPrice, curre
       cheapestStore: cheapest.store,
       cheapestPrice: cheapest.unitPrice,
       storeBreakdown,
-      recommendationText: `Más barato en ${cheapest.store} ($${cheapest.unitPrice.toFixed(2)})`,
+      recommendationText: `Más barato en ${cheapest.store} (${formatHouseMoney({ currency }, cheapest.unitPrice)})`,
       isBestPrice: false,
     };
   }
@@ -229,7 +232,7 @@ export function getCrossStoreRecommendation(productName, currentUnitPrice, curre
     savingsPct,
     storeBreakdown,
     isBestPrice: false,
-    recommendationText: `💡 En ${cheapest.store} está a $${cheapest.unitPrice.toFixed(2)} (Ahorras $${savings.toFixed(2)} / -${savingsPct}%)`,
+    recommendationText: `💡 En ${cheapest.store} está a ${formatHouseMoney({ currency }, cheapest.unitPrice)} (Ahorras ${formatHouseMoney({ currency }, savings)} / -${savingsPct}%)`,
   };
 }
 

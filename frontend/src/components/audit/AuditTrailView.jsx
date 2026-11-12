@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { 
-  History, ShieldCheck, User, Calendar, Filter, Clock, 
-  Lock, ShoppingCart, Wine, Utensils, Pencil, Trash2, 
-  FileText, ChevronDown, ChevronRight, CheckCircle2, AlertTriangle
+import {
+  History, ShoppingCart, Wine, Utensils, Pencil, Trash2,
+  FileText
 } from 'lucide-react';
 import { audio } from '../../services/audioService';
 
@@ -19,7 +18,44 @@ function getRelativeTime(timestamp) {
   return `hace ${diffDays} d`;
 }
 
-function getEntryHash(log) { return log.hashActual ? log.hashActual.slice(0,8) : 'Sin firma'; }
+// 3.14.0 (B-6): la bitácora es para la casa, no para un auditor de
+// sistemas — las acciones se enseñan con su nombre humano, nunca con
+// el código crudo (BAJA_ARTICULO y familia). Un código nuevo que aún
+// no esté en el mapa se humaniza (guiones bajos fuera), jamás se
+// muestra tal cual.
+const ACTION_LABELS = {
+  ALTA_MANUAL: 'Alta manual',
+  ALTA_PRODUCTO_ESCANEO: 'Alta por escaneo',
+  MODIFICACION_ARTICULO: 'Artículo modificado',
+  BAJA_ARTICULO: 'Baja de artículo',
+  INCREMENTO_STOCK: 'Entrada de stock',
+  CONSUMO_STOCK: 'Consumo',
+  INGRESO_MANUAL: 'Ingreso manual',
+  INGRESO_DIRECTO: 'Ingreso directo',
+  INGRESO_COMPRA_SUPER: 'Compra guardada en despensa',
+  INGRESO_TICKET_DESPENSA: 'Ticket guardado en despensa',
+  DEVOLUCION_COMPRA: 'Devolución de compra',
+  DESCORCHE_VINO: 'Descorche',
+  CALIFICACION_VINO: 'Calificación de vino',
+  CONSUMO_RECETA: 'Receta cocinada',
+  ALTA_RECETA: 'Receta creada',
+  EDICION_RECETA: 'Receta editada',
+  ELIMINACION_RECETA: 'Receta eliminada',
+  CREACION_ZONA: 'Zona creada',
+  EDICION_ZONA: 'Zona editada',
+  ELIMINACION_ZONA: 'Zona eliminada',
+  AJUSTE_ZONA: 'Ajuste de zona',
+  RESTAURACION_RESPALDO: 'Respaldo restaurado',
+  RESTAURACION_ARTICULO: 'Artículo restaurado',
+  RESTAURACION_RECETA: 'Receta restaurada',
+};
+
+export function humanActionLabel(action) {
+  if (!action) return '';
+  if (ACTION_LABELS[action]) return ACTION_LABELS[action];
+  const humanized = String(action).replace(/_/g, ' ').toLowerCase();
+  return humanized.charAt(0).toUpperCase() + humanized.slice(1);
+}
 
 // Configuración de icono y color por tipo de acción (Fase 8.8)
 function getActionConfig(action = '') {
@@ -72,7 +108,6 @@ function getActionConfig(action = '') {
 
 export default function AuditTrailView({ logs = [] }) {
   const [filterStaff, setFilterStaff] = useState('ALL');
-  const [expandedLogId, setExpandedLogId] = useState(null);
 
   const staffNames = Array.from(new Set(logs.map((l) => l.staff).filter(Boolean)));
 
@@ -81,12 +116,9 @@ export default function AuditTrailView({ logs = [] }) {
     return true;
   });
 
-  const toggleExpand = (id) => {
-    audio.click();
-    setExpandedLogId(expandedLogId === id ? null : id);
-  };
-
-  const handleExportPdf = () => {
+  // 3.14.0: el botón imprime la vista (window.print) — se llama
+  // «Imprimir», sin prometer un PDF firmado que no existe.
+  const handlePrint = () => {
     audio.success();
     window.print();
   };
@@ -94,7 +126,8 @@ export default function AuditTrailView({ logs = [] }) {
   return (
     <div className="space-y-6">
       
-      {/* 1. Header con Banner de Integridad Criptográfica SHA-256 */}
+      {/* 1. Encabezado — 3.14.0 (B-6): «Bitácora» a secas y un conteo
+          simple; fuera el banner de integridad criptográfica. */}
       <div className="card-luxe p-6 border border-[var(--border-soft)] bg-[var(--bg-elevated)] space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -103,7 +136,7 @@ export default function AuditTrailView({ logs = [] }) {
             </div>
             <div>
               <h2 className="font-display text-2xl font-bold text-white tracking-tight">
-                Bitácora Forense Patrimonial
+                Bitácora
               </h2>
               <p className="text-xs text-[var(--ink-tertiary)] mt-0.5">
                 Historial de movimientos, consumos y descorches de esta casa.
@@ -128,28 +161,25 @@ export default function AuditTrailView({ logs = [] }) {
               </select>
             </div>
 
-            {/* Exportar PDF con Documento y Firmante */}
+            {/* Imprimir la vista */}
             <button
-              onClick={handleExportPdf}
+              onClick={handlePrint}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--bg-base)] hover:bg-[var(--border-soft)] border border-[var(--border-strong)] text-xs font-bold text-[var(--ink-primary)] transition-all"
-              title="Exportar reporte de auditoría firmado"
+              title="Imprimir la bitácora"
             >
               <FileText className="w-4 h-4 text-[var(--accent-audit)]" />
-              <span className="hidden sm:inline">Exportar PDF</span>
+              <span className="hidden sm:inline">Imprimir</span>
             </button>
           </div>
         </div>
 
-        {/* Banner de Verificación de Integridad */}
-        <div className="p-3.5 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)] flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2.5">
-            <History className="w-4 h-4 text-[var(--ink-secondary)] shrink-0" />
-            <span className="text-[var(--ink-primary)] font-medium">
-              {logs.length ? 'Movimientos registrados. La integridad criptográfica no se ha verificado.' : 'Sin movimientos todavía. No hay registros que verificar.'}
-            </span>
-          </div>
-          <span className="px-2.5 py-0.5 rounded-full bg-[var(--bg-elevated)] text-[var(--ink-secondary)] font-mono text-[10px] font-bold uppercase tracking-wider">
-            {logs.length ? 'Sin verificación criptográfica' : 'Sin movimientos'}
+        {/* Conteo simple de movimientos */}
+        <div className="p-3.5 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)] flex flex-wrap items-center gap-3 text-xs">
+          <History className="w-4 h-4 text-[var(--ink-secondary)] shrink-0" />
+          <span className="text-[var(--ink-primary)] font-medium">
+            {logs.length
+              ? `${logs.length} ${logs.length === 1 ? 'movimiento registrado' : 'movimientos registrados'} en esta casa.`
+              : 'Sin movimientos todavía.'}
           </span>
         </div>
       </div>
@@ -162,25 +192,22 @@ export default function AuditTrailView({ logs = [] }) {
               <History className="w-8 h-8" />
             </div>
             <h4 className="font-display text-xl font-bold text-white">
-              📖 La historia comienza con tu primera acción.
+              La historia comienza con tu primera acción.
             </h4>
             <p className="text-xs text-[var(--ink-tertiary)] mt-1.5 max-w-sm mx-auto">
-              Cada consumo, ingreso de compra, cocción o descorche aparecerá aquí como movimiento. No se presentan firmas que no existan.
+              Cada consumo, ingreso de compra, cocción o descorche aparecerá aquí como movimiento.
             </p>
           </div>
         ) : (
           <div className="relative pl-6 sm:pl-8 space-y-6 before:absolute before:left-3 sm:before:left-4 before:top-3 before:bottom-3 before:w-0.5 before:bg-[var(--border-soft)]">
             {filteredLogs.map((log) => {
-              const date = new Date(log.timestamp);
               const relativeTime = getRelativeTime(log.timestamp);
               const config = getActionConfig(log.action);
               const ActionIcon = config.icon;
-              const shortHash = getEntryHash(log);
-              const isExpanded = expandedLogId === log.id;
 
               return (
                 <div key={log.id} className="relative group">
-                  
+
                   {/* Nodo Circular con Icono Según Acción */}
                   <div
                     className="absolute -left-[30px] sm:-left-[35px] top-1.5 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md border"
@@ -195,35 +222,28 @@ export default function AuditTrailView({ logs = [] }) {
 
                   {/* Tarjeta de Entrada de la Bitácora */}
                   <div className="rounded-2xl bg-[var(--bg-base)] border border-[var(--border-soft)] hover:border-[var(--border-strong)] p-4 transition-all space-y-2">
-                    
-                    {/* Encabezado: Fecha relativa + Actor + Hash SHA-256 */}
+
+                    {/* Encabezado: Actor + tipo de movimiento + hora */}
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span className="font-display text-sm font-bold text-white">
-                          {log.staff || 'Personal Autorizado'}
+                          {log.staff || 'Sin registrar'}
                         </span>
                         <span
-                          className="px-2 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase border"
+                          className="px-2 py-0.5 rounded-md text-[10px] font-bold border"
                           style={{
                             backgroundColor: config.bg,
                             borderColor: config.border,
                             color: config.color,
                           }}
                         >
-                          {log.action || config.label}
+                          {humanActionLabel(log.action) || config.label}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        {/* Hash chip de 8 caracteres con icono candado */}
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-soft)] text-[10px] font-mono text-[var(--ink-tertiary)]">
-                          <Lock className="w-2.5 h-2.5 text-[var(--accent-audit)]" />
-                          <span>#{shortHash}</span>
-                        </span>
-                        <span className="text-xs text-[var(--ink-tertiary)] font-mono">
-                          {relativeTime}
-                        </span>
-                      </div>
+                      <span className="text-xs text-[var(--ink-tertiary)]">
+                        {relativeTime}
+                      </span>
                     </div>
 
                     {/* Descripción Principal */}
@@ -233,34 +253,10 @@ export default function AuditTrailView({ logs = [] }) {
 
                     {/* Detalle o Notas */}
                     {log.details && (
-                      <p className="text-[11px] text-[var(--ink-secondary)] bg-[var(--bg-elevated)] p-2.5 rounded-xl border border-[var(--border-soft)] font-mono">
+                      <p className="text-[11px] text-[var(--ink-secondary)] bg-[var(--bg-elevated)] p-2.5 rounded-xl border border-[var(--border-soft)]">
                         {log.details}
                       </p>
                     )}
-
-                    {/* Delta JSON Colapsable */}
-                    <div className="pt-1">
-                      <button
-                        onClick={() => toggleExpand(log.id)}
-                        className="text-[10px] font-mono text-[var(--accent-audit)] hover:text-[var(--accent-audit)] flex items-center gap-1 transition-colors"
-                      >
-                        {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                        <span>{isExpanded ? 'Ocultar delta técnico' : 'Ver delta JSON'}</span>
-                      </button>
-
-                      {isExpanded && (
-                        <div className="mt-2 p-3 rounded-xl bg-[var(--bg-sunken)] border border-[var(--border-soft)] text-[10px] font-mono text-[var(--ink-secondary)] overflow-x-auto">
-                          <pre>{JSON.stringify({
-                            id: log.id,
-                            timestamp: log.timestamp,
-                            staff: log.staff,
-                            action: log.action,
-                            description: log.description,
-                            hashActual: log.hashActual || null
-                          }, null, 2)}</pre>
-                        </div>
-                      )}
-                    </div>
 
                   </div>
 

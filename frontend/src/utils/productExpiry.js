@@ -67,3 +67,22 @@ export function migrateProductsExpiry(list) {
   if (!Array.isArray(list)) return list;
   return list.map(migrateProductExpiry);
 }
+
+// ── «Por vencer»: UNA sola definición para toda la app (3.14.0) ──
+// Antes cada pantalla usaba su propio umbral (Despensa 15 días,
+// cabecera 3, Resumen Diario 4) y el mismo producto «urgía» en una
+// pantalla y no existía en otra. Definición única, la de Despensa:
+//
+//   Por vencer = el producto caduca hoy o en los próximos 15 días
+//   (o ya caducó) Y todavía queda existencia que consumir.
+//
+// Cabecera, Resumen Diario y Despensa cuentan con isExpiringSoon;
+// nadie vuelve a escribir su propio «<= N días» de caducidad.
+export const EXPIRY_SOON_DAYS = 15;
+
+export function isExpiringSoon(product, now = new Date()) {
+  if (!product || (product.quantity || 0) <= 0) return false;
+  const diffDays = daysUntilExpiry(getProductExpiryDate(product), now);
+  if (diffDays === null) return false;
+  return diffDays <= EXPIRY_SOON_DAYS;
+}

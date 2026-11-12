@@ -15,7 +15,8 @@ import ItemQrModal from '../shopping/ItemQrModal';
 import PantryQrBookletModal from '../shopping/PantryQrBookletModal';
 import InventoryChartsWidget from './InventoryChartsWidget';
 import { confirmDialog } from '../../services/notice';
-import { daysUntilExpiry } from '../../utils/productExpiry';
+import { daysUntilExpiry, EXPIRY_SOON_DAYS, isExpiringSoon } from '../../utils/productExpiry';
+import { formatHouseMoney, houseCurrencyCode } from '../../utils/formatMoney';
 import { missingProductFields } from '../../utils/productCompleteness';
 
 // Helper: cálculo del estado de caducidad FEFO
@@ -25,7 +26,7 @@ export function getExpiryStatus(expiryDate) {
   if (diffDays < 0) return { label: 'Caducado', days: diffDays, level: 'expired', badgeClass: 'bg-rose-600 text-white border border-rose-400 font-extrabold shadow-sm' };
   if (diffDays === 0) return { label: 'Vence hoy', days: diffDays, level: 'critical', badgeClass: 'bg-rose-500 text-white border border-rose-300 font-extrabold shadow-sm animate-pulse' };
   if (diffDays <= 3) return { label: `Vence en ${diffDays}d`, days: diffDays, level: 'critical', badgeClass: 'bg-rose-500 text-white border border-rose-300 font-extrabold shadow-sm animate-pulse' };
-  if (diffDays <= 15) return { label: `Vence en ${diffDays}d`, days: diffDays, level: 'warning', badgeClass: 'bg-amber-400 text-[var(--on-gold)] border border-amber-200 font-extrabold shadow-sm' };
+  if (diffDays <= EXPIRY_SOON_DAYS) return { label: `Vence en ${diffDays}d`, days: diffDays, level: 'warning', badgeClass: 'bg-amber-400 text-[var(--on-gold)] border border-amber-200 font-extrabold shadow-sm' };
   return { label: `Vence en ${diffDays}d`, days: diffDays, level: 'good', badgeClass: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' };
 }
 
@@ -39,6 +40,56 @@ function getWineStyleColor(wine) {
   return '#6B1F2E'; // Tinto por defecto
 }
 
+// 3.14.0 (C-7): cantidad editable en la tarjeta de Despensa, con el
+// mismo patrón de la Lista (Q2): tocar la cantidad abre un input
+// numérico en la tarjeta; el paso depende de la unidad y el valor
+// queda a 3 decimales. Antes había que abrir la ficha entera entre
+// seis botones solo para corregir un número.
+function EditableQuantity({ product, onCommit }) {
+  const [draft, setDraft] = useState(null);
+  if (draft === null) {
+    return (
+      <button
+        type="button"
+        title="Tocar para escribir la cantidad"
+        onClick={() => setDraft(String(product.quantity ?? 0))}
+        className="font-mono-num text-sm font-black text-white hover:text-[var(--gold)] transition-colors text-left"
+      >
+        {product.quantity} <span className="text-xs text-[var(--ink-secondary)] font-sans font-normal">{product.unit}</span>
+      </button>
+    );
+  }
+  const commit = () => {
+    const parsed = parseFloat(String(draft).replace(',', '.'));
+    setDraft(null);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      const next = roundQty3(parsed);
+      if (next !== Number(product.quantity)) onCommit(product.id, next);
+    }
+  };
+  return (
+    <span className="inline-flex items-center gap-1">
+      <input
+        autoFocus
+        type="number"
+        inputMode="decimal"
+        min="0"
+        step={stepForUnit(product.unit)}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') setDraft(null);
+        }}
+        aria-label={`Cantidad de ${product.name}`}
+        className="w-20 px-2 py-1 rounded-lg bg-[var(--bg-base)] border border-[var(--gold)] text-white text-sm font-mono-num focus:outline-none"
+      />
+      <span className="text-xs text-[var(--ink-secondary)]">{product.unit}</span>
+    </span>
+  );
+}
+
 export default function InventoryView({
   products,
   zones,
@@ -50,6 +101,7 @@ export default function InventoryView({
   onAddZone,
   onOpenWineTasting,
   onOpenShoppingTab,
+  onAutoGenerateShopping,
   onOpenRecipesTab,
   onAddToShoppingList,
   recipes = [],
@@ -123,8 +175,10 @@ export default function InventoryView({
       if (missingProductFields(p).length > 0) {
         incompleteCount++;
       }
-      const expStatus = getExpiryStatus(p.expiryDate);
-      if (expStatus && expStatus.days <= 15) {
+      // 3.14.0: conteo con la definición única de «por vencer»
+      // (isExpiringSoon: ≤15 días y con existencia), la misma que
+      // usan la cabecera y el Resumen Diario.
+      if (isExpiringSoon(p)) {
         expiringSoonCount++;
       }
     });
@@ -146,8 +200,7 @@ export default function InventoryView({
       if (statusFilter === 'OUT' && p.quantity > 0) return false;
       if (statusFilter === 'OPTIMAL' && p.quantity <= p.minStock) return false;
       if (statusFilter === 'EXPIRING') {
-        const expStatus = getExpiryStatus(p.expiryDate);
-        if (!expStatus || expStatus.days > 15) return false;
+        if (!isExpiringSoon(p)) return false;
       }
       if (statusFilter === 'INCOMPLETE' && missingProductFields(p).length === 0) return false;
 
@@ -198,7 +251,7 @@ export default function InventoryView({
   // Exportar todo el inventario a CSV / Excel con codificación UTF-8
   const handleExportCsv = () => {
     audio.click();
-    const headers = ['Nombre', 'Categoría', 'Zona', 'Existencia', 'Unidad', 'Stock Mínimo', 'Precio Unitario MXN', 'Valuación Total MXN', 'Proveedor', 'Caducidad'];
+    const headers = ['Nombre', 'Categoría', 'Zona', 'Existencia', 'Unidad', 'Stock Mínimo', `Precio Unitario ${houseCurrencyCode(activeHouse)}`, `Valuación Total ${houseCurrencyCode(activeHouse)}`, 'Proveedor', 'Caducidad'];
     const rows = products.map((p) => [
       `"${(p.name || '').replace(/"/g, '""')}"`,
       `"${(p.category || '').replace(/"/g, '""')}"`,
@@ -250,11 +303,17 @@ export default function InventoryView({
         </button>
         {showSummary && (
           <div className="px-3 pb-4 sm:px-4 space-y-6 animate-fade-in">
-      {/* Top Metrics Cards (Luxe Look in MXN) */}
+      {/* Top Metrics Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         
-        {/* 1. Total Artículos en Casa */}
-        <div className="rounded-2xl p-3.5 sm:p-5 flex items-center justify-between border border-[var(--border-soft)] bg-[var(--bg-elevated)] shadow-sm hover:border-emerald-500/30 transition-all">
+        {/* 1. Total Artículos en Casa — 3.14.0 (C-5): clicable,
+            limpia filtros y enseña toda la despensa. */}
+        <div
+          onClick={() => { audio.click(); setStatusFilter('ALL'); setSelectedCategory('ALL'); setSelectedZone(null); setSearch(''); if (onClearNavigation) onClearNavigation(); }}
+          role="button"
+          title="Ver toda la despensa (limpiar filtros)"
+          className="rounded-2xl p-3.5 sm:p-5 flex items-center justify-between border border-[var(--border-soft)] bg-[var(--bg-elevated)] shadow-sm hover:border-emerald-500/30 transition-all cursor-pointer"
+        >
           <div className="min-w-0">
             <span className="text-[10px] sm:text-[11px] font-bold text-[var(--ink-secondary)] uppercase tracking-wider block truncate">
               En Despensa & Cava
@@ -307,7 +366,7 @@ export default function InventoryView({
         >
           <div className="min-w-0">
             <span className="text-[10px] sm:text-[11px] font-bold text-amber-400 uppercase tracking-wider block truncate">
-              Vence Pronto (&le;15d)
+              Por Vencer (&le;15d)
             </span>
             <div className="text-xl sm:text-3xl font-black text-amber-300 mt-0.5 sm:mt-1 font-mono-num truncate">
               {metrics.expiringSoonCount} <span className="text-[10px] sm:text-xs text-[var(--ink-secondary)] font-sans font-normal">por consumir</span>
@@ -321,15 +380,21 @@ export default function InventoryView({
           </div>
         </div>
 
-        {/* 4. Valor Estimado de la Despensa (Moneda dinámica según el Hogar: EUR o MXN) */}
-        <div className="rounded-2xl p-3.5 sm:p-5 flex items-center justify-between border border-[var(--border-soft)] bg-[var(--bg-elevated)] shadow-sm hover:border-emerald-500/30 transition-all">
+        {/* 4. Valor Estimado de la Despensa — 3.14.0 (C-5): clicable,
+            lleva a la vista tabla, donde el valor se desglosa por
+            producto (precio y valuación por fila). */}
+        <div
+          onClick={() => { audio.click(); setViewMode('table'); }}
+          role="button"
+          title="Ver el desglose del valor en la tabla"
+          className="rounded-2xl p-3.5 sm:p-5 flex items-center justify-between border border-[var(--border-soft)] bg-[var(--bg-elevated)] shadow-sm hover:border-emerald-500/30 transition-all cursor-pointer"
+        >
           <div className="min-w-0">
             <span className="text-[10px] sm:text-[11px] font-bold text-sky-400 uppercase tracking-wider block truncate">
               Valor Despensa
             </span>
             <div className="text-xl sm:text-3xl font-black text-white mt-0.5 sm:mt-1 font-mono-num truncate">
-              {activeHouse?.currency === 'EUR' ? '€' : '$'}
-              {Math.round(metrics.totalValuationMxn).toLocaleString(activeHouse?.currency === 'EUR' ? 'es-ES' : 'es-MX')}
+              {formatHouseMoney(activeHouse, metrics.totalValuationMxn)}
             </div>
             <span className="text-[10px] sm:text-xs text-[var(--ink-secondary)] mt-0.5 sm:mt-1 block truncate">
               {activeHouse?.currency || 'MXN'} • {activeHouse?.name || 'Hogar'}
@@ -403,17 +468,21 @@ export default function InventoryView({
               }}
               className="px-3 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-all"
             >
-              🔍 Ver Faltantes
+              Ver Faltantes
             </button>
             <button
               onClick={() => {
                 audio.click();
+                // 3.14.0 (C-8): «Generar» GENERA — añade los
+                // faltantes de esta casa a la lista (el aviso de
+                // App dice cuántos) y después abre la lista.
+                if (onAutoGenerateShopping) onAutoGenerateShopping();
                 if (onOpenShoppingTab) onOpenShoppingTab();
               }}
               className="px-4 py-2 rounded-xl text-xs font-bold bg-[var(--terracotta)] hover:bg-[var(--ember)] text-white transition-all shadow-md shadow-[var(--terracotta)]/30 flex items-center gap-2 active:scale-95"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
-              <span>🛒 Generar Lista del Súper</span>
+              <span>Generar Lista del Súper</span>
             </button>
           </div>
         </div>
@@ -453,14 +522,15 @@ export default function InventoryView({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* Botón Exportar CSV / Excel */}
+            {/* Botón Exportar CSV — 3.14.0: se llama como lo que
+                descarga (un CSV), no «Excel». */}
             <button
               onClick={handleExportCsv}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[var(--bg-base)] hover:bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:text-white border border-[var(--border-soft)] transition-all active:scale-95"
-              title="Descargar inventario completo en formato CSV compatible con Excel"
+              title="Descargar inventario completo en formato CSV (se abre en Excel)"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-              <span className="hidden sm:inline">Exportar Excel</span>
+              <span className="hidden sm:inline">Exportar CSV</span>
             </button>
 
             {/* Botón Centro de Impresión de Stickers y QR */}
@@ -630,7 +700,7 @@ export default function InventoryView({
             { id: 'ALL', label: 'Todos' },
             { id: 'OPTIMAL', label: 'Stock Óptimo' },
             { id: 'LOW', label: `Stock Bajo (${metrics.lowStockCount})` },
-            { id: 'EXPIRING', label: `⏰ Por Vencer (${metrics.expiringSoonCount})` },
+            { id: 'EXPIRING', label: `Por Vencer (${metrics.expiringSoonCount})` },
             { id: 'INCOMPLETE', label: `Ficha incompleta (${metrics.incompleteCount})` },
             { id: 'OUT', label: 'Agotados' },
           ].map((st) => (
@@ -664,7 +734,7 @@ export default function InventoryView({
             </h4>
             <p className="text-xs text-[var(--ink-tertiary)] mt-1 max-w-sm mx-auto">
               {isCavaFilter 
-                ? 'Registra cosechas, bodegas, añadas y fichas de cata con valuación en MXN.'
+                ? `Registra cosechas, bodegas, añadas y fichas de cata con valuación en ${houseCurrencyCode(activeHouse)}.`
                 : 'No se encontraron artículos con los filtros actuales. Registra un nuevo producto o ajusta la búsqueda.'}
             </p>
             <button
@@ -687,6 +757,10 @@ export default function InventoryView({
               const isWine = p.isWine || p.category === 'Vinos & Licores';
               const isLow = (p.quantity || 0) <= (p.minStock || 0);
               const isOut = (p.quantity || 0) <= 0;
+              // 3.14.0 (C-3): referencia de la barra de stock SOLO si el
+              // producto trae máximo o ideal reales; sin dato no se
+              // inventa capacidad (antes: 6 por defecto).
+              const stockRef = p.maxStock || p.idealStock || null;
               const wineColor = getWineStyleColor(p);
               const missingFields = missingProductFields(p);
               const incompleteBadge = missingFields.length > 0 ? (
@@ -719,7 +793,11 @@ export default function InventoryView({
                           <span>{p.countryFlag || '🍷'}</span>
                           <span className="truncate">{p.country || 'D.O.'} • {p.region || 'Cava'}</span>
                         </div>
-                        <h3 className="font-display text-lg font-bold text-white truncate mt-0.5">
+                        <h3
+                          onClick={() => { audio.click(); if (onOpenWineTasting) onOpenWineTasting(p); }}
+                          title="Abrir la ficha del vino"
+                          className="font-display text-lg font-bold text-white truncate mt-0.5 cursor-pointer hover:text-[var(--gold)] transition-colors"
+                        >
                           {p.name}
                         </h3>
                         {incompleteBadge && <div className="mt-1">{incompleteBadge}</div>}
@@ -738,23 +816,33 @@ export default function InventoryView({
                         </div>
                       </div>
 
-                      {/* Derecha: Puntaje Sommelier 80-100 Tabular XL */}
+                      {/* Derecha: Puntaje Sommelier — 3.14.0 (C-3): sin
+                          puntaje real no se inventan 92 puntos ni
+                          5 estrellas; se dice «Sin puntuar». */}
                       <div className="text-right shrink-0">
-                        <div className="font-display text-2xl font-black text-[var(--gold)] font-mono-num leading-none">
-                          {p.sommelierPoints || 92}
-                        </div>
-                        <div className="flex items-center justify-end gap-0.5 mt-1">
-                          {[1, 2, 3, 4, 5].map((s) => (
-                            <Star
-                              key={s}
-                              className={`w-3 h-3 ${
-                                s <= (p.rating || 5)
-                                  ? 'fill-[var(--gold)] text-[var(--gold)]'
-                                  : 'text-[var(--border-strong)]'
-                              }`}
-                            />
-                          ))}
-                        </div>
+                        {p.sommelierPoints ? (
+                          <div className="font-display text-2xl font-black text-[var(--gold)] font-mono-num leading-none">
+                            {p.sommelierPoints}
+                          </div>
+                        ) : (
+                          <div className="text-[11px] font-bold text-[var(--ink-tertiary)] leading-none pt-1">
+                            Sin puntuar
+                          </div>
+                        )}
+                        {p.rating > 0 && (
+                          <div className="flex items-center justify-end gap-0.5 mt-1">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star
+                                key={s}
+                                className={`w-3 h-3 ${
+                                  s <= p.rating
+                                    ? 'fill-[var(--gold)] text-[var(--gold)]'
+                                    : 'text-[var(--border-strong)]'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -839,7 +927,13 @@ export default function InventoryView({
                         }
                       />
                       <div className="min-w-0">
-                        <h3 className="font-display text-base font-bold text-white truncate">
+                        {/* 3.14.0 (C-7): el nombre abre la ficha; ya no
+                            hay que acertar al lápiz entre seis botones. */}
+                        <h3
+                          onClick={() => { audio.click(); onEditProduct(p); }}
+                          title="Abrir la ficha del producto"
+                          className="font-display text-base font-bold text-white truncate cursor-pointer hover:text-[var(--gold)] transition-colors"
+                        >
                           {p.name}
                         </h3>
                         {incompleteBadge && <div className="mt-0.5">{incompleteBadge}</div>}
@@ -876,25 +970,26 @@ export default function InventoryView({
                   {/* Fila Inferior: Precios, Steppers ± y +Súper */}
                   <div className="mt-4 pt-3 border-t border-[var(--border-soft)] flex items-center justify-between">
                     <div>
-                      <div className="font-mono-num text-sm font-black text-white">
-                        {p.quantity} <span className="text-xs text-[var(--ink-secondary)] font-sans font-normal">{p.unit}</span>
-                      </div>
+                      <EditableQuantity product={p} onCommit={onUpdateQuantity} />
                       <div className="text-[10px] text-[var(--ink-secondary)] font-mono-num">
-                        {activeHouse?.currency === 'EUR' ? '€' : '$'}
-                        {(p.unitPriceMxn || 0).toFixed(2)} {activeHouse?.currency || 'MXN'} c/u
+                        {formatHouseMoney(activeHouse, p.unitPriceMxn || 0)} c/u
                       </div>
-                      <div className="w-24 bg-[var(--bg-elevated)] rounded-full h-1.5 mt-1 overflow-hidden border border-[var(--border-strong)]" title={`Capacidad máx: ${p.maxStock || p.idealStock || 6} ${p.unit}`}>
-                        <div 
-                          className={`h-full rounded-full transition-all ${
-                            p.quantity > (p.maxStock || p.idealStock || 6)
-                              ? 'bg-amber-400'
-                              : p.quantity <= p.minStock
-                              ? 'bg-rose-500'
-                              : 'bg-emerald-500'
-                          }`}
-                          style={{ width: `${Math.min(100, Math.round(((p.quantity || 0) / (p.maxStock || p.idealStock || 6)) * 100))}%` }}
-                        />
-                      </div>
+                      {stockRef ? (
+                        <div className="w-24 bg-[var(--bg-elevated)] rounded-full h-1.5 mt-1 overflow-hidden border border-[var(--border-strong)]" title={`Capacidad máx: ${stockRef} ${p.unit}`}>
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              p.quantity > stockRef
+                                ? 'bg-amber-400'
+                                : p.quantity <= p.minStock
+                                ? 'bg-rose-500'
+                                : 'bg-emerald-500'
+                            }`}
+                            style={{ width: `${Math.min(100, Math.round(((p.quantity || 0) / stockRef) * 100))}%` }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-[var(--ink-tertiary)] mt-1">Sin referencia de stock</div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1.5">
@@ -1029,7 +1124,7 @@ export default function InventoryView({
                             </span>
                           )}
                           <span className="sm:hidden font-mono text-emerald-400/90 font-bold">
-                            • ${totalRowValuation.toFixed(0)}
+                            • {formatHouseMoney(activeHouse, totalRowValuation)}
                           </span>
                         </div>
                       </td>
@@ -1058,11 +1153,11 @@ export default function InventoryView({
                       </td>
 
                       <td className="py-3 px-3 font-mono-num text-gray-300 hidden sm:table-cell text-xs">
-                        ${(p.unitPriceMxn || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                        {formatHouseMoney(activeHouse, p.unitPriceMxn || 0)}
                       </td>
 
                       <td className="py-3 px-3 font-mono-num font-bold text-emerald-400 hidden lg:table-cell text-xs">
-                        ${totalRowValuation.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                        {formatHouseMoney(activeHouse, totalRowValuation)}
                       </td>
 
                       <td className="py-2.5 sm:py-3 px-2 sm:px-4 text-right">

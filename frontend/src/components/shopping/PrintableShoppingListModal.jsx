@@ -20,6 +20,7 @@ import {
 import { audio } from '../../services/audioService';
 import { SUPERMARKET_DEPARTMENTS, getDepartmentForItem } from './ShoppingListView';
 import { generateShoppingListPdf } from '../../services/pdfGenerator';
+import { formatHouseMoney, houseCurrencyCode } from '../../utils/formatMoney';
 import { notify } from '../../services/notice';
 
 export default function PrintableShoppingListModal({
@@ -102,7 +103,7 @@ export default function PrintableShoppingListModal({
     const dateStr = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     let text = `🛒 *LISTA DE COMPRAS — ${activeHouse?.name?.toUpperCase() || 'RESIDENCIA'}*\n`;
     text += `📅 Fecha: ${dateStr}\n`;
-    text += `💰 Presupuesto Estimado: $${computedTotalMxn.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN\n`;
+    text += `💰 Presupuesto Estimado: ${formatHouseMoney(activeHouse, computedTotalMxn)}\n`;
     text += `📦 Total Artículos: ${filteredItems.length}\n\n`;
 
     if (groupBy === 'dept') {
@@ -110,7 +111,7 @@ export default function PrintableShoppingListModal({
         text += `\n*${group.name}* (${group.items.length})\n`;
         group.items.forEach(it => {
           const checkedMark = it.checked ? '✅' : '⬜';
-          const priceStr = showPrices && it.estimatedPriceMxn ? ` — ~$${((it.estimatedPriceMxn || 0) * (it.quantity || 1)).toFixed(2)} MXN` : '';
+          const priceStr = showPrices && it.estimatedPriceMxn ? ` — ~${formatHouseMoney(activeHouse, (it.estimatedPriceMxn || 0) * (it.quantity || 1))}` : '';
           text += `${checkedMark} ${it.name} • ${it.quantity} ${it.unit} (${it.store || 'Super'})${priceStr}\n`;
         });
       });
@@ -119,7 +120,7 @@ export default function PrintableShoppingListModal({
         text += `\n*🏪 ${storeName.toUpperCase()}* (${items.length})\n`;
         items.forEach(it => {
           const checkedMark = it.checked ? '✅' : '⬜';
-          const priceStr = showPrices && it.estimatedPriceMxn ? ` — ~$${((it.estimatedPriceMxn || 0) * (it.quantity || 1)).toFixed(2)} MXN` : '';
+          const priceStr = showPrices && it.estimatedPriceMxn ? ` — ~${formatHouseMoney(activeHouse, (it.estimatedPriceMxn || 0) * (it.quantity || 1))}` : '';
           text += `${checkedMark} ${it.name} • ${it.quantity} ${it.unit}${priceStr}\n`;
         });
       });
@@ -189,7 +190,7 @@ export default function PrintableShoppingListModal({
     </div>
     <div style="text-align: right;" class="meta">
       <div><strong>${filteredItems.length} Artículos</strong></div>
-      <div>Presupuesto: $${computedTotalMxn.toFixed(2)} MXN</div>
+      <div>Presupuesto: ${formatHouseMoney(activeHouse, computedTotalMxn)}</div>
     </div>
   </div>
   ${(groupBy === 'dept' ? itemsByDept : itemsByStore.map(([s, it]) => [s, { name: '🏪 ' + s, items: it }])).map(([_, group]) => `
@@ -201,7 +202,7 @@ export default function PrintableShoppingListModal({
           <th>Producto</th>
           <th style="width: 100px; text-align: right;">Cantidad</th>
           <th style="width: 120px;">Tienda</th>
-          <th class="price" style="width: 90px;">Total MXN</th>
+          <th class="price" style="width: 90px;">Total ${houseCurrencyCode(activeHouse)}</th>
         </tr>
       </thead>
       <tbody>
@@ -211,7 +212,7 @@ export default function PrintableShoppingListModal({
             <td><strong>${it.name}</strong>${it.notes ? `<br><small style="color:#666">${it.notes}</small>` : ''}</td>
             <td style="text-align: right;">${it.quantity} ${it.unit}</td>
             <td>${it.store || 'Super'}</td>
-            <td class="price">$${((it.estimatedPriceMxn || 0) * (it.quantity || 1)).toFixed(2)}</td>
+            <td class="price">${formatHouseMoney(activeHouse, (it.estimatedPriceMxn || 0) * (it.quantity || 1))}</td>
           </tr>
         `).join('')}
       </tbody>
@@ -426,7 +427,7 @@ export default function PrintableShoppingListModal({
                   </div>
                   {showPrices && (
                     <div className="font-mono font-bold text-black text-sm bg-gray-100 px-2 py-0.5 rounded border border-gray-300">
-                      ${computedTotalMxn.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN
+                      {formatHouseMoney(activeHouse, computedTotalMxn)}
                     </div>
                   )}
                 </div>
@@ -512,10 +513,10 @@ export default function PrintableShoppingListModal({
                             </span>
                           </td>
 
-                          {/* Precio Estimado en MXN */}
+                          {/* Precio estimado en la moneda de la casa activa */}
                           {showPrices && (
                             <td className="w-24 py-2 text-right align-middle font-mono text-xs text-gray-800 pl-2">
-                              ${((item.estimatedPriceMxn || 0) * (item.quantity || 1)).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {formatHouseMoney(activeHouse, (item.estimatedPriceMxn || 0) * (item.quantity || 1))}
                             </td>
                           )}
                         </tr>
@@ -573,7 +574,7 @@ export default function PrintableShoppingListModal({
                           {/* Precio Estimado */}
                           {showPrices && (
                             <td className="w-24 py-2 text-right align-middle font-mono text-xs text-gray-800 pl-2">
-                              ${((item.estimatedPriceMxn || 0) * (item.quantity || 1)).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {formatHouseMoney(activeHouse, (item.estimatedPriceMxn || 0) * (item.quantity || 1))}
                             </td>
                           )}
                         </tr>

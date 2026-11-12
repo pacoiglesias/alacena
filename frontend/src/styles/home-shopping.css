@@ -12,24 +12,14 @@
 .google-signin-status button { padding: 2px 8px; border: 1px solid var(--border-soft); border-radius: 8px; font-size: 12px; font-weight: 600; }
 .shopping-home { --home-sage: #d5e5b1; padding-bottom: 170px; /* aire para que el último contenido nunca quede bajo la barra de navegación inferior ni los botones flotantes */ }
 .shopping-hero { display: grid; grid-template-columns: 1fr 290px; border-radius: 26px; background: #f5f3eb; color: #25352d; overflow: hidden; border: 1px solid #dce0cf; }
-.shopping-hero-copy { padding: 38px 40px; }
-.shopping-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .18em; display: flex; align-items: center; gap: 8px; color: #4e6656; }
-.shopping-eyebrow > span { width: 7px; height: 7px; background: #6c8853; border-radius: 50%; }
-.shopping-hero h1 { font-family: var(--font-display); font-size: clamp(32px, 3.5vw, 46px); line-height: 1.12; letter-spacing: -.035em; margin: 20px 0 14px; font-weight: 500; }
-.shopping-hero h1 em { color: #5a744e; font-weight: 400; }
-.shopping-hero-copy > p { color: #657066; font-size: 13px; max-width: 420px; line-height: 1.7; }
-.shopping-quick-add { display: flex; align-items: center; gap: 10px; margin-top: 25px; padding: 7px 7px 7px 16px; background: #fff; border: 1px solid #d8dfd1; border-radius: 13px; max-width: 570px; box-shadow: 0 3px 10px #23382808; }
+.shopping-hero-copy { padding: 20px 22px; display: flex; align-items: center; }
+.shopping-quick-add { display: flex; align-items: center; gap: 10px; flex: 1; margin-top: 0; padding: 7px 7px 7px 16px; background: #fff; border: 1px solid #d8dfd1; border-radius: 13px; max-width: 570px; box-shadow: 0 3px 10px #23382808; }
 .shopping-quick-add input { flex: 1; width: 0; min-width: 0; font-size: 14px; background: transparent; color: #25352d; padding: 10px 0; }
 .shopping-quick-add input::placeholder { color: #7d877e; }
 .shopping-quick-add button { display: flex; align-items: center; gap: 10px; background: #304d3e; color: #fff; border-radius: 9px; padding: 12px 16px; font-size: 12px; font-weight: 600; }
 .shopping-quick-add button:disabled { opacity: .55; }
-.shopping-hero-hint { display: block; margin-top: 11px; font-size: 10px; color: #737f72; }
-.shopping-plan { display: flex; flex-direction: column; gap: 13px; background: #e3e9d7; padding: 33px 28px; border-left: 1px solid #d5ddc9; font-size: 12px; }
-.shopping-plan > span:first-of-type { font-size: 9px; letter-spacing: .12em; font-weight: 700; color: #617454; }
-.shopping-plan > strong { font-size: 40px; line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums; }
-.shopping-plan > strong small { font-size: 13px; font-weight: 400; }
-.shopping-plan-rule { height: 1px; background: #c7d2b9; margin: 3px 0; }
-.shopping-plan label { font-size: 11px; margin-bottom: -6px; }
+.shopping-plan { display: flex; flex-direction: column; gap: 10px; background: #e3e9d7; padding: 20px 22px; border-left: 1px solid #d5ddc9; font-size: 12px; justify-content: center; }
+.shopping-plan label { font-size: 11px; font-weight: 600; color: #40513f; }
 .shopping-plan input { border: 1px solid #bdccb1; background: #f6f8f1; color: #25352d; border-radius: 9px; padding: 9px 12px; min-width: 0; width: 100%; }
 .shopping-plan small { font-size: 10px; color: #5a6951; line-height: 1.5; }
 .shopping-plan .shopping-over-budget { color: #a13726; font-weight: 600; }
@@ -57,12 +47,8 @@
   .cloud-status button { padding: 8px; font-size: 10px; }
   .cloud-status svg { flex-shrink: 0; }
   .shopping-hero { grid-template-columns: 1fr; border-radius: 20px; }
-  .shopping-hero-copy { padding: 25px 22px; }
-  .shopping-hero h1 { font-size: 36px; margin-top: 16px; }
-  .shopping-hero-hint { line-height: 1.5; }
-  .shopping-plan { border-left: none; border-top: 1px solid #d5ddc9; padding: 20px 22px; gap: 10px; }
-  .shopping-plan > svg { display: none; }
-  .shopping-plan > strong { font-size: 28px; }
+  .shopping-hero-copy { padding: 16px; }
+  .shopping-plan { border-left: none; border-top: 1px solid #d5ddc9; padding: 16px; gap: 10px; }
   .shopping-quick-add { padding-left: 10px; gap: 5px; }
   .shopping-quick-add button { padding: 12px 10px; gap: 4px; }
   .shopping-filters { flex-direction: column; gap: 8px; }
